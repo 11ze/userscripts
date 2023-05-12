@@ -2,7 +2,7 @@
 // @name		        Jump to Top/Bottom
 // @author		        11ze
 // @description	        为网页增加向页尾、页首的按钮
-// @version				0.0.8
+// @version				0.0.9
 // @icon			data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgBAMAAACBVGfHAAAALVBMVEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD////BHg4sAAAADXRSTlMAK1RVW1x3f4CI+vv8UJ/ShgAAAAFiS0dEDm+9ME8AAABqSURBVCjPY2CgHuCYgCbQexNNwe29DagKjmijKOG448C0dwKKAgYGZCVABQwMyErYjoBIrQKEEgEQwchAb4BuLQfYYdpILoU4HcmluSDPXUcyg+1OADOyAqCSo9bX8QchQ+519GhooKK3APJHHdKCOOK5AAAAAElFTkSuQmCC
 // @match     	    *
 // @include   	    *
@@ -36,20 +36,7 @@ function createTopButton() {
                   no-repeat scroll 50% 50% rgba(${buttonColor});
                   background:url("data:image/png;base64,${topImage}")
                   bottom:50%`;
-  createButton(cssText, function () {
-    if (window.scrollHeight) {
-      window.scrollTo(0, 0);
-      return;
-    }
-
-    const target = getTarget();
-    if (target) {
-      target.scrollIntoView();
-      return;
-    }
-
-    runScrollableElements(true);
-  });
+  createButton(cssText, true);
 }
 if (self == top) createTopButton();
 
@@ -58,24 +45,11 @@ function createBottomButton() {
                   no-repeat scroll 50% 50% rgba(${buttonColor});
                   background:url("data:image/png;base64,${downImage}")
                   top:51%`;
-  createButton(cssText, function () {
-    if (window.scrollHeight) {
-      window.scrollTo(0, document.body.scrollHeight);
-      return;
-    }
-
-    const target = getTarget();
-    if (target) {
-      target.scrollIntoView({ block: 'end' });
-      return;
-    }
-
-    runScrollableElements(false);
-  });
+  createButton(cssText, false);
 }
 if (self == top) createBottomButton();
 
-function createButton(cssText, clickFn) {
+function createButton(cssText, isTop) {
   const button = document.createElement('span');
   button.style.cssText = cssText;
   button.addEventListener(
@@ -92,7 +66,24 @@ function createButton(cssText, clickFn) {
     },
     false
   );
-  button.addEventListener('click', clickFn, false);
+  button.addEventListener(
+    'click',
+    function () {
+      if (window.scrollHeight) {
+        window.scrollTo(0, isTop ? 0 : document.body.scrollHeight);
+        return;
+      }
+
+      const target = getTarget();
+      if (target) {
+        target.scrollIntoView({ block: isTop ? 'start' : 'end' });
+        return;
+      }
+
+      runScrollableElements(isTop);
+    },
+    false
+  );
   document.body.appendChild(button);
 }
 
