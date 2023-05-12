@@ -2,7 +2,7 @@
 // @name		        Jump to Top/Bottom
 // @author		        11ze
 // @description	        为网页增加向页尾、页首的按钮
-// @version				0.0.9
+// @version				0.0.10
 // @icon			data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgBAMAAACBVGfHAAAALVBMVEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD////BHg4sAAAADXRSTlMAK1RVW1x3f4CI+vv8UJ/ShgAAAAFiS0dEDm+9ME8AAABqSURBVCjPY2CgHuCYgCbQexNNwe29DagKjmijKOG448C0dwKKAgYGZCVABQwMyErYjoBIrQKEEgEQwchAb4BuLQfYYdpILoU4HcmluSDPXUcyg+1OADOyAqCSo9bX8QchQ+519GhooKK3APJHHdKCOOK5AAAAAElFTkSuQmCC
 // @match     	    *
 // @include   	    *
@@ -33,8 +33,8 @@ const sameCssText = `opacity:0.3;
 
 function createTopButton() {
   const cssText = `${sameCssText}
-                  no-repeat scroll 50% 50% rgba(${buttonColor});
                   background:url("data:image/png;base64,${topImage}")
+                  no-repeat scroll 50% 50% rgba(${buttonColor});
                   bottom:50%`;
   createButton(cssText, true);
 }
@@ -42,8 +42,8 @@ if (self == top) createTopButton();
 
 function createBottomButton() {
   const cssText = `${sameCssText}
-                  no-repeat scroll 50% 50% rgba(${buttonColor});
                   background:url("data:image/png;base64,${downImage}")
+                  no-repeat scroll 50% 50% rgba(${buttonColor});
                   top:51%`;
   createButton(cssText, false);
 }
