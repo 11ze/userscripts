@@ -20,19 +20,22 @@ const topImage =
 const downImage =
   'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABmJLR0QA/wD/AP+gvaeTAAAAlUlEQVRYhe3QMRLBUBRA0YMxtmIvqajsRCk6W1FYhMKamIyZKCQzmoT8SBTerf979/5HEARB0M7ylztyFFj1kGe44dD0YNoyfMUcx8SIDCcsql1JbFHijk2HubXn9UrsUuWpEV+Vd40YRP5pxKDydxGjyJsiRpXX5JWweJHnY8lr6kv0+vmsR8AFE5yx77EnCILgz3kAzr4zPi4gwh0AAAAASUVORK5CYII=';
 
+const sameCssText = `opacity:0.3;
+                -moz-transition-duration:0.2s;
+                -webkit-transition-duration:0.2s;
+                border-radius:5px 5px 5px 5px;
+                cursor:pointer;
+                position:fixed;
+                width:40px;
+                height:40px;
+                right:0px;
+                z-index:9999;`;
+
 function createTopButton() {
-  const cssText = `opacity:0.3;
-                  -moz-transition-duration:0.2s;
-                  -webkit-transition-duration:0.2s;
-                  background:url("data:image/png;base64,${topImage}")
+  const cssText = `${sameCssText}
                   no-repeat scroll 50% 50% rgba(${buttonColor});
-                  border-radius:5px 5px 5px 5px;cursor:pointer;
-                  position:fixed;
-                  bottom:50%;
-                  width:40px;
-                  height:40px;
-                  right:0px;
-                  z-index:9999`;
+                  background:url("data:image/png;base64,${topImage}")
+                  bottom:50%`;
   createButton(cssText, function () {
     if (window.scrollHeight) {
       window.scrollTo(0, 0);
@@ -51,19 +54,10 @@ function createTopButton() {
 if (self == top) createTopButton();
 
 function createBottomButton() {
-  const cssText = `opacity:0.3;
-                  -moz-transition-duration:0.2s;
-                  -webkit-transition-duration:0.2s;
-                  background:url("data:image/png;base64,${downImage}")
+  const cssText = `${sameCssText}
                   no-repeat scroll 50% 50% rgba(${buttonColor});
-                  border-radius:5px 5px 5px 5px;
-                  cursor:pointer;
-                  position:fixed;
-                  top:51%;
-                  width:40px;
-                  height:40px;
-                  right:0px;
-                  z-index:9999`;
+                  background:url("data:image/png;base64,${downImage}")
+                  top:51%`;
   createButton(cssText, function () {
     if (window.scrollHeight) {
       window.scrollTo(0, document.body.scrollHeight);
