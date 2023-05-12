@@ -37,16 +37,18 @@ function createTopButton() {
                   right:0px;
                   z-index:9999`;
   createButton(cssText, function () {
-    window.scrollTo(0, 0);
-
-    let target = getTarget();
-    if (!target) {
-      target = getBottomTarget();
+    if (window.scrollHeight) {
+      window.scrollTo(0, 0);
+      return;
     }
 
+    const target = getTarget();
     if (target) {
       target.scrollIntoView();
+      return;
     }
+
+    runScrollableElements(true);
   });
 }
 if (self == top) createTopButton();
@@ -66,16 +68,18 @@ function createBottomButton() {
                   right:0px;
                   z-index:9999`;
   createButton(cssText, function () {
-    window.scrollTo(0, document.body.scrollHeight);
-
-    let target = getTarget();
-    if (!target) {
-      target = getBottomTarget();
+    if (window.scrollHeight) {
+      window.scrollTo(0, document.body.scrollHeight);
+      return;
     }
 
+    const target = getTarget();
     if (target) {
       target.scrollIntoView({ block: 'end' });
+      return;
     }
+
+    runScrollableElements(false);
   });
 }
 if (self == top) createBottomButton();
@@ -102,12 +106,6 @@ function createButton(cssText, clickFn) {
 }
 
 function getTarget() {
-  // 极客时间文章页面 https://time.geekbang.org/column/article/
-  const geek = document.getElementById('article-content-container');
-  if (geek) {
-    return geek;
-  }
-
   // QQ 邮箱邮件详情 https://mail.qq.com/cgi-bin/frame_html
   const iframe = document.getElementById('mainFrame');
   if (iframe) {
@@ -117,40 +115,22 @@ function getTarget() {
       return mailText;
     }
   }
-
-  // https://www.notion.so
-  const notion = document.querySelector('.whenContentEditable');
-  if (notion) {
-    return notion;
-  }
-
-  // https://discord.com/channels
-  const discord = document.querySelector(
-    '#app-mount > div.appAsidePanelWrapper-ev4hlp > div.notAppAsidePanel-3yzkgB > div.app-3xd6d0 > div > div.layers-OrUESM.layers-1YQhyW > div > div > div > div.content-1SgpWY > div.chat-2ZfjoI > div.content-1jQy2l > main > div.messagesWrapper-RpOMA3.group-spacing-16 > div > div'
-  );
-  if (discord) {
-    return discord;
-  }
-
-  // https://docs.qq.com/sheet 不工作
-  const qqSheet = document.querySelector('#canvasContainer');
-  if (qqSheet) {
-    return qqSheet;
-  }
 }
 
-function getTopTarget() {
-  // https://docs.qq.com/doc
-  const qqDoc = document.querySelector('#zoomable-container');
-  if (qqDoc) {
-    return qqDoc;
-  }
-}
-
-function getBottomTarget() {
-  // https://docs.qq.com/doc
-  const qqDoc = document.querySelector('#zoomable-container');
-  if (qqDoc) {
-    return qqDoc;
+function runScrollableElements(isTop) {
+  const elements = document.querySelectorAll('*');
+  for (const e of elements) {
+    if (
+      e.scrollHeight > e.clientHeight &&
+      e.scrollHeight > 300 &&
+      e.scrollWidth > 300 &&
+      !e.innerHTML.includes('<html')
+    ) {
+      if (isTop) {
+        e.scrollTo(0, 0);
+      } else {
+        e.scrollTo(0, e.scrollHeight);
+      }
+    }
   }
 }
