@@ -12,21 +12,21 @@
 
 // 筛选：在看
 function toLookIn() {
-  var dropdownMenu = document.querySelector(
+  const dropdownMenu = document.querySelector(
     `.s-space > div > div > div > div.sub-tabs.clearfix > div > div > ul`
   );
   if (!dropdownMenu) {
     return;
   }
 
-  var options = dropdownMenu.getElementsByTagName('li');
+  const options = dropdownMenu.getElementsByTagName('li');
   if (options.length < 3) {
     return;
   }
   options[2].click();
 
   // 收起下拉菜单
-  var triggerButton = document.querySelector(
+  const triggerButton = document.querySelector(
     `.s-space > div > div > div > div.sub-tabs.clearfix > div > div > span > i`
   );
   if (triggerButton) {
@@ -36,13 +36,13 @@ function toLookIn() {
 
 // 切换选项卡时选择「在看」
 function listenTab() {
-  var container = document.querySelector('.s-space');
+  const container = document.querySelector('.s-space');
   if (!container) {
     return;
   }
 
   container.addEventListener('click', function (event) {
-    var target = event.target;
+    const target = event.target;
     if (['追番', '追剧'].includes(target.innerHTML.trim())) {
       toLookIn();
     }
