@@ -17,3 +17,4 @@
 在 [Greasyfork](https://greasyfork.org) 上安装
 
 - [Jump to Top/Bottom](https://greasyfork.org/en/scripts/465916-jump-to-top-bottom)
+- [Bilibili 追番追剧默认在看](https://greasyfork.org/en/scripts/466361-bilibili-%E8%BF%BD%E7%95%AA%E8%BF%BD%E5%89%A7%E9%BB%98%E8%AE%A4%E5%9C%A8%E7%9C%8B)
