@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Bilibili 追番追剧默认在看
+// @name         Bilibili 哔哩哔哩追番追剧默认在看
 // @author       11ze
-// @description  Bilibili 我的订阅默认显示「在看」的番或剧
-// @version      0.0.2
+// @description  Bilibili 哔哩哔哩我的订阅默认显示「在看」的番或剧
+// @version      0.0.3
 // @icon
 // @match        *://space.bilibili.com/*/bangumi
 // @match        *://space.bilibili.com/*/cinema

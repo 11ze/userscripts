@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name		        Jump to Top/Bottom
+// @name		        Jump to Top or Bottom
 // @author		      11ze
 // @description	    为所有网页增加可立即跳转至最大的可滚动区域顶部和底部的按钮
-// @version				  0.0.10
+// @version				  0.0.12
 // @icon			      data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgBAMAAACBVGfHAAAALVBMVEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD////BHg4sAAAADXRSTlMAK1RVW1x3f4CI+vv8UJ/ShgAAAAFiS0dEDm+9ME8AAABqSURBVCjPY2CgHuCYgCbQexNNwe29DagKjmijKOG448C0dwKKAgYGZCVABQwMyErYjoBIrQKEEgEQwchAb4BuLQfYYdpILoU4HcmluSDPXUcyg+1OADOyAqCSo9bX8QchQ+519GhooKK3APJHHdKCOOK5AAAAAElFTkSuQmCC
 // @match     	    *
 // @include   	    *
