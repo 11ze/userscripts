@@ -2,19 +2,18 @@
 // @name         Bilibili 追番追剧默认在看
 // @author       11ze
 // @description  Bilibili 我的订阅默认显示「在看」的番或剧
-// @version      0.0.1
+// @version      0.0.2
 // @icon
 // @match        *://space.bilibili.com/*/bangumi
 // @match        *://space.bilibili.com/*/cinema
+// @match        *://space.bilibili.com/*
 // @grant        none
 // @license MIT
 // ==/UserScript==
 
 // 筛选：在看
 function toLookIn() {
-  const dropdownMenu = document.querySelector(
-    `.s-space > div > div > div > div.sub-tabs.clearfix > div > div > ul`
-  );
+  const dropdownMenu = document.querySelector(`.filter-content > div > ul`);
   if (!dropdownMenu) {
     return;
   }
@@ -26,9 +25,7 @@ function toLookIn() {
   options[2].click();
 
   // 收起下拉菜单
-  const triggerButton = document.querySelector(
-    `.s-space > div > div > div > div.sub-tabs.clearfix > div > div > span > i`
-  );
+  const triggerButton = document.querySelector(`.filter-content > div > span > i`);
   if (triggerButton) {
     triggerButton.click();
   }
