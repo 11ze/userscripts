@@ -16,5 +16,5 @@
 
 在 [Greasyfork](https://greasyfork.org) 上安装
 
+- [哔哩哔哩移除直播遮挡区域](https://greasyfork.org/zh-CN/scripts/496649-%E5%93%94%E5%93%A9%E5%93%94%E5%93%A9%E7%A7%BB%E9%99%A4%E7%9B%B4%E6%92%AD%E9%81%AE%E6%8C%A1%E5%8C%BA%E5%9F%9F?locale_override=1)
 - [跳转页面顶部或底部](https://greasyfork.org/en/scripts/465916-jump-to-top-bottom)
-- [Bilibili 哔哩哔哩追番追剧默认在看](https://greasyfork.org/en/scripts/466361-bilibili-%E8%BF%BD%E7%95%AA%E8%BF%BD%E5%89%A7%E9%BB%98%E8%AE%A4%E5%9C%A8%E7%9C%8B)
