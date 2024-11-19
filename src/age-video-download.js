@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         AGE 新页面播放视频
 // @namespace    http://tampermonkey.net/
-// @version      0.2.1
-// @description  2024-06-30
+// @version      0.2.2
+// @description  2024-11-19
 // @author       11ze
 // @match        https://www.agedm.org/play/*
 // @match        https://age.tv/play/*
@@ -20,7 +20,7 @@
  */
 
 (function () {
-  'use strict';
+  ('use strict');
 
   let hasButton = false;
   let isCopied = false;
@@ -77,7 +77,22 @@
     }
   }
 
-  setInterval(function () {
-    main();
-  }, 1000);
+  // 增加节流控制
+  function throttle(func, limit) {
+    let inThrottle;
+    return function () {
+      if (!inThrottle) {
+        func.apply(this, arguments);
+        inThrottle = true;
+        setTimeout(() => (inThrottle = false), limit);
+      }
+    };
+  }
+
+  setInterval(
+    throttle(() => {
+      main();
+    }),
+    1000
+  );
 })();
