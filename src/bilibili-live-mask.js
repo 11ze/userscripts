@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         哔哩哔哩移除直播遮挡区域
 // @namespace    http://tampermonkey.net/
-// @version      0.1.1
-// @description  无
+// @version      0.1.2
+// @description  2025-01-14
 // @author       11ze
 // @match        https://live.bilibili.com/*
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=bilibili.com
+// @icon         https://i0.hdslb.com/bfs/static/jinkela/long/images/favicon.ico
 // @grant        GM_addStyle
 // @license      MIT
 // ==/UserScript==
