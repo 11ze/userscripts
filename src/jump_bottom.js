@@ -1,18 +1,21 @@
 // ==UserScript==
 // @name		        Jump to Top or Bottom
+// @namespace       https://github.com/11ze
 // @author		      11ze
 // @description	    为所有网页增加可立即跳转至最大的可滚动区域顶部和底部的按钮
-// @version				  0.0.12
+// @version				  0.0.13
 // @icon			      data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgBAMAAACBVGfHAAAALVBMVEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD////BHg4sAAAADXRSTlMAK1RVW1x3f4CI+vv8UJ/ShgAAAAFiS0dEDm+9ME8AAABqSURBVCjPY2CgHuCYgCbQexNNwe29DagKjmijKOG448C0dwKKAgYGZCVABQwMyErYjoBIrQKEEgEQwchAb4BuLQfYYdpILoU4HcmluSDPXUcyg+1OADOyAqCSo9bX8QchQ+519GhooKK3APJHHdKCOOK5AAAAAElFTkSuQmCC
 // @match     	    *
 // @include   	    *
-// @grant			none
-// @license MIT
+// @grant			      none
+// @license         MIT
+// @downloadURL     https://cdn.jsdelivr.net/gh/11ze/userscripts@main/src/jump_bottom.js
+// @updateURL       https://cdn.jsdelivr.net/gh/11ze/userscripts@main/src/jump_bottom.js
 // ==/UserScript==
 
 /* ************************ 页面效果 ************************ */
 
-//const buttonColor = '241,148,138,0.500'; // 红色
+// const buttonColor = '241,148,138,0.500'; // 红色
 const buttonColor = '247,220,111,0.667'; // 奶黄
 
 const topImage =

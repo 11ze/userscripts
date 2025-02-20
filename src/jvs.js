@@ -1,13 +1,15 @@
 // ==UserScript==
 // @name        改善 JVS 开发体验
-// @namespace   http://tampermonkey.net/
+// @namespace   https://github.com/11ze
 // @match       *://*/*
 // @icon        https://jvsoss.bctools.cn/jvs-public/jvs-auth-mgr/2_1_8/1/application/2024/03/08/2024-03-08950809363759403008-86d5bf057d4bdc12ed6d4341e84e118.png
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.2.17
-// @description 2025-02-19
+// @version     0.2.18
+// @description 2025-02-20
+// @downloadURL https://cdn.jsdelivr.net/gh/11ze/userscripts@main/src/jvs.js
+// @updateURL   https://cdn.jsdelivr.net/gh/11ze/userscripts@main/src/jvs.js
 // ==/UserScript==
 
 (function () {
@@ -15,7 +17,6 @@
 
   // 检查是否包含 jvs-ui 的 link 标签
   const isJVS = () => {
-    console.log('11ze');
     const links = document.getElementsByTagName('link');
     for (const link of links) {
       const matchList = [
