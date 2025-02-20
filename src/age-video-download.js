@@ -10,8 +10,8 @@
 // @match        https://43.240.156.118:8443/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=agedm.org
 // @license      MIT
-// @downloadURL  https://cdn.jsdelivr.net/gh/11ze/userscripts@main/src/age-video-download.js
-// @updateURL    https://cdn.jsdelivr.net/gh/11ze/userscripts@main/src/age-video-download.js
+// @downloadURL  https://update.greasyfork.org/scripts/498500/AGE%20%E6%96%B0%E9%A1%B5%E9%9D%A2%E6%92%AD%E6%94%BE%E8%A7%86%E9%A2%91.user.js
+// @updateURL    https://update.greasyfork.org/scripts/498500/AGE%20%E6%96%B0%E9%A1%B5%E9%9D%A2%E6%92%AD%E6%94%BE%E8%A7%86%E9%A2%91.meta.js
 // ==/UserScript==
 
 /**

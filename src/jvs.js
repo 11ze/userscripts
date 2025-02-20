@@ -8,8 +8,8 @@
 // @author      11ze
 // @version     0.2.18
 // @description 2025-02-20
-// @downloadURL https://cdn.jsdelivr.net/gh/11ze/userscripts@main/src/jvs.js
-// @updateURL   https://cdn.jsdelivr.net/gh/11ze/userscripts@main/src/jvs.js
+// @downloadURL https://update.greasyfork.org/scripts/527392/%E6%94%B9%E5%96%84%20JVS%20%E5%BC%80%E5%8F%91%E4%BD%93%E9%AA%8C.user.js
+// @updateURL   https://update.greasyfork.org/scripts/527392/%E6%94%B9%E5%96%84%20JVS%20%E5%BC%80%E5%8F%91%E4%BD%93%E9%AA%8C.meta.js
 // ==/UserScript==
 
 (function () {

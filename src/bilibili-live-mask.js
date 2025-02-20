@@ -8,8 +8,8 @@
 // @icon         https://i0.hdslb.com/bfs/static/jinkela/long/images/favicon.ico
 // @grant        GM_addStyle
 // @license      MIT
-// @downloadURL  https://cdn.jsdelivr.net/gh/11ze/userscripts@main/src/bilibili-live-mask.js
-// @updateURL    https://cdn.jsdelivr.net/gh/11ze/userscripts@main/src/bilibili-live-mask.js
+// @downloadURL  https://update.greasyfork.org/scripts/496649/%E5%93%94%E5%93%A9%E5%93%94%E5%93%A9%E7%A7%BB%E9%99%A4%E7%9B%B4%E6%92%AD%E9%81%AE%E6%8C%A1%E5%8C%BA%E5%9F%9F.user.js
+// @updateURL    https://update.greasyfork.org/scripts/496649/%E5%93%94%E5%93%A9%E5%93%94%E5%93%A9%E7%A7%BB%E9%99%A4%E7%9B%B4%E6%92%AD%E9%81%AE%E6%8C%A1%E5%8C%BA%E5%9F%9F.meta.js
 // ==/UserScript==
 
 (function () {
