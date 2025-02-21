@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         AGE 新页面播放视频
 // @namespace    https://github.com/11ze
-// @version      0.2.2
-// @description  2025-02-20
+// @version      0.2.3
+// @description  2025-02-21
 // @author       11ze
 // @match        https://www.agedm.org/play/*
 // @match        https://age.tv/play/*
@@ -10,8 +10,6 @@
 // @match        https://43.240.156.118:8443/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=agedm.org
 // @license      MIT
-// @downloadURL  https://update.greasyfork.org/scripts/498500/AGE%20%E6%96%B0%E9%A1%B5%E9%9D%A2%E6%92%AD%E6%94%BE%E8%A7%86%E9%A2%91.user.js
-// @updateURL    https://update.greasyfork.org/scripts/498500/AGE%20%E6%96%B0%E9%A1%B5%E9%9D%A2%E6%92%AD%E6%94%BE%E8%A7%86%E9%A2%91.meta.js
 // ==/UserScript==
 
 /**

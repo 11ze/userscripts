@@ -3,14 +3,12 @@
 // @namespace       https://github.com/11ze
 // @author          11ze
 // @description     为所有网页增加可立即跳转至最大的可滚动区域顶部和底部的按钮
-// @version         0.0.13
+// @version         0.0.14
 // @icon            data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgBAMAAACBVGfHAAAALVBMVEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD////BHg4sAAAADXRSTlMAK1RVW1x3f4CI+vv8UJ/ShgAAAAFiS0dEDm+9ME8AAABqSURBVCjPY2CgHuCYgCbQexNNwe29DagKjmijKOG448C0dwKKAgYGZCVABQwMyErYjoBIrQKEEgEQwchAb4BuLQfYYdpILoU4HcmluSDPXUcyg+1OADOyAqCSo9bX8QchQ+519GhooKK3APJHHdKCOOK5AAAAAElFTkSuQmCC
 // @match           *
 // @include         *
 // @grant           none
 // @license         MIT
-// @downloadURL     https://update.greasyfork.org/scripts/465916/Jump%20to%20Top%20or%20Bottom.user.js
-// @updateURL       https://update.greasyfork.org/scripts/465916/Jump%20to%20Top%20or%20Bottom.meta.js
 // ==/UserScript==
 
 /* ************************ 页面效果 ************************ */

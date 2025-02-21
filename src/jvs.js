@@ -6,30 +6,28 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.2.18
-// @description 2025-02-20
-// @downloadURL https://update.greasyfork.org/scripts/527392/%E6%94%B9%E5%96%84%20JVS%20%E5%BC%80%E5%8F%91%E4%BD%93%E9%AA%8C.user.js
-// @updateURL   https://update.greasyfork.org/scripts/527392/%E6%94%B9%E5%96%84%20JVS%20%E5%BC%80%E5%8F%91%E4%BD%93%E9%AA%8C.meta.js
+// @version     0.2.19
+// @description 2025-02-21
 // ==/UserScript==
+
+// 检查是否包含 jvs-ui 的 link 标签
+const isJVS = () => {
+  const links = document.getElementsByTagName('link');
+  for (const link of links) {
+    const matchList = [
+      'jvs-ui',
+      'edf-ui',
+    ];
+
+    if (link.href && matchList.some((match) => link.href.includes(match))) {
+      return true;
+    }
+  }
+  return false;
+};
 
 (function () {
   ('use strict');
-
-  // 检查是否包含 jvs-ui 的 link 标签
-  const isJVS = () => {
-    const links = document.getElementsByTagName('link');
-    for (const link of links) {
-      const matchList = [
-        'jvs-ui',
-        'edf-ui',
-      ];
-
-      if (link.href && matchList.some((match) => link.href.includes(match))) {
-        return true;
-      }
-    }
-    return false;
-  };
 
   if (!isJVS()) {
     return;
@@ -788,7 +786,8 @@
 
       const copyButton = document.createElement('button');
       copyButton.innerHTML = '复制';
-      copyButton.className = 'modern-button el-button el-button--primary el-button--mini button-11ze';
+      copyButton.className =
+        'modern-button el-button el-button--primary el-button--mini button-11ze';
       copyButton.id = 'copy-design-name-button-11ze';
       if (designNameText) {
         copyButton.setAttribute('design-name-11ze', designNameText);
@@ -985,7 +984,8 @@
 
       const copyButton = document.createElement('button');
       copyButton.innerHTML = '查看';
-      copyButton.className = 'modern-button el-button el-button--primary el-button--mini button-11ze';
+      copyButton.className =
+        'modern-button el-button el-button--primary el-button--mini button-11ze';
       copyButton.id = 'open-new-form-or-list-design-button-11ze';
       copyButton.onclick = function () {
         window.open(targetUrl, '_blank');
@@ -1216,6 +1216,10 @@
  */
 window.onload = function () {
   ('use strict');
+
+  if (!isJVS()) {
+    return;
+  }
 
   function log() {
     function getTabType() {
