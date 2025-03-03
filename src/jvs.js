@@ -6,8 +6,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.2.19
-// @description 2025-02-21
+// @version     0.2.20
+// @description 2025-03-03
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -20,6 +20,7 @@ const isJVS = () => {
     ];
 
     if (link.href && matchList.some((match) => link.href.includes(match))) {
+      console.log('%c「改善 JVS 开发体验」已检测到 JVS 环境', 'color: #0099ff;');
       return true;
     }
   }
