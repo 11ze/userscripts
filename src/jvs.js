@@ -6,8 +6,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.2.20
-// @description 2025-03-03
+// @version     0.2.21
+// @description 2025-03-04
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -98,7 +98,7 @@ const isJVS = () => {
       label: '操作',
       value: 'type',
       options: ['全部', '打开', '保存'],
-      selected: '全部',
+      selected: '打开',
     },
   ];
   const logSaveDays = 365;
