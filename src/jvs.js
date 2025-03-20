@@ -6,8 +6,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.2.21
-// @description 2025-03-04
+// @version     0.2.22
+// @description 2025-03-20
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -1178,7 +1178,7 @@ const isJVS = () => {
       }
 
       const text = textDom.innerText.trim();
-      if (['模型插件', '服务插件'].includes(text)) {
+      if (['模型插件', '服务插件', '自定义代码插件'].includes(text)) {
         const left = ruleCategory.querySelector('.t-left');
         if (left) {
           left.dispatchEvent(new MouseEvent('click', { bubbles: true }));
