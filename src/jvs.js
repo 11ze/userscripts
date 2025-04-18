@@ -6,8 +6,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.2.22
-// @description 2025-03-20
+// @version     0.2.23
+// @description 2025-04-18
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -567,14 +567,6 @@ const isJVS = () => {
       if (log.designName === logicName) {
         return log.url;
       }
-
-      if (log.designName.includes(logicName)) {
-        return log.url;
-      }
-
-      if (logicName.includes(log.designName)) {
-        return log.url;
-      }
     }
 
     return null;
@@ -735,18 +727,11 @@ const isJVS = () => {
       }
 
       for (const otherRule of otherRuleList) {
-        const inputName = otherRule.innerHTML.trim();
-        if (inputName === logicName) {
-          createButton(label, otherRule, logicName);
-          return;
-        }
 
-        if (inputName.includes(logicName)) {
-          createButton(label, otherRule, logicName);
-          return;
-        }
+        // 从 otherRule 里拿到 span 标签的 title 属性，内容是逻辑设计的名称
+        const title = otherRule.querySelector('span').title.trim();
 
-        if (logicName.includes(inputName)) {
+        if (title === logicName) {
           createButton(label, otherRule, logicName);
           return;
         }
