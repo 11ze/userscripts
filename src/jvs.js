@@ -6,7 +6,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.2.26
+// @version     0.2.27
 // @description 2025-04-28
 // ==/UserScript==
 
@@ -947,13 +947,12 @@ const isJVS = () => {
    * 在列表表单列表的 id 旁边添加查看按钮
    */
   function addButtonToOpenNewFormOrListDesign() {
-    // 表单设计
+    // 列表设计页面也有元素，得排除
     const tabType = window.getTabType();
-    if (tabType !== '表单设计') {
+    if (tabType === '列表设计') {
       return;
     }
 
-    // 列表设计页面也有元素，得排除
     const selector =
       'div.table-body-box > div > div.el-table__body-wrapper.is-scrolling-none > table > tbody > tr > td:nth-child(2) > div > span > span > div';
     const elements = document.querySelectorAll(selector);
