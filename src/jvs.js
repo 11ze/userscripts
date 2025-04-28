@@ -6,7 +6,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.2.25
+// @version     0.2.26
 // @description 2025-04-28
 // ==/UserScript==
 
@@ -1223,10 +1223,6 @@ const isJVS = () => {
   }
 
   function applicationSetClick() {
-    if (window.applicationSetClick11ze) {
-      return;
-    }
-
     const applicationElements = document.querySelectorAll('div.application');
 
     if (applicationElements.length === 0) {
@@ -1234,9 +1230,11 @@ const isJVS = () => {
     }
 
     applicationElements.forEach(function (appElement) {
-      appElement.addEventListener('click', function (event) {
-        window.applicationSetClick11ze = false;
+      if (appElement.classList.contains('set-click-11ze')) {
+        return;
+      }
 
+      appElement.addEventListener('click', function (event) {
         const clickedElement = event.currentTarget;
 
         const idElement = clickedElement.querySelector('label.el-checkbox span.el-checkbox__label');
@@ -1264,8 +1262,8 @@ const isJVS = () => {
           console.warn('11ze 应用中心点击应用未能完整获取点击的应用信息:', clickedElement);
         }
       });
+      appElement.classList.add('set-click-11ze');
     });
-    window.applicationSetClick11ze = true;
   }
 })();
 
