@@ -6,7 +6,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.2.24
+// @version     0.2.25
 // @description 2025-04-28
 // ==/UserScript==
 
@@ -51,6 +51,7 @@ const isJVS = () => {
       highlightApps,
       expandFormDesignAllComponentSettings,
       autoExpandComponentLibraryCategory,
+      applicationSetClick,
     ];
 
     for (const operation of operations) {
@@ -727,7 +728,6 @@ const isJVS = () => {
       }
 
       for (const otherRule of otherRuleList) {
-
         // 从 otherRule 里拿到 span 标签的 title 属性，内容是逻辑设计的名称
         const title = otherRule.querySelector('span').title.trim();
 
@@ -949,7 +949,7 @@ const isJVS = () => {
   function addButtonToOpenNewFormOrListDesign() {
     // 表单设计
     const tabType = window.getTabType();
-    if (tabType!== '表单设计') {
+    if (tabType !== '表单设计') {
       return;
     }
 
@@ -1203,6 +1203,25 @@ const isJVS = () => {
     window.autoExpandComponentLibraryCategory11ze = true;
   }
 
+  window.appNameMapKey = '__11ze_JVS_APP_NAME_MAP__';
+
+  function getAppNameMap() {
+    return JSON.parse(localStorage.getItem(window.appNameMapKey) ?? '{}');
+  }
+  window.getAppNameMap = getAppNameMap;
+
+  function getAppIdName(jvsAppId) {
+    const appNameMap = getAppNameMap();
+    return appNameMap[jvsAppId] ?? '';
+  }
+  window.getAppIdName = getAppIdName;
+
+  function saveAppIdName(jvsAppId, appName) {
+    const appNameMap = getAppNameMap();
+    appNameMap[jvsAppId] = appName;
+    localStorage.setItem(window.appNameMapKey, JSON.stringify(appNameMap));
+  }
+
   function applicationSetClick() {
     if (window.applicationSetClick11ze) {
       return;
@@ -1228,28 +1247,19 @@ const isJVS = () => {
         let applicationName = null;
 
         if (idElement) {
-          applicationId = idElement.textContent.trim(); // 使用 textContent 并去除首尾空白
+          applicationId = idElement.textContent.trim();
         } else {
           console.warn('11ze 未找到 ID 元素:', clickedElement);
         }
 
         if (nameElement) {
-          applicationName = nameElement.textContent.trim(); // 使用 textContent 并去除首尾空白
+          applicationName = nameElement.textContent.trim();
         } else {
           console.warn('11ze 未找到名称元素:', clickedElement);
         }
 
-        // 8. 打印获取到的 ID 和名称（你可以在这里执行其他操作）
         if (applicationId !== null && applicationName !== null) {
-          console.log('点击了应用:', {
-            id: applicationId,
-            name: applicationName,
-          });
-
-          // TODO: 在这里添加你希望执行的后续逻辑，例如：
-          // - 根据 ID 或名称跳转页面
-          // - 弹出一个模态框显示更多信息
-          // - 发送一个请求到后端等
+          saveAppIdName(applicationId, applicationName);
         } else {
           console.warn('11ze 应用中心点击应用未能完整获取点击的应用信息:', clickedElement);
         }
@@ -1384,6 +1394,12 @@ window.onload = function () {
     if (!logs) {
       return [];
     }
+
+    logs.forEach((log) => {
+      if (!log.appName || log.appName.length > 100 || log.appName === log.designName) {
+        log.appName = window.getAppIdName(log.jvsAppId);
+      }
+    });
 
     return cutOverdueLogs(logs, new Date().getTime());
   }
@@ -1689,6 +1705,11 @@ window.onload = function () {
   function main() {
     const newLog = log();
     if (newLog && newLog.tabType) {
+      // 设计页面没有应用名称时会拿到逻辑设计列表
+      if (newLog.appName.length > 100 || newLog.appName === newLog.designName) {
+        newLog.appName = window.getAppIdName(newLog.jvsAppId);
+      }
+
       const needToSave =
         window.savedLogDesignName !== newLog.designName ||
         window.savedLogAppName !== newLog.appName;
