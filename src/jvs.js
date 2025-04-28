@@ -1202,6 +1202,61 @@ const isJVS = () => {
 
     window.autoExpandComponentLibraryCategory11ze = true;
   }
+
+  function applicationSetClick() {
+    if (window.applicationSetClick11ze) {
+      return;
+    }
+
+    const applicationElements = document.querySelectorAll('div.application');
+
+    if (applicationElements.length === 0) {
+      return;
+    }
+
+    applicationElements.forEach(function (appElement) {
+      appElement.addEventListener('click', function (event) {
+        window.applicationSetClick11ze = false;
+
+        const clickedElement = event.currentTarget;
+
+        const idElement = clickedElement.querySelector('label.el-checkbox span.el-checkbox__label');
+
+        const nameElement = clickedElement.querySelector('p');
+
+        let applicationId = null;
+        let applicationName = null;
+
+        if (idElement) {
+          applicationId = idElement.textContent.trim(); // 使用 textContent 并去除首尾空白
+        } else {
+          console.warn('11ze 未找到 ID 元素:', clickedElement);
+        }
+
+        if (nameElement) {
+          applicationName = nameElement.textContent.trim(); // 使用 textContent 并去除首尾空白
+        } else {
+          console.warn('11ze 未找到名称元素:', clickedElement);
+        }
+
+        // 8. 打印获取到的 ID 和名称（你可以在这里执行其他操作）
+        if (applicationId !== null && applicationName !== null) {
+          console.log('点击了应用:', {
+            id: applicationId,
+            name: applicationName,
+          });
+
+          // TODO: 在这里添加你希望执行的后续逻辑，例如：
+          // - 根据 ID 或名称跳转页面
+          // - 弹出一个模态框显示更多信息
+          // - 发送一个请求到后端等
+        } else {
+          console.warn('11ze 应用中心点击应用未能完整获取点击的应用信息:', clickedElement);
+        }
+      });
+    });
+    window.applicationSetClick11ze = true;
+  }
 })();
 
 /**
