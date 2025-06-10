@@ -6,8 +6,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.2.27
-// @description 2025-04-28
+// @version     0.2.28
+// @description 2025-06-10
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -66,8 +66,8 @@ const isJVS = () => {
 
   // changeTitle
   const envList = [
-    { ip: '8.138.', env: '开发站' },
-    { ip: 'jyy-test.', env: '测试站' },
+    { ip: 'dev.', env: '开发站' },
+    { ip: 'test.', env: '测试站' },
     { ip: '47.107.', env: '正式站' },
   ];
 
@@ -272,7 +272,10 @@ const isJVS = () => {
       return '';
     }
 
-    function getAppName() {
+    /**
+     * 可以获取到应用名称或设计名称，设置到浏览器标签页 title
+     */
+    function getNewTabTitle() {
       // 逻辑设计
       // 把 selector 放到 getAppName 获取不到，先保留下面的处理
       const title = document.querySelector(
@@ -327,7 +330,7 @@ const isJVS = () => {
 
       return '';
     }
-    window.getAppName = getAppName;
+    window.getNewTabTitle = getNewTabTitle;
 
     function getTabType() {
       const typeDom = document.querySelector('#tab-design > span');
@@ -342,7 +345,7 @@ const isJVS = () => {
       return typeDom.textContent.trim();
     }
 
-    const appName = getAppName();
+    const newTabTitle = getNewTabTitle();
     const tabType = getTabType();
 
     function changeFavicon(iconURL) {
@@ -362,7 +365,7 @@ const isJVS = () => {
     }
 
     if (tabType) {
-      document.title = appName;
+      document.title = newTabTitle;
       changeFavicon(window.iconMap[tabType]);
     } else {
       let prefix = getMode();
@@ -371,7 +374,7 @@ const isJVS = () => {
         prefix = getEnvironment();
       }
 
-      document.title = prefix + '｜' + (appName ? appName : '未打开应用');
+      document.title = prefix + '｜' + (newTabTitle ? newTabTitle : '未打开应用');
     }
   }
 
@@ -1220,6 +1223,7 @@ const isJVS = () => {
     appNameMap[jvsAppId] = appName;
     localStorage.setItem(window.appNameMapKey, JSON.stringify(appNameMap));
   }
+  window.saveAppIdName = saveAppIdName;
 
   function applicationSetClick() {
     const applicationElements = document.querySelectorAll('div.application');
@@ -1297,12 +1301,11 @@ window.onload = function () {
       return new Date().getTime();
     }
 
-    function getNewTabTitle() {
-      return window.getAppName();
-    }
-
     const appIdSelectorList = window.appNameSelectorList;
 
+    /**
+     * 日志，获取应用名称
+     */
     function getAppName() {
       for (let i = 0; i < appIdSelectorList.length; i++) {
         const allTextElements = document.querySelectorAll(appIdSelectorList[i]);
@@ -1313,23 +1316,24 @@ window.onload = function () {
             const textArray = text
               .trim()
               .split('\n')
-              .map((item) => item.trim());
-            const newTextArray = [];
-            textArray.forEach((item) => {
-              if (item.trim() === '') {
-                return;
-              }
-              newTextArray.push(item.trim());
-            });
+              .map((item) => item.trim())
+              .filter((item) => item !== '');
+
+            // 旧版 JVS
+            if (textArray.length === 1) {
+              const appName = textArray[0].split(' ')[0].trim();
+              window.saveAppIdName(getJvsAppId(), appName);
+              return appName;
+            }
 
             if (document.querySelector('.list-item')) {
-              const name = newTextArray[newTextArray.length - 3];
+              const name = textArray[textArray.length - 3];
               if (name) {
                 return name;
               }
             }
 
-            return newTextArray[0];
+            return textArray[0];
           }
         }
       }
@@ -1341,7 +1345,7 @@ window.onload = function () {
     const id = getId();
     const time = getCurrentTime();
     const tabType = getTabType();
-    const designName = getNewTabTitle();
+    const designName = window.getNewTabTitle();
     const appName = getAppName();
     const jvsAppId = getJvsAppId();
 
@@ -1393,8 +1397,9 @@ window.onload = function () {
     }
 
     logs.forEach((log) => {
-      if (!log.appName || log.appName.length > 100 || log.appName === log.designName) {
-        log.appName = window.getAppIdName(log.jvsAppId);
+      const appName = window.getAppIdName(log.jvsAppId);
+      if (appName) {
+        log.appName = appName;
       }
     });
 
