@@ -6,7 +6,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.2.28
+// @version     0.2.29
 // @description 2025-06-10
 // ==/UserScript==
 
@@ -41,7 +41,7 @@ const isJVS = () => {
       enterTabDesign,
       adjustInterfaceAndComponentStyle,
       addButtonToOpenNewLogicDesign,
-      addButtonToOpenNewLogicDesignForNestedLogic,
+      addButtonToOpenNewLogicDesignForNestedLogicFirst,
       addButtonToCopyDesignName,
       addButtonToCopyComponentName,
       expandFormButton,
@@ -623,8 +623,10 @@ const isJVS = () => {
    * 新版逻辑嵌套组件，检查到【逻辑嵌套】组件时，自动添加一个按钮用于查看对应的逻辑设计
    * 从已打开过的逻辑设计中获取跳转链接
    */
-  function addButtonToOpenNewLogicDesignForNestedLogicLater() {
+  function addButtonToOpenNewLogicDesignForNestedLogicFirst() {
     const buttonClass = 'ze-look-logic-button';
+
+    let noLinkFound = false;
 
     const selector = '.el-form-item__label';
     const labels = document.querySelectorAll(selector);
@@ -645,6 +647,7 @@ const isJVS = () => {
       const jvsAppId = window.getJvsAppId();
       const newUrl = getUrlFromLogsAndUrl(logicName, jvsAppId);
       if (!newUrl) {
+        noLinkFound = true;
         continue;
       }
 
@@ -668,12 +671,19 @@ const isJVS = () => {
       newButton.style.marginLeft = '10px';
       // 将按钮直接添加到 label 元素中
       label.appendChild(newButton);
+
+      return;
+    }
+
+    if (noLinkFound) {
+      addButtonToOpenNewLogicDesignForNestedLogic();
     }
   }
 
   /**
    * 新版逻辑嵌套组件，检查到【逻辑嵌套】组件时，自动添加一个按钮用于查看对应的逻辑设计
    * 从左上角的 icon 中获取跳转页面
+   * 谨慎使用，点到引用按钮会覆盖当前逻辑设计，自动保存，不可逆
    */
   function addButtonToOpenNewLogicDesignForNestedLogic() {
     const buttonClass = 'ze-look-logic-button';
@@ -699,7 +709,15 @@ const isJVS = () => {
       newButton.innerHTML = '查看';
       newButton.setAttribute('target-key', logicName);
       newButton.onclick = function () {
-        element.click();
+        // 第一个按钮是「设计」，第二个「引用」
+        // 点击引用会引用设计覆盖当前逻辑设计，自动保存，不可逆
+        const desginButtons = element
+          .querySelector('.list-item-tool')
+          .querySelectorAll('div.el-tooltip');
+        if (desginButtons.length !== 2) {
+          return;
+        }
+        desginButtons[0].click();
       };
       newButton.style.marginLeft = '10px';
       // 将按钮直接添加到 label 元素中
@@ -731,16 +749,11 @@ const isJVS = () => {
       }
 
       for (const otherRule of otherRuleList) {
-        // 从 otherRule 里拿到 span 标签的 title 属性，内容是逻辑设计的名称
-        const title = otherRule.querySelector('span').title.trim();
-
-        if (title === logicName) {
+        if (otherRule.innerHTML.includes(logicName)) {
           createButton(label, otherRule, logicName);
           return;
         }
       }
-
-      addButtonToOpenNewLogicDesignForNestedLogicLater();
     }
   }
 
@@ -1922,6 +1935,12 @@ const css = `
     color: black !important;
     border: 1px solid #e0e0e0 !important;
   }
+
+  /* 逻辑设计左上角的逻辑列表弹窗 */
+  .other-rule-list {
+    width: 500px !important;
+  }
+
 `;
 
 GM_addStyle(css);
