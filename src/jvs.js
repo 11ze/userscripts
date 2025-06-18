@@ -6,7 +6,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.2.30
+// @version     0.2.31
 // @description 2025-06-18
 // ==/UserScript==
 
@@ -1738,7 +1738,7 @@ window.onload = function () {
 
     // 用于显示当前在的模式
     let buttonName = '日志';
-    let mode = getModeFromHistory();
+    let mode = window.getModeFromHistory();
     if (!mode) {
       mode = window.getMode();
     }
