@@ -6,21 +6,22 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.2.29
-// @description 2025-06-10
+// @version     0.2.30
+// @description 2025-06-18
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
-const isJVS = () => {
+const isJVS = (isLogFunction) => {
   const links = document.getElementsByTagName('link');
   for (const link of links) {
-    const matchList = [
-      'jvs-ui',
-      'edf-ui',
-    ];
+    const matchList = ['jvs-ui', 'edf-ui'];
 
     if (link.href && matchList.some((match) => link.href.includes(match))) {
-      console.log('%c「改善 JVS 开发体验」已检测到 JVS 环境', 'color: #0099ff;');
+      let message = '%c「改善 JVS 开发体验」已检测到 JVS 环境';
+      if (isLogFunction) {
+        message += '（日志功能）';
+      }
+      console.log(message, 'color: #0099ff;');
       return true;
     }
   }
@@ -30,7 +31,7 @@ const isJVS = () => {
 (function () {
   ('use strict');
 
-  if (!isJVS()) {
+  if (!isJVS(false)) {
     return;
   }
   setInterval(() => {
@@ -1289,7 +1290,7 @@ const isJVS = () => {
 window.onload = function () {
   ('use strict');
 
-  if (!isJVS()) {
+  if (!isJVS(true)) {
     return;
   }
 
