@@ -6,8 +6,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.2.31
-// @description 2025-06-18
+// @version     0.2.32
+// @description 2025-06-24
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -1650,7 +1650,7 @@ window.onload = function () {
 
       listContent.push(`
         <tr class="log-11ze-table-tr">
-          <td> ${urlParams.id} &nbsp; </td>
+          <!-- <td> ${urlParams.id} &nbsp; </td> -->
           <td style="color: ${appColor}"> ${appName} &nbsp; </td>
           <td style="color: ${modeColor}"> ${mode.replace('模式', '')} &nbsp; </td>
           <td style="color: ${currentType.color}"> ${currentType.shortname} &nbsp; </td>
@@ -1667,7 +1667,7 @@ window.onload = function () {
     logTable.innerHTML = `
       <thead>
         <tr style="background-color: #eef5fe" class="log-11ze-table-tr">
-          <th> 设计 id &nbsp;</th>
+          <!-- <th> 设计 id &nbsp;</th> -->
           <th> 应用 &nbsp;</th>
           <th> 模式 &nbsp;</th>
           <th> 类型 &nbsp;</th>
@@ -1911,6 +1911,7 @@ const css = `
   /* 日志弹窗的表格 */
   .log-11ze-table-tr > td,
   .log-11ze-table-tr > th {
+    padding: 0px 0px 5px 5px !important;
   }
 
   .log-11ze-table-tr:hover {
