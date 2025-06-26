@@ -6,8 +6,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.2.32
-// @description 2025-06-24
+// @version     0.2.33
+// @description 2025-06-26
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -1907,6 +1907,12 @@ const css = `
   }
 
   /* 自己加的组件 */
+
+  /* 日志弹窗 */
+  .popup {
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 5px !important;
+  }
 
   /* 日志弹窗的表格 */
   .log-11ze-table-tr > td,
