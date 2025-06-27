@@ -6,8 +6,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.2.33
-// @description 2025-06-26
+// @version     0.2.34
+// @description 2025-06-27
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -1663,7 +1663,7 @@ window.onload = function () {
     }
 
     const logTable = document.createElement('table');
-    logTable.className = 'table';
+    logTable.className = 'table-11ze';
     logTable.innerHTML = `
       <thead>
         <tr style="background-color: #eef5fe" class="log-11ze-table-tr">
@@ -1682,21 +1682,7 @@ window.onload = function () {
       </tbody>
     `;
 
-    logTable.style.fontSize = '0.9em';
-    logTable.style.minWidth = '800px';
-    logTable.style.borderBottom = '1px solid #dddddd';
-    logTable.style.textAlign = 'left';
-
     popup.appendChild(logTable);
-
-    popup.style.position = 'fixed';
-    popup.style.top = '50px';
-    popup.style.left = '20px';
-    popup.style.zIndex = '9999';
-    popup.style.backgroundColor = 'white';
-    popup.style.padding = '10px';
-    popup.style['max-height'] = '800px';
-    popup.style['overflow-y'] = 'auto';
 
     document.body.appendChild(popup);
 
@@ -1912,6 +1898,23 @@ const css = `
   .popup {
     border: 1px solid #e0e0e0 !important;
     border-radius: 5px !important;
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1) !important;
+    background-color: #fff !important;
+    position: fixed;
+    top: 50px;
+    left: 20px;
+    z-index: 9999;
+    background-color: white;
+    padding: 10px;
+    max-height: 800px;
+    overflow-y: auto;
+  }
+
+  .table-11ze {
+    font-size: 14px !important;
+    min-width: 800px !important;
+    border-bottom: 1px solid #dddddd !important;
+    text-align: left !important;
   }
 
   /* 日志弹窗的表格 */
@@ -1931,9 +1934,15 @@ const css = `
   .log-11ze-select-label {
     display: inline-block;
     margin-right: 5px;
+    font-size: 14px;
   }
   .log-11ze-select {
     display: inline-block;
+    background-color: white !important;
+    border-color: #d4e3fc !important;
+    color: black !important;
+    border: 1px solid #23272e !important;
+    font-size: 14px !important;
   }
 
   /* 按钮统一样式 */
