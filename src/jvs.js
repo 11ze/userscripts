@@ -6,7 +6,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.2.35
+// @version     0.2.36
 // @description 2025-06-27
 // ==/UserScript==
 
@@ -98,7 +98,7 @@ const isJVS = (isLogFunction) => {
       selected: '全部',
     },
     {
-      label: '操作',
+      label: '类型',
       value: 'type',
       options: ['全部', '打开', '保存'],
       selected: '打开',
@@ -1711,7 +1711,7 @@ window.onload = function () {
           <td> ${designName} &nbsp; </td>
           <td style="color: ${logFieldColor}"> ${oneLog.type} &nbsp; </td>
           <td> ${datetime} &nbsp; </td>
-          <td> <a href="${oneLog.url}" target="_blank">打开</a> &nbsp; </td>
+          <td> <a href="${oneLog.url}" target="_blank">设计</a> &nbsp; </td>
         </tr>
       `);
     }
@@ -1724,9 +1724,9 @@ window.onload = function () {
           <!-- <th> 设计 id &nbsp;</th> -->
           <th> 应用 &nbsp;</th>
           <th> 模式 &nbsp;</th>
-          <th> 类型 &nbsp;</th>
+          <th> 设计 &nbsp;</th>
           <th> 名称 &nbsp;</th>
-          <th> 操作 &nbsp;</th>
+          <th> 类型 &nbsp;</th>
           <th> 时间 &nbsp;</th>
           <th> 操作 &nbsp;</th>
         </tr>
@@ -1783,17 +1783,19 @@ window.onload = function () {
       mode = window.getMode();
     }
 
+    let color = 'black';
     if (mode) {
       const modeSpan = document.createElement('span');
-      modeSpan.style.color = window.getModeColor(mode);
+      color = window.getModeColor(mode);
+      modeSpan.style.color = color;
       modeSpan.innerHTML = mode;
       buttonName = modeSpan.outerHTML + '｜' + buttonName;
     }
 
-    createButton(buttonName);
+    createButton(buttonName, color);
   }
 
-  function createButton(buttonName) {
+  function createButton(buttonName, color) {
     const existButton = document.getElementById('ze-jvs-log-button');
     if (existButton) {
       if (existButton.innerHTML === buttonName) {
@@ -1815,7 +1817,7 @@ window.onload = function () {
     button.style.zIndex = '9998';
     button.style.fontSize = '13px';
     button.id = 'ze-jvs-log-button';
-
+    button.style.setProperty('border', '1px solid ' + color, 'important');
     button.onclick = function (event) {
       event.stopPropagation(); // 阻止事件冒泡到 document
       showPopup();
@@ -1997,6 +1999,10 @@ const css = `
     color: black !important;
     border: 1px solid #23272e !important;
     font-size: 14px !important;
+    &:hover {
+      background-color: #f5f6f7 !important;
+      cursor: pointer;
+    }
   }
 
   /* 按钮统一样式 */
@@ -2005,6 +2011,10 @@ const css = `
     border-color: #d4e3fc !important;
     color: black !important;
     border: 1px solid #e0e0e0 !important;
+    &:hover {
+      background-color: #f5f6f7 !important;
+      cursor: pointer;
+    }
   }
 
   /* 逻辑设计左上角的逻辑列表弹窗 */
