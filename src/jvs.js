@@ -6,8 +6,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.2.36
-// @description 2025-06-27
+// @version     0.2.37
+// @description 2025-07-03
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -1812,8 +1812,8 @@ window.onload = function () {
     button.innerHTML = buttonName;
     button.className = 'modern-button el-button el-button--primary el-button--mini button-11ze';
     button.style.position = 'fixed';
-    button.style.top = '10px';
-    button.style.right = '300px';
+    button.style.top = '14px';
+    button.style.right = '310px';
     button.style.zIndex = '9998';
     button.style.fontSize = '13px';
     button.id = 'ze-jvs-log-button';
@@ -1882,7 +1882,7 @@ const css = `
 
   /* 调整画布右边的按钮位置 */
   .itempannel-box {
-    left: 220px !important;
+    left: 280px !important;
   }
 
   /* 新版 JVS，逻辑设计，把浮动操作栏的宽度减小到 45% */
@@ -1958,7 +1958,7 @@ const css = `
     background-color: #fff !important;
     position: fixed;
     top: 50px;
-    left: 20px;
+    right: 310px;
     z-index: 9999;
     background-color: white;
     padding: 10px;
