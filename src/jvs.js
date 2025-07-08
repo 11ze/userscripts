@@ -6,8 +6,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.2.37
-// @description 2025-07-03
+// @version     0.2.38
+// @description 2025-07-08
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -1539,16 +1539,6 @@ window.onload = function () {
     return color;
   }
 
-  function getAppColorMapping(appNames) {
-    const appColorMapping = {};
-    for (let i = 0; i < appNames.length; i++) {
-      const appName = appNames[i];
-      appColorMapping[appName] = getRandomColor();
-    }
-
-    return appColorMapping;
-  }
-
   function getOptions() {
     const options = JSON.parse(localStorage.getItem(logOptionsLocalStorageKey));
     if (!options) {
@@ -1671,7 +1661,6 @@ window.onload = function () {
     let logs = getLogs();
 
     logs = filterLogs(logs, lastLogOptions);
-    const appColorMapping = getAppColorMapping(getJvsAppIdsFromLogs(logs));
 
     const appModeMap = window.getAppModelMap();
 
@@ -1697,21 +1686,21 @@ window.onload = function () {
       const designName = oneLog.designName;
 
       const jvsAppId = oneLog.jvsAppId;
-      const appColor = appColorMapping[jvsAppId];
 
       const mode = appModeMap[jvsAppId] ?? '';
       const modeColor = window.getModeColor(mode);
 
       listContent.push(`
         <tr class="log-11ze-table-tr">
-          <!-- <td> ${urlParams.id} &nbsp; </td> -->
-          <td style="color: ${appColor}"> ${appName} &nbsp; </td>
           <td style="color: ${modeColor}"> ${mode.replace('模式', '')} &nbsp; </td>
+          <td> ${appName} &nbsp; </td>
           <td style="color: ${currentType.color}"> ${currentType.shortname} &nbsp; </td>
           <td> ${designName} &nbsp; </td>
           <td style="color: ${logFieldColor}"> ${oneLog.type} &nbsp; </td>
           <td> ${datetime} &nbsp; </td>
-          <td> <a href="${oneLog.url}" target="_blank">设计</a> &nbsp; </td>
+          <td> <button class="modern-button el-button el-button--primary el-button--mini button-11ze" onclick="window.open('${
+            oneLog.url
+          }', '_blank')">设计</button> &nbsp; </td>
         </tr>
       `);
     }
@@ -1721,9 +1710,8 @@ window.onload = function () {
     logTable.innerHTML = `
       <thead>
         <tr style="background-color: #eef5fe" class="log-11ze-table-tr">
-          <!-- <th> 设计 id &nbsp;</th> -->
-          <th> 应用 &nbsp;</th>
           <th> 模式 &nbsp;</th>
+          <th> 应用 &nbsp;</th>
           <th> 设计 &nbsp;</th>
           <th> 名称 &nbsp;</th>
           <th> 类型 &nbsp;</th>
