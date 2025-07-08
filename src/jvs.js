@@ -2,11 +2,12 @@
 // @name        改善 JVS 开发体验
 // @namespace   https://github.com/11ze
 // @match       *://*/*
+// @noframes
 // @icon        https://jvsoss.bctools.cn/jvs-public/jvs-auth-mgr/2_1_8/1/application/2024/03/08/2024-03-08950809363759403008-86d5bf057d4bdc12ed6d4341e84e118.png
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.2.38
+// @version     0.2.39
 // @description 2025-07-08
 // ==/UserScript==
 
