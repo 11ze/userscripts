@@ -7,7 +7,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.2.40
+// @version     0.2.41
 // @description 2025-07-09
 // ==/UserScript==
 
@@ -1700,9 +1700,7 @@ window.onload = function () {
           <td> ${designName} &nbsp; </td>
           <td style="color: ${logFieldColor}"> ${oneLog.type} &nbsp; </td>
           <td> ${datetime} &nbsp; </td>
-          <td> <button class="modern-button el-button el-button--primary el-button--mini button-11ze" onclick="window.open('${
-            oneLog.url
-          }', '_blank')">设计</button> &nbsp; </td>
+          <td> <a href="${oneLog.url}" target="_blank">设计</a> &nbsp; </td>
         </tr>
       `);
     }
