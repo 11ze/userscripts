@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.2.39
-// @description 2025-07-08
+// @version     0.2.40
+// @description 2025-07-09
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -1629,6 +1629,7 @@ window.onload = function () {
 
       const selectDom = document.createElement('select');
       selectDom.className = 'log-11ze-select';
+      selectDom.style.borderRadius = '5px';
 
       for (let j = 0; j < lastLogOptions[i].options.length; j++) {
         const option = document.createElement('option');
