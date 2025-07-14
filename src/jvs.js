@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.2.41
-// @description 2025-07-09
+// @version     0.2.42
+// @description 2025-07-14
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -1665,13 +1665,13 @@ window.onload = function () {
     logs = filterLogs(logs, lastLogOptions);
 
     const appModeMap = window.getAppModelMap();
+    const hasMode = Object.keys(appModeMap).length > 0;
 
     const listContent = [];
 
     for (let i = logs.length - 1; i >= 0; i--) {
       const oneLog = logs[i];
       const datetime = formatTime(oneLog.time);
-      const urlParams = getQueryParamMapping(oneLog.url);
 
       const currentType = designSetting[oneLog.tabType] ?? {
         color: 'red',
@@ -1694,7 +1694,11 @@ window.onload = function () {
 
       listContent.push(`
         <tr class="log-11ze-table-tr">
-          <td style="color: ${modeColor}"> ${mode.replace('模式', '')} &nbsp; </td>
+          ${
+            hasMode
+              ? `<td style="color: ${modeColor}"> ${mode.replace('模式', '')} &nbsp; </td>`
+              : ''
+          }
           <td> ${appName} &nbsp; </td>
           <td style="color: ${currentType.color}"> ${currentType.shortname} &nbsp; </td>
           <td> ${designName} &nbsp; </td>
@@ -1710,7 +1714,7 @@ window.onload = function () {
     logTable.innerHTML = `
       <thead>
         <tr style="background-color: #eef5fe" class="log-11ze-table-tr">
-          <th> 模式 &nbsp;</th>
+          ${hasMode ? `<th> 模式 &nbsp;</th>` : ''}
           <th> 应用 &nbsp;</th>
           <th> 设计 &nbsp;</th>
           <th> 名称 &nbsp;</th>
