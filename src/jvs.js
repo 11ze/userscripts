@@ -7,7 +7,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.2.43
+// @version     0.3.0
 // @description 2025-07-16
 // ==/UserScript==
 
@@ -55,6 +55,7 @@ const isJVS = (isLogFunction) => {
       autoExpandComponentLibraryCategory,
       applicationSetClick,
       showNodeExecTime,
+      setCanvasScroll,
     ];
 
     for (const operation of operations) {
@@ -1337,6 +1338,58 @@ const isJVS = (isLogFunction) => {
       node.parentNode.appendChild(span);
     }
   }
+
+  /**
+   * 给逻辑设计的画布添加滚动功能
+   */
+  function setCanvasScroll() {
+    // 1. 获取元素
+    const container = document.querySelector('.butterfly-vue-container');
+    const wrapper = document.querySelector('.butterfly-wrapper');
+    const minimap = document.querySelector('div.butterfly-minimap-container > div:nth-child(2)');
+
+    if (!container || !wrapper) {
+      return;
+    }
+
+    if (wrapper.getAttribute('data-11ze-canvas-scroll')) {
+      return;
+    }
+
+    // 优化性能，告诉浏览器该元素的 transform 属性将会变化，让浏览器提前做好准备
+    wrapper.style.willChange = 'transform';
+
+    // 2. 初始化位置
+    let pos = {
+      x: parseInt(wrapper.style.left) || 0,
+      y: parseInt(wrapper.style.top) || 0,
+    };
+    let minimapPos = {
+      x: parseInt(wrapper.style.left) || 0,
+      y: parseInt(wrapper.style.top) || 0,
+    };
+
+    // 3. 滚轮事件
+    container.addEventListener('wheel', (e) => {
+      e.preventDefault();
+
+      // 更新位置
+      pos.x -= e.deltaX || 0;
+      pos.y -= e.deltaY || 0;
+      minimapPos.x += e.deltaX * (100 / 11 / 100) || 0;
+      minimapPos.y += e.deltaY * (100 / 11 / 100) || 0;
+
+      // 应用变换
+      wrapper.style.transform = `translate(${pos.x}px, ${pos.y}px)`;
+      minimap.style.transform = `translate(${minimapPos.x}px, ${minimapPos.y}px)`;
+
+      // 或者使用 left/top（选一种方式）
+      // wrapper.style.left = `${pos.x}px`;
+      // wrapper.style.top = `${pos.y}px`;
+    });
+
+    wrapper.setAttribute('data-11ze-canvas-scroll', 'true');
+  }
 })();
 
 /**
@@ -2021,7 +2074,6 @@ const css = `
   .other-rule-list {
     width: 500px !important;
   }
-
 `;
 
 GM_addStyle(css);
