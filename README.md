@@ -17,4 +17,3 @@
 - [哔哩哔哩移除直播遮挡区域](https://greasyfork.org/zh-CN/scripts/496649-%E5%93%94%E5%93%A9%E5%93%94%E5%93%A9%E7%A7%BB%E9%99%A4%E7%9B%B4%E6%92%AD%E9%81%AE%E6%8C%A1%E5%8C%BA%E5%9F%9F?locale_override=1)
 - [跳转页面顶部或底部](https://greasyfork.org/en/scripts/465916-jump-to-top-bottom)
 - [AGE 新页面播放视频并自动复制视频链接](https://greasyfork.org/zh-CN/scripts/498500-age-%E6%96%B0%E9%A1%B5%E9%9D%A2%E6%92%AD%E6%94%BE%E8%A7%86%E9%A2%91%E5%B9%B6%E8%87%AA%E5%8A%A8%E5%A4%8D%E5%88%B6%E8%A7%86%E9%A2%91%E9%93%BE%E6%8E%A5?locale_override=1)
-- [改善 JVS 开发体验](https://greasyfork.org/zh-CN/scripts/527392-%E6%94%B9%E5%96%84-jvs-%E5%BC%80%E5%8F%91%E4%BD%93%E9%AA%8C)
