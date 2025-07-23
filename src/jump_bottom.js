@@ -9,6 +9,8 @@
 // @include         *
 // @grant           none
 // @license         MIT
+// @downloadURL     https://fastly.jsdelivr.net/gh/11ze/userscripts@main/src/jump_bottom.js
+// @updateURL       https://fastly.jsdelivr.net/gh/11ze/userscripts@main/src/jump_bottom.js
 // ==/UserScript==
 
 /* ************************ 页面效果 ************************ */
