@@ -8,8 +8,8 @@
 // @icon         https://i0.hdslb.com/bfs/static/jinkela/long/images/favicon.ico
 // @grant        GM_addStyle
 // @license      MIT
-// @downloadURL  https://fastly.jsdelivr.net/gh/11ze/userscripts@main/src/bilibili-live-mask.js
-// @updateURL    https://fastly.jsdelivr.net/gh/11ze/userscripts@main/src/bilibili-live-mask.js
+// @downloadURL  https://fastly.jsdelivr.net/gh/11ze/userscripts@main/src/bilibili-live-mask.user.js
+// @updateURL    https://fastly.jsdelivr.net/gh/11ze/userscripts@main/src/bilibili-live-mask.user.js
 // ==/UserScript==
 
 (function () {
