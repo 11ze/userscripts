@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         网站亮暗色模式切换
 // @namespace    https://github.com/11ze
-// @version      0.0.2
+// @version      0.0.3
 // @description  为任意网站提供亮暗色模式切换功能
 // @author       11ze
 // @match        *://*/*
@@ -51,16 +51,13 @@
       width: 40px;
       height: 40px;
       border-radius: 50%;
+      border: none;
       background-color: transparent;
-      border: 2px solid rgba(128, 128, 128, 0.5);
-      color: '#fff';
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
       cursor: pointer;
       font-size: 20px;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.3s ease;
     `;
 
     // 添加悬停效果
