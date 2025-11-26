@@ -30,7 +30,7 @@ const isJVS = (isLogFunction) => {
 };
 
 (function () {
-  ('use strict');
+  'use strict';
 
   if (!isJVS(false)) {
     return;
@@ -1397,7 +1397,7 @@ const isJVS = (isLogFunction) => {
  * 记录和查看开发日志
  */
 window.onload = function () {
-  ('use strict');
+  'use strict';
 
   if (!isJVS(true)) {
     return;

@@ -20,7 +20,7 @@
 */
 
 (function () {
-  ('use strict');
+  'use strict';
 
   let hasButton = false;
   let isCopied = false;
