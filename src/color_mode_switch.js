@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         网站亮暗色切换
+// @name         网站亮暗色模式切换
 // @namespace    https://github.com/11ze
 // @version      0.0.1
 // @description  2025-11-26
