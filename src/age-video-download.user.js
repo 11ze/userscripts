@@ -10,8 +10,6 @@
 // @match        https://43.240.156.118:8443/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=agedm.org
 // @license      MIT
-// @downloadURL  https://fastly.jsdelivr.net/gh/11ze/userscripts@main/src/age-video-download.user.js
-// @updateURL    https://fastly.jsdelivr.net/gh/11ze/userscripts@main/src/age-video-download.user.js
 // ==/UserScript==
 
 /**
