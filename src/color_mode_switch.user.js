@@ -14,25 +14,25 @@
 (function () {
   'use strict';
 
-  const STORAGE_KEY = '11ze_color_mode_switch_dark_mode';
-  let isDarkMode = localStorage.getItem(STORAGE_KEY) === 'true';
-  let darkModeStyle = null;
+  const STORAGE_KEY = '11ze_color_mode_switch_reverse_color_mode';
+  let isReverseColorMode = localStorage.getItem(STORAGE_KEY) === 'true';
+  let reverseColorModeStyle = null;
 
   function init() {
-    GM_registerMenuCommand('切换', toggleDarkMode);
+    GM_registerMenuCommand('切换', toggleReverseColorMode);
 
     createToggleButton();
     updateToggleButton();
 
-    if (isDarkMode) {
-      applyDarkMode();
+    if (isReverseColorMode) {
+      applyReverseColorMode();
     }
   }
 
   function createToggleButton() {
     // 创建按钮容器
     const buttonContainer = document.createElement('div');
-    buttonContainer.id = '11ze-dark-mode-toggle-container';
+    buttonContainer.id = '11ze-reverse-color-mode-toggle-container';
     buttonContainer.style.cssText = `
       position: fixed;
       top: 20px;
@@ -43,7 +43,7 @@
     `;
 
     const toggleButton = document.createElement('button');
-    toggleButton.id = '11ze-dark-mode-toggle-button';
+    toggleButton.id = '11ze-reverse-color-mode-toggle-button';
     toggleButton.innerHTML =
       '<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0xMiAyMmM1LjUyMyAwIDEwLTQuNDc3IDEwLTEwYzAtLjQ2My0uNjk0LS41NC0uOTMzLS4xNDNhNi41IDYuNSAwIDEgMS04LjkyNC04LjkyNEMxMi41NCAyLjY5MyAxMi40NjMgMiAxMiAyQzYuNDc3IDIgMiA2LjQ3NyAyIDEyczQuNDc3IDEwIDEwIDEwIi8+PC9zdmc+" alt="sun" style="width:24px;height:24px;">';
 
@@ -69,40 +69,40 @@
       buttonContainer.style.opacity = '0.7';
     });
 
-    toggleButton.addEventListener('click', toggleDarkMode);
+    toggleButton.addEventListener('click', toggleReverseColorMode);
 
     buttonContainer.appendChild(toggleButton);
     document.body.appendChild(buttonContainer);
   }
 
   function updateToggleButton() {
-    const button = document.getElementById('11ze-dark-mode-toggle-button');
+    const button = document.getElementById('11ze-reverse-color-mode-toggle-button');
 
     if (!button) {
       return;
     }
 
-    button.style.display = isDarkMode ? 'flex' : 'none';
+    button.style.display = isReverseColorMode ? 'flex' : 'none';
   }
 
-  function toggleDarkMode() {
-    isDarkMode = !isDarkMode;
+  function toggleReverseColorMode() {
+    isReverseColorMode = !isReverseColorMode;
 
-    localStorage.setItem(STORAGE_KEY, isDarkMode.toString());
+    localStorage.setItem(STORAGE_KEY, isReverseColorMode.toString());
 
     updateToggleButton();
 
-    if (isDarkMode) {
-      applyDarkMode();
+    if (isReverseColorMode) {
+      applyReverseColorMode();
     } else {
-      removeDarkMode();
+      removeReverseColorMode();
     }
   }
 
-  function applyDarkMode() {
-    if (darkModeStyle) return;
+  function applyReverseColorMode() {
+    if (reverseColorModeStyle) return;
 
-    darkModeStyle = GM_addStyle(`
+    reverseColorModeStyle = GM_addStyle(`
             html {
                 filter: invert(1) hue-rotate(180deg) !important;
             }
@@ -116,7 +116,7 @@
                 filter: invert(1) hue-rotate(180deg) !important;
             }
 
-            .dark-mode-ignore,
+            .reverse-color-mode-ignore,
             [data-theme],
             [data-color-mode] {
                 filter: none !important;
@@ -124,10 +124,10 @@
         `);
   }
 
-  function removeDarkMode() {
-    if (darkModeStyle) {
-      darkModeStyle.remove();
-      darkModeStyle = null;
+  function removeReverseColorMode() {
+    if (reverseColorModeStyle) {
+      reverseColorModeStyle.remove();
+      reverseColorModeStyle = null;
     }
   }
 
