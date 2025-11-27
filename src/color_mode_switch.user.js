@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         网站亮暗色模式切换
 // @namespace    https://github.com/11ze
-// @version      0.0.3
+// @version      0.0.4
 // @description  为任意网站提供亮暗色模式切换功能
 // @author       11ze
 // @match        *://*/*
@@ -52,7 +52,7 @@
       height: 40px;
       border-radius: 50%;
       border: none;
-      background-color: transparent;
+      background-color: #000;
       cursor: pointer;
       font-size: 20px;
       display: flex;
@@ -107,50 +107,15 @@
                 filter: invert(1) hue-rotate(180deg) !important;
             }
 
-            body {
-                background-color: #121212 !important;
-                color: #e0e0e0 !important;
-            }
-
             img, video, iframe, canvas, svg, picture {
                 filter: invert(1) hue-rotate(180deg) !important;
             }
 
-            /* 处理带有背景图片的元素 */
             [style*="background-image"],
             [style*="background-image:"] {
                 filter: invert(1) hue-rotate(180deg) !important;
             }
 
-            /* 处理代码块 */
-            pre, code {
-                background-color: #2d2d2d !important;
-                color: #f8f8f2 !important;
-            }
-
-            /* 处理表格 */
-            table {
-                background-color: #2d2d2d !important;
-                color: #e0e0e0 !important;
-            }
-
-            th, td {
-                border-color: #555 !important;
-            }
-
-            /* 处理输入框和文本区域 */
-            input, textarea, select {
-                background-color: #2d2d2d !important;
-                color: #e0e0e0 !important;
-                border-color: #555 !important;
-            }
-
-            /* 处理链接 */
-            a:link, a:visited {
-                color: #66b3ff !important;
-            }
-
-            /* 处理特殊网站元素 */
             .dark-mode-ignore,
             [data-theme],
             [data-color-mode] {
