@@ -7,7 +7,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.4.1
+// @version     0.4.2
 // @description 2025-12-01
 // ==/UserScript==
 
@@ -1420,9 +1420,8 @@ const isJVS = (isLogFunction) => {
       return;
     }
 
-    // 监听鼠标移动
-    window.removeEventListener('mousemove', resetRefreshPageLastTime, { passive: true });
-    window.addEventListener('mousemove', resetRefreshPageLastTime, { passive: true });
+    window.removeEventListener('mousedown', resetRefreshPageLastTime, { passive: true });
+    window.addEventListener('mousedown', resetRefreshPageLastTime, { passive: true });
 
     const currentTime = new Date().getTime();
     if (currentTime - lastTime < 1000 * window.refreshPageIntervalSecond) {
