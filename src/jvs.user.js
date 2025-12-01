@@ -7,7 +7,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.4.0
+// @version     0.4.1
 // @description 2025-12-01
 // ==/UserScript==
 
@@ -126,7 +126,7 @@ const isJVS = (isLogFunction) => {
   ];
 
   const refreshPageLastTime = '__11ze_JVS_REFRESH_PAGE_LAST_TIME__';
-  const refreshPageIntervalSecond = 60 * 20;
+  const refreshPageIntervalSecond = 60 * 15;
   window.refreshPageLastTime = refreshPageLastTime;
   window.refreshPageIntervalSecond = refreshPageIntervalSecond;
 
