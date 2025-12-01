@@ -7,7 +7,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.3.5
+// @version     0.4.0
 // @description 2025-12-01
 // ==/UserScript==
 
@@ -56,6 +56,7 @@ const isJVS = (isLogFunction) => {
       applicationSetClick,
       showNodeExecTime,
       // setCanvasScroll,
+      autoRefreshPage,
     ];
 
     for (const operation of operations) {
@@ -123,6 +124,11 @@ const isJVS = (isLogFunction) => {
     // 新版 JVS 列表设计、表单设计
     'div.design-header-box > div.header-left',
   ];
+
+  const refreshPageLastTime = '__11ze_JVS_REFRESH_PAGE_LAST_TIME__';
+  const refreshPageIntervalSecond = 60 * 20;
+  window.refreshPageLastTime = refreshPageLastTime;
+  window.refreshPageIntervalSecond = refreshPageIntervalSecond;
 
   function getQueryParamMapping(url) {
     if (!url) {
@@ -1390,6 +1396,41 @@ const isJVS = (isLogFunction) => {
     });
 
     wrapper.setAttribute('data-11ze-canvas-scroll', 'true');
+  }
+
+  function resetRefreshPageLastTime() {
+    localStorage.setItem(window.refreshPageLastTime, new Date().getTime());
+  }
+
+  function autoRefreshPage() {
+    const currentUrl = window.location.href;
+    const needRefreshUrlKeyword = ['myiframe', 'wel'];
+    if (!needRefreshUrlKeyword.some((keyword) => currentUrl.includes(keyword))) {
+      return;
+    }
+    // 开发站
+    if (!['dev'].some((keyword) => currentUrl.includes(keyword))) {
+      return;
+    }
+
+    let lastTime = localStorage.getItem(window.refreshPageLastTime);
+    if (!lastTime) {
+      lastTime = new Date().getTime();
+      localStorage.setItem(window.refreshPageLastTime, lastTime);
+      return;
+    }
+
+    // 监听鼠标移动
+    window.removeEventListener('mousemove', resetRefreshPageLastTime, { passive: true });
+    window.addEventListener('mousemove', resetRefreshPageLastTime, { passive: true });
+
+    const currentTime = new Date().getTime();
+    if (currentTime - lastTime < 1000 * window.refreshPageIntervalSecond) {
+      return;
+    }
+
+    localStorage.setItem(window.refreshPageLastTime, currentTime);
+    location.reload();
   }
 })();
 
