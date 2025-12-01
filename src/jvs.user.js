@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.3.4
-// @description 2025-09-24
+// @version     0.3.5
+// @description 2025-12-01
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -103,7 +103,7 @@ const isJVS = (isLogFunction) => {
       label: '类型',
       value: 'type',
       options: ['全部', '打开', '保存'],
-      selected: '打开',
+      selected: '全部',
     },
   ];
   const logSaveDays = 365;
