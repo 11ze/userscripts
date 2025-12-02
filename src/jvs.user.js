@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.4.2
-// @description 2025-12-01
+// @version     0.4.4
+// @description 2025-12-02
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
