@@ -7,7 +7,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.4.6
+// @version     0.4.7
 // @description 2025-12-02
 // ==/UserScript==
 
@@ -2086,7 +2086,6 @@ const css = `
     top: 50px;
     right: 310px;
     z-index: 9999;
-    background-color: white;
     padding: 10px;
     max-height: 800px;
     overflow-y: auto;
@@ -2113,11 +2112,13 @@ const css = `
     display: inline-block;
     margin-right: 10px;
   }
+
   .log-11ze-select-label {
     display: inline-block;
     margin-right: 5px;
     font-size: 14px;
   }
+
   .log-11ze-select {
     display: inline-block;
     background-color: white !important;
@@ -2125,10 +2126,11 @@ const css = `
     color: black !important;
     border: 1px solid #23272e !important;
     font-size: 14px !important;
-    &:hover {
-      background-color: #f5f6f7 !important;
-      cursor: pointer;
-    }
+  }
+
+  .log-11ze-select:hover {
+    background-color: #f5f6f7 !important;
+    cursor: pointer;
   }
 
   /* 按钮统一样式 */
@@ -2137,13 +2139,14 @@ const css = `
     border-color: #d4e3fc !important;
     color: black !important;
     border: 1px solid #e0e0e0 !important;
-    &:hover {
-      background-color: #f5f6f7 !important;
-      cursor: pointer;
-    }
   }
 
-  /* 逻辑设计左上角的逻辑列表弹窗 */
+  .button-11ze:hover {
+    background-color: #f5f6f7 !important;
+    cursor: pointer;
+  }
+
+  /* 逻辑设计左上角的逻辑列表弹窗宽度 */
   .other-rule-list {
     width: 500px !important;
   }
