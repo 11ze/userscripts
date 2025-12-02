@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         查看浏览器地址栏信息
 // @namespace    https://github.com/11ze
-// @version      0.1.7
-// @description  2025-07-08
+// @version      0.1.8
+// @description  2025-12-02
 // @author       11ze
 // @license      MIT
 // @match        *://*/*
@@ -77,16 +77,17 @@
     popup.style.top = '200px';
     popup.style.right = '400px';
     popup.style.zIndex = '9999';
-    popup.style.backgroundColor = 'white';
-    popup.style.padding = '10px';
-    popup.style['max-height'] = '800px';
+    popup.style.backgroundColor = '#ffffff';
+    popup.style.padding = '20px';
+    popup.style['max-height'] = '80vh';
     popup.style['overflow-y'] = 'auto';
     popup.style.display = 'flex';
     popup.style.flexDirection = 'column';
-    popup.style.width = '400px';
-    popup.style.marginLeft = '10px';
-    popup.style.marginRight = '10px';
-    popup.style.fontSize = '15px';
+    popup.style.width = '450px';
+    popup.style.fontSize = '14px';
+    popup.style.borderRadius = '12px';
+    popup.style.boxShadow = '0 10px 30px rgba(0, 0, 0, 0.15)';
+    popup.style.border = '1px solid #e1e8ed';
 
     let currentHost = '';
     let currentTable = null;
@@ -99,6 +100,14 @@
     fullUrlDiv.textContent = decodeURIComponent(fullUrl);
     // 内容显示完整并换行
     fullUrlDiv.style['overflow-wrap'] = 'break-word';
+    fullUrlDiv.style.padding = '12px';
+    fullUrlDiv.style.backgroundColor = '#f8fafc';
+    fullUrlDiv.style.borderRadius = '8px';
+    fullUrlDiv.style.border = '1px solid #e2e8f0';
+    fullUrlDiv.style.fontSize = '13px';
+    fullUrlDiv.style.lineHeight = '1.5';
+    fullUrlDiv.style.color = '#1e293b';
+    fullUrlDiv.style.marginBottom = '16px';
     popup.appendChild(fullUrlDiv);
 
     popup.appendChild(createSeparator());
@@ -146,19 +155,31 @@
 
     const closeButton = document.createElement('button');
     closeButton.textContent = '关闭';
-    closeButton.style.padding = '5px 10px';
+    closeButton.style.padding = '10px 16px';
     closeButton.style.cursor = 'pointer';
     closeButton.style.fontSize = '13px';
-    closeButton.style.backgroundColor = '#f46f70';
-    closeButton.style.border = '1px solid #e0e0e0';
-    closeButton.style.borderColor = '#d4e3fc';
+    closeButton.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+    closeButton.style.border = 'none';
+    closeButton.style.borderRadius = '6px';
     closeButton.style.color = 'white';
     closeButton.style.width = '100%';
-    closeButton.style.marginLeft = '10px';
-    closeButton.style.marginRight = '10px';
+    closeButton.style.fontWeight = '600';
+    closeButton.style.transition = 'all 0.2s ease';
+    closeButton.style.boxShadow = '0 2px 4px rgba(239, 68, 68, 0.3)';
+    closeButton.style.marginTop = '8px';
 
     closeButton.onclick = () => {
       popup.remove();
+    };
+
+    // 添加悬停效果
+    closeButton.onmouseover = () => {
+      closeButton.style.transform = 'translateY(-1px)';
+      closeButton.style.boxShadow = '0 4px 8px rgba(239, 68, 68, 0.4)';
+    };
+    closeButton.onmouseout = () => {
+      closeButton.style.transform = 'translateY(0)';
+      closeButton.style.boxShadow = '0 2px 4px rgba(239, 68, 68, 0.3)';
     };
 
     popup.appendChild(closeButton);
@@ -177,9 +198,8 @@
   function createSeparator() {
     const separator = document.createElement('div');
     separator.style.height = '1px';
-    separator.style.backgroundColor = 'black';
-    separator.style.margin = '10px 0';
-    separator.style.marginTop = '20px';
+    separator.style.backgroundColor = '#e2e8f0';
+    separator.style.margin = '16px 0';
     separator.style.width = '100%';
     return separator;
   }
@@ -187,11 +207,18 @@
   function createHostDiv(host) {
     const hostDiv = document.createElement('div');
     hostDiv.style.display = 'flex';
-    hostDiv.style.marginBottom = '10px';
+    hostDiv.style.marginBottom = '12px';
+    hostDiv.style.padding = '10px 12px';
+    hostDiv.style.backgroundColor = '#f1f5f9';
+    hostDiv.style.borderRadius = '6px';
+    hostDiv.style.borderLeft = '4px solid #3b82f6';
 
     const hostSpan = document.createElement('span');
     hostSpan.textContent = host;
     hostSpan.style.textAlign = 'left';
+    hostSpan.style.fontSize = '14px';
+    hostSpan.style.fontWeight = '600';
+    hostSpan.style.color = '#000';
     hostDiv.appendChild(hostSpan);
 
     return hostDiv;
@@ -201,15 +228,19 @@
     const table = document.createElement('table');
     table.className = 'table';
     table.style.minWidth = '400px';
-    table.style.borderBottom = '1px solid #dddddd';
+    table.style.border = '1px solid #e2e8f0';
+    table.style.borderRadius = '8px';
     table.style.textAlign = 'left';
-    table.style.fontSize = '15px';
+    table.style.fontSize = '13px';
+    table.style.borderCollapse = 'separate';
+    table.style.borderSpacing = '0';
+    table.style.overflow = 'hidden';
 
     table.innerHTML = `
       <thead>
-        <tr style="background-color: #eef5fe;">
-          <th style="padding: 6px; font-size: 15px;">&nbsp; 参数名 &nbsp;</th>
-          <th style="padding: 6px; font-size: 15px;">&nbsp; 参数值 &nbsp;</th>
+        <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+          <th style="padding: 12px 16px; font-size: 13px; font-weight: 600; color: white; border: none;">参数名</th>
+          <th style="padding: 12px 16px; font-size: 13px; font-weight: 600; color: white; border: none;">参数值</th>
         </tr>
       </thead>
       <tbody></tbody>
@@ -224,28 +255,51 @@
     const cell2 = row.insertCell(1);
     cell1.textContent = param.key;
     cell2.textContent = param.value;
-    cell1.style.padding = '8px';
-    cell2.style.padding = '8px';
+    cell1.style.padding = '12px 16px';
+    cell2.style.padding = '12px 16px';
+    cell1.style.borderBottom = '1px solid #f1f5f9';
+    cell2.style.borderBottom = '1px solid #f1f5f9';
+    cell1.style.fontSize = '13px';
+    cell2.style.fontSize = '13px';
+    cell1.style.color = '#374151';
+    cell2.style.color = '#374151';
+    cell1.style.fontWeight = '500';
+
+    // 添加悬停效果
+    row.style.transition = 'background-color 0.2s ease';
+    row.onmouseover = () => (row.style.backgroundColor = '#f8fafc');
+    row.onmouseout = () => (row.style.backgroundColor = '');
   }
 
   function addParamsCopyButton(popup, paramString) {
     const paramsDiv = document.createElement('div');
     paramsDiv.style.display = 'flex';
-    paramsDiv.style.marginBottom = '10px';
+    paramsDiv.style.marginBottom = '16px';
     paramsDiv.style.width = '100%';
-    paramsDiv.style.marginLeft = '10px';
-    paramsDiv.style.marginRight = '10px';
 
     const copyParamsButton = document.createElement('button');
     copyParamsButton.textContent = '复制参数';
-    copyParamsButton.style.padding = '5px 10px';
+    copyParamsButton.style.padding = '8px 16px';
     copyParamsButton.style.cursor = 'pointer';
     copyParamsButton.style.fontSize = '13px';
-    copyParamsButton.style.backgroundColor = '#eef5fe';
-    copyParamsButton.style.border = '1px solid #e0e0e0';
-    copyParamsButton.style.borderColor = '#d4e3fc';
-    copyParamsButton.style.color = 'black';
+    copyParamsButton.style.background = 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)';
+    copyParamsButton.style.border = 'none';
+    copyParamsButton.style.borderRadius = '6px';
+    copyParamsButton.style.color = 'white';
     copyParamsButton.style.width = '100%';
+    copyParamsButton.style.fontWeight = '500';
+    copyParamsButton.style.transition = 'all 0.2s ease';
+    copyParamsButton.style.boxShadow = '0 2px 4px rgba(59, 130, 246, 0.3)';
+
+    // 添加悬停效果
+    copyParamsButton.onmouseover = () => {
+      copyParamsButton.style.transform = 'translateY(-1px)';
+      copyParamsButton.style.boxShadow = '0 4px 8px rgba(59, 130, 246, 0.4)';
+    };
+    copyParamsButton.onmouseout = () => {
+      copyParamsButton.style.transform = 'translateY(0)';
+      copyParamsButton.style.boxShadow = '0 2px 4px rgba(59, 130, 246, 0.3)';
+    };
 
     copyParamsButton.onclick = () => copyToClipboard(paramString, copyParamsButton, '已复制');
     paramsDiv.appendChild(copyParamsButton);
@@ -262,12 +316,15 @@
         const textArea = document.createElement('textarea');
         textArea.value = text;
         textArea.style.position = 'fixed'; // 避免滚动到底部
+        textArea.style.opacity = '0';
+        textArea.style.pointerEvents = 'none';
         document.body.appendChild(textArea);
         textArea.focus();
         textArea.select();
         try {
-          navigator.clipboard.writeText(text);
-          return Promise.resolve();
+          return document.execCommand('copy')
+            ? Promise.resolve()
+            : Promise.reject(new Error('复制失败'));
         } catch (err) {
           return Promise.reject(err);
         } finally {
@@ -280,15 +337,27 @@
       .then(() => {
         const originalText = button.textContent;
         button.textContent = successMessage;
+        button.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+        button.style.boxShadow = '0 2px 4px rgba(16, 185, 129, 0.3)';
         button.disabled = true;
         setTimeout(() => {
           button.textContent = originalText;
           button.disabled = false;
+          // 恢复原始样式
+          if (originalText === '复制参数') {
+            button.style.background = 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)';
+            button.style.boxShadow = '0 2px 4px rgba(59, 130, 246, 0.3)';
+          }
         }, 1000);
       })
       .catch((err) => {
         console.error('复制失败:', err);
-        alert('复制失败，请重试');
+        button.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+        button.textContent = '复制失败';
+        setTimeout(() => {
+          button.textContent = '复制参数';
+          button.style.background = 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)';
+        }, 1000);
       });
   }
 
