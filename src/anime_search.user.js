@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         搜索动漫
 // @namespace    https://github.com/11ze
-// @version      0.6.9
-// @description  2025-07-01
+// @version      0.6.10
+// @description  2025-12-02
 // @author       11ze
 // @match        *://*/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=agedm.org
@@ -81,6 +81,31 @@
 
     const button = document.createElement('button');
     button.textContent = buttonName;
+    button.style.cssText = `
+      margin-left: 6px;
+      padding: 6px 10px;
+      border: 1px solid #e1e5e9;
+      border-radius: 6px;
+      background: #ffffff;
+      color: #495057;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    `;
+
+    button.addEventListener('mouseenter', function () {
+      this.style.backgroundColor = '#f8f9fa';
+      this.style.borderColor = '#ced4da';
+      this.style.boxShadow = '0 2px 4px rgba(0,0,0,0.08)';
+    });
+
+    button.addEventListener('mouseleave', function () {
+      this.style.backgroundColor = '#ffffff';
+      this.style.borderColor = '#e1e5e9';
+      this.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
+    });
 
     button.addEventListener('click', function () {
       window.open(targetWeb + uniqueText(text), '_blank');
