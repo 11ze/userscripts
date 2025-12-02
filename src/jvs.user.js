@@ -7,7 +7,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.4.4
+// @version     0.4.5
 // @description 2025-12-02
 // ==/UserScript==
 
@@ -37,6 +37,7 @@ const jvsStorage = {
       return value ? JSON.parse(value) : defaultValue;
     } catch (error) {
       console.error(`读取本地存储失败 [${key}]:`, error);
+      jvsStorage.remove(key);
       return defaultValue;
     }
   },
