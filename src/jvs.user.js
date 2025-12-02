@@ -7,7 +7,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.4.5
+// @version     0.4.6
 // @description 2025-12-02
 // ==/UserScript==
 
@@ -63,7 +63,8 @@ const jvsStorage = {
   if (!isJVS(false)) {
     return;
   }
-  setInterval(() => {
+
+  const jvsTimer = setInterval(() => {
     const operations = [
       expandNames,
       changeTitle,
@@ -96,6 +97,10 @@ const jvsStorage = {
       }
     }
   }, 400);
+
+  window.addEventListener('beforeunload', () => {
+    jvsStorage.remove(jvsTimer);
+  });
 
   // changeTitle
   const envList = [
@@ -1427,7 +1432,7 @@ const jvsStorage = {
   }
 
   function resetRefreshPageLastTime() {
-    jvsStorage.set(window.refreshPageLastTime, new Date());
+    jvsStorage.set(window.refreshPageLastTime, new Date().getTime());
   }
 
   function autoRefreshPage() {
@@ -1443,7 +1448,7 @@ const jvsStorage = {
 
     let lastTime = jvsStorage.get(window.refreshPageLastTime);
     if (!lastTime) {
-      lastTime = new Date();
+      lastTime = new Date().getTime();
       jvsStorage.set(window.refreshPageLastTime, lastTime);
       return;
     }
@@ -1452,11 +1457,11 @@ const jvsStorage = {
     window.addEventListener('mousedown', resetRefreshPageLastTime, { passive: true });
 
     const currentTime = new Date().getTime();
-    if (currentTime - new Date(lastTime).getTime() < 1000 * window.refreshPageIntervalSecond) {
+    if (currentTime - lastTime < 1000 * window.refreshPageIntervalSecond) {
       return;
     }
 
-    jvsStorage.set(window.refreshPageLastTime, new Date(currentTime));
+    jvsStorage.set(window.refreshPageLastTime, currentTime);
     location.reload();
   }
 })();
@@ -1953,7 +1958,7 @@ window.onload = function () {
     });
   }
 
-  setInterval(() => {
+  const jvsLogTimer = setInterval(() => {
     try {
       main();
     } catch (error) {
@@ -1961,6 +1966,10 @@ window.onload = function () {
       console.error(error);
     }
   }, 400);
+
+  window.addEventListener('beforeunload', () => {
+    clearInterval(jvsLogTimer);
+  });
 };
 
 window.iconMap = {
