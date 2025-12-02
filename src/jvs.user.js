@@ -29,6 +29,33 @@ const isJVS = (isLogFunction) => {
   return false;
 };
 
+// 本地存储工具函数
+const jvsStorage = {
+  get: (key, defaultValue = null) => {
+    try {
+      const value = localStorage.getItem(key);
+      return value ? JSON.parse(value) : defaultValue;
+    } catch (error) {
+      console.error(`读取本地存储失败 [${key}]:`, error);
+      return defaultValue;
+    }
+  },
+  set: (key, value) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+      console.error(`写入本地存储失败 [${key}]:`, error);
+    }
+  },
+  remove: (key) => {
+    try {
+      localStorage.removeItem(key);
+    } catch (error) {
+      console.error(`删除本地存储失败 [${key}]:`, error);
+    }
+  },
+};
+
 (function () {
   'use strict';
 
@@ -126,7 +153,7 @@ const isJVS = (isLogFunction) => {
   ];
 
   const refreshPageLastTime = '__11ze_JVS_REFRESH_PAGE_LAST_TIME__';
-  const refreshPageIntervalSecond = 60 * 15;
+  const refreshPageIntervalSecond = 15 * 60;
   window.refreshPageLastTime = refreshPageLastTime;
   window.refreshPageIntervalSecond = refreshPageIntervalSecond;
 
@@ -183,7 +210,7 @@ const isJVS = (isLogFunction) => {
   window.appModeMapKey = '__11ze_JVS_APP_MODE_MAP__';
 
   function getAppModelMap() {
-    return JSON.parse(localStorage.getItem(window.appModeMapKey) ?? '{}');
+    return jvsStorage.get(window.appModeMapKey, {});
   }
   window.getAppModelMap = getAppModelMap;
 
@@ -202,7 +229,7 @@ const isJVS = (isLogFunction) => {
         if (jvsAppId) {
           const appModeMap = window.getAppModelMap();
           appModeMap[jvsAppId] = mode;
-          localStorage.setItem(window.appModeMapKey, JSON.stringify(appModeMap));
+          jvsStorage.set(window.appModeMapKey, appModeMap);
         }
 
         return mode;
@@ -1058,7 +1085,7 @@ const isJVS = (isLogFunction) => {
     const highlightAppsKey = '__11ze_HIGHLIGHT_APPS__';
 
     const labelClass = 'ze-highlight-label';
-    const appList = JSON.parse(localStorage.getItem(highlightAppsKey) ?? '[]');
+    const appList = jvsStorage.get(highlightAppsKey, []);
 
     function getContentSelector() {
       return 'div > div > div > p';
@@ -1095,7 +1122,7 @@ const isJVS = (isLogFunction) => {
       } else {
         appList.push(text);
       }
-      localStorage.setItem(highlightAppsKey, JSON.stringify(appList));
+      jvsStorage.set(highlightAppsKey, appList);
     }
 
     function main() {
@@ -1231,7 +1258,7 @@ const isJVS = (isLogFunction) => {
   window.appNameMapKey = '__11ze_JVS_APP_NAME_MAP__';
 
   function getAppNameMap() {
-    return JSON.parse(localStorage.getItem(window.appNameMapKey) ?? '{}');
+    return jvsStorage.get(window.appNameMapKey, {});
   }
   window.getAppNameMap = getAppNameMap;
 
@@ -1244,7 +1271,7 @@ const isJVS = (isLogFunction) => {
   function saveAppIdName(jvsAppId, appName) {
     const appNameMap = getAppNameMap();
     appNameMap[jvsAppId] = appName;
-    localStorage.setItem(window.appNameMapKey, JSON.stringify(appNameMap));
+    jvsStorage.set(window.appNameMapKey, appNameMap);
   }
   window.saveAppIdName = saveAppIdName;
 
@@ -1399,7 +1426,7 @@ const isJVS = (isLogFunction) => {
   }
 
   function resetRefreshPageLastTime() {
-    localStorage.setItem(window.refreshPageLastTime, new Date().getTime());
+    jvsStorage.set(window.refreshPageLastTime, new Date());
   }
 
   function autoRefreshPage() {
@@ -1413,10 +1440,10 @@ const isJVS = (isLogFunction) => {
       return;
     }
 
-    let lastTime = localStorage.getItem(window.refreshPageLastTime);
+    let lastTime = jvsStorage.get(window.refreshPageLastTime);
     if (!lastTime) {
-      lastTime = new Date().getTime();
-      localStorage.setItem(window.refreshPageLastTime, lastTime);
+      lastTime = new Date();
+      jvsStorage.set(window.refreshPageLastTime, lastTime);
       return;
     }
 
@@ -1424,11 +1451,11 @@ const isJVS = (isLogFunction) => {
     window.addEventListener('mousedown', resetRefreshPageLastTime, { passive: true });
 
     const currentTime = new Date().getTime();
-    if (currentTime - lastTime < 1000 * window.refreshPageIntervalSecond) {
+    if (currentTime - new Date(lastTime).getTime() < 1000 * window.refreshPageIntervalSecond) {
       return;
     }
 
-    localStorage.setItem(window.refreshPageLastTime, currentTime);
+    jvsStorage.set(window.refreshPageLastTime, new Date(currentTime));
     location.reload();
   }
 })();
@@ -1548,13 +1575,13 @@ window.onload = function () {
 
     logs = uniqueLogs(logs);
 
-    localStorage.setItem(logsLocalStorageKey, JSON.stringify(logs));
+    jvsStorage.set(logsLocalStorageKey, logs);
 
     return logs;
   }
 
   function getLogs() {
-    const logs = JSON.parse(localStorage.getItem(logsLocalStorageKey));
+    const logs = jvsStorage.get(logsLocalStorageKey, []);
     if (!logs) {
       return [];
     }
@@ -1578,7 +1605,7 @@ window.onload = function () {
 
     const logList = getLogs();
     logList.push(logObj);
-    localStorage.setItem(logsLocalStorageKey, JSON.stringify(logList));
+    jvsStorage.set(logsLocalStorageKey, logList);
   }
 
   function uniqueLogs(logs) {
@@ -1635,7 +1662,7 @@ window.onload = function () {
   }
 
   function getOptions() {
-    const options = JSON.parse(localStorage.getItem(logOptionsLocalStorageKey));
+    const options = jvsStorage.get(logOptionsLocalStorageKey, []);
     if (!options) {
       return logOptions;
     }
@@ -1665,7 +1692,7 @@ window.onload = function () {
       }
     }
 
-    localStorage.setItem(logOptionsLocalStorageKey, JSON.stringify(options));
+    jvsStorage.set(logOptionsLocalStorageKey, options);
   }
 
   function filterLogs(logs, options) {
