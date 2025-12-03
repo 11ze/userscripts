@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.4.7
-// @description 2025-12-02
+// @version     0.4.8
+// @description 2025-12-03
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -2169,6 +2169,7 @@ const css = `
     border-color: #c0c0c0 !important;
     color: #333333 !important;
     cursor: pointer;
+    transform: translateY(-1px) !important;
   }
 
   /* 逻辑设计左上角的逻辑列表弹窗宽度 */
