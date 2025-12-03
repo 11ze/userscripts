@@ -2079,33 +2079,37 @@ const css = `
   /* 日志弹窗 */
   .popup {
     border: 1px solid #e0e0e0 !important;
-    border-radius: 5px !important;
-    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1) !important;
-    background-color: #fff !important;
+    border-radius: 8px !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+    background-color: #ffffff !important;
     position: fixed;
     top: 50px;
     right: 310px;
     z-index: 9999;
-    padding: 10px;
+    padding: 20px;
     max-height: 800px;
     overflow-y: auto;
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
   }
 
   .table-11ze {
     font-size: 14px !important;
     min-width: 800px !important;
-    border-bottom: 1px solid #dddddd !important;
+    border-bottom: 1px solid #e0e0e0 !important;
     text-align: left !important;
+    border-collapse: collapse !important;
+    width: 100% !important;
   }
 
   /* 日志弹窗的表格 */
   .log-11ze-table-tr > td,
   .log-11ze-table-tr > th {
-    padding: 0px 0px 5px 5px !important;
+    padding: 6px 6px !important;
+    border-bottom: 1px solid #f0f0f0 !important;
   }
 
   .log-11ze-table-tr:hover {
-    background-color: #d5e3fb; /* 悬停时的背景颜色 */
+    background-color: #f8f9fa !important; /* 悬停时的背景颜色 */
   }
 
   .log-11ze-select-container {
@@ -2122,27 +2126,48 @@ const css = `
   .log-11ze-select {
     display: inline-block;
     background-color: white !important;
-    border-color: #d4e3fc !important;
-    color: black !important;
-    border: 1px solid #23272e !important;
+    border-color: #e0e0e0 !important;
+    color: #333333 !important;
+    border: 1px solid #e0e0e0 !important;
     font-size: 14px !important;
+    border-radius: 4px !important;
+    padding: 4px 8px !important;
   }
 
   .log-11ze-select:hover {
-    background-color: #f5f6f7 !important;
+    background-color: #f8f9fa !important;
+    border-color: #d0d0d0 !important;
     cursor: pointer;
   }
 
   /* 按钮统一样式 */
   .button-11ze {
-    background-color: white !important;
-    border-color: #d4e3fc !important;
-    color: black !important;
-    border: 1px solid #e0e0e0 !important;
+    background: linear-gradient(to bottom, #ffffff, #fafafa) !important;
+    border-color: #d8d8d8 !important;
+    color: #333333 !important;
+    border: 1px solid #d8d8d8 !important;
+    border-radius: 8px !important;
+    padding: 8px 16px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    transition: all 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+    outline: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 34px !important;
+    letter-spacing: 0.2px !important;
+    text-transform: none !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+    overflow: hidden !important;
+    user-select: none !important;
   }
 
   .button-11ze:hover {
-    background-color: #f5f6f7 !important;
+    background: linear-gradient(to bottom, #f8f9fa, #f2f2f2) !important;
+    border-color: #c0c0c0 !important;
+    color: #333333 !important;
     cursor: pointer;
   }
 
