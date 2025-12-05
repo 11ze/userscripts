@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.4.8
-// @description 2025-12-03
+// @version     0.4.9
+// @description 2025-12-05
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -2148,7 +2148,7 @@ const css = `
     border: 1px solid #d8d8d8 !important;
     border-radius: 8px !important;
     padding: 8px 16px !important;
-    font-size: 13px !important;
+    font-size: 14px !important;
     font-weight: 500 !important;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
     transition: all 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
@@ -2169,7 +2169,6 @@ const css = `
     border-color: #c0c0c0 !important;
     color: #333333 !important;
     cursor: pointer;
-    transform: translateY(-1px) !important;
   }
 
   /* 逻辑设计左上角的逻辑列表弹窗宽度 */
