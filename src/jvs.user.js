@@ -397,13 +397,16 @@ const jvsStorage = {
       if (!links) {
         // 如果不存在，则创建一个新的 link 元素
         const link = document.createElement('link');
-        link.rel = 'shortcut icon'; // 或 'icon'
-        link.type = 'image/x-icon'; // 设置类型，虽然并非所有浏览器都强制要求
+        // 或 'icon'
+        link.rel = 'shortcut icon';
+        // 设置类型，虽然并非所有浏览器都强制要求
+        link.type = 'image/x-icon';
         document.head.appendChild(link);
       }
 
       links.forEach(function (link) {
-        link.href = iconURL; // 设置新的图标 URL
+        // 设置新的图标 URL
+        link.href = iconURL;
       });
     }
 
@@ -590,7 +593,8 @@ const jvsStorage = {
       return null;
     }
 
-    const url = location.href; // http://xxx?id=xxx&xxx
+    // http://xxx?id=xxx&xxx
+    const url = location.href;
     return url.replace(/id=([^&]*)/, `id=${id}`);
   }
 
@@ -853,7 +857,8 @@ const jvsStorage = {
         // 回退方法：创建一个临时的文本区域元素
         const textArea = document.createElement('textarea');
         textArea.value = text;
-        textArea.style.position = 'fixed'; // 避免滚动到底部
+        // 避免滚动到底部
+        textArea.style.position = 'fixed';
         document.body.appendChild(textArea);
         textArea.focus();
         textArea.select();
@@ -1140,7 +1145,7 @@ const jvsStorage = {
 
       // 找到相关数据项，不存在就结束
       const nodes = [...document.querySelectorAll(containerSelector)];
-      if (!nodes) return; // 不存在，结束
+      if (!nodes) return;
 
       // 设置点击事件
       nodes.forEach((n) => {
@@ -1938,7 +1943,8 @@ window.onload = function () {
     button.id = 'ze-jvs-log-button';
     button.style.setProperty('border', '1px solid ' + color, 'important');
     button.onclick = function (event) {
-      event.stopPropagation(); // 阻止事件冒泡到 document
+      // 阻止事件冒泡到 document
+      event.stopPropagation();
       showPopup();
     };
 
