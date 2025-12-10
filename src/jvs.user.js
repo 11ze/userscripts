@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.4.10
-// @description 2025-12-08
+// @version     0.4.11
+// @description 2025-12-10
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -1907,19 +1907,17 @@ window.onload = function () {
       mode = window.getMode();
     }
 
-    let color = 'black';
     if (mode) {
       const modeSpan = document.createElement('span');
-      color = window.getModeColor(mode);
-      modeSpan.style.color = color;
+      modeSpan.style.color = window.getModeColor(mode);
       modeSpan.innerHTML = mode;
       buttonName = modeSpan.outerHTML + '｜' + buttonName;
     }
 
-    createButton(buttonName, color);
+    createButton(buttonName);
   }
 
-  function createButton(buttonName, color) {
+  function createButton(buttonName) {
     const existButton = document.getElementById('ze-jvs-log-button');
     if (existButton) {
       if (existButton.innerHTML === buttonName) {
@@ -1941,7 +1939,6 @@ window.onload = function () {
     button.style.zIndex = '9998';
     button.style.fontSize = '13px';
     button.id = 'ze-jvs-log-button';
-    button.style.setProperty('border', '1px solid ' + color, 'important');
     button.onclick = function (event) {
       // 阻止事件冒泡到 document
       event.stopPropagation();
@@ -2092,7 +2089,7 @@ const css = `
     top: 50px;
     right: 310px;
     z-index: 9999;
-    padding: 10px;
+    padding: 0 10px 10px 10px;
     max-height: 800px;
     overflow-y: auto;
   }
