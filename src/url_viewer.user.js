@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         查看浏览器地址栏信息
 // @namespace    https://github.com/11ze
-// @version      0.1.8
-// @description  2025-12-02
+// @version      0.1.9
+// @description  2025-12-12
 // @author       11ze
 // @license      MIT
 // @match        *://*/*
 // @noframes
-// @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAC4AAAAuCAYAAABXuSs3AAAAAXNSR0IArs4c6QAABB1JREFUaEPtmXtIU1Ecx78uxbJa4SOtNqwwoZZmr1lNScskE7O3RWJNwTLIgqAMEnrTwywtQQ2ZkaGZSmRGQUElZilFYmpaEPkomk6aztTSFueQJ6+P7UbaZtzz187u73fu537P73d/v7NZ6PV6PUbgsBDA//GuCYr/Y8EhKC4ozlMBIVR4CjVkZoLiQyYlz4X+D8UTSkqgbmuDBYBDXl4Ya2XF6/mvl5ejsqmJ2u5asABSsZj55dfU4FlDw6DrWIpEmOfkBIVUCgcbm0HtXqvVyKyooNdP+vpyC9DEs2eh7eykF2v37uUAGHoCeVoaSj9+pCb3t22D/4wZzHxjTg5yq6p4CWA3ZgwOe3tjn6dnP/srL18isqCAfq+PjTUv8B7aQwoFTi1fzoE3Kfj+xYuxWSbjAH3W6fC6sRHni4uhaW9n12K9vXHMx4fNTQqeFhSEcA+PAcOms7sbKzMyUFhbS6+T2G89eBCjLS3p3GzBCdzntjY4xcezB3sUFoZlzs7mD04InRMTUavVUtj0NWuwfe7ckQE+MykJ75qbKey1tWsR6uZm/uAdXV0Yf+YMun78oLDPIyIgnzLF/MGj793DpdJSlpxfDhxgRdCkyXk5IAA7fsVsTwZ+6ehAVVMTThcV4eH79ywx+77LTQrOq3wCkDk4oCQiAja9Wg6zBifv7nN+foiWyyGyIB3T72FScFc7O8y2t+cA3Xn7liXjnkWLkLhq1YAbYxDcPi6Old0ipRJLJRJeuytNSEB9Swu1fRAaihXTpzO/3k3WQJXz6JMnOPL4MUtI0txNHjeu330Ngs9JTkZFYyN1Ou7jQzs1Y6O5vR12cXHMrDIqCrN6qWoM/Ov373CMj4fu2ze6xhaZDJnr1/8ZeFBWFsjWkUFKLSm5xsat6mqsy85mZrqYGE4fbwycOCa/eIGou3fZGmWRkXB3dOQf49mVlQjJzWUOyYGB2Dl//qDsdS0tmJeaysJriUSCp0olx54PeLdeD+nFi/ik01Ffz6lT8Sw8nD84qVgkznsOE8Tzgr8/9sjlGNUny6s1GihUKk4rejskBEGurn8MThzy3rzBhps3mW/B1q1Y7eLC5gZjnFgV19djqUrFuTl5TblNmkST9YNWS1vP3g9HjMPc3XE1OLjf7vBRvMfJPSUF5Wo1nUrEYnyIjmavRaPgxInE+aacHJDegc9QenggJTAQViLRX4EX1dXBKz2drZEUEIDdCxfSOS9wYkh64xOFhUgvK2MZ35fKd9o0xCgUnDNmX5steXm48euQS3aE7Iyh4ZeRwUr/BGtrkH6FDNWrVwjPz6ef+505B1qQ/M9So9GgobUVpK8gsU5O8S62thBbW/PZkGGx+T9+VxkWaYZpUUHxYRJ20GUFxQXFeSoghApPoYbMbMQq/hMMz1ikTVIoJgAAAABJRU5ErkJggg==
+// @icon         data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItc2VhcmNoIj48Y2lyY2xlIGN4PSIxMSIgY3k9IjExIiByPSI4Ij48L2NpcmNsZT48cGF0aCBkPSJtMjEgMjEtNC4zNS00LjM1Ij48L3BhdGg+PC9zdmc+
 // @grant        GM_registerMenuCommand
 // ==/UserScript==
 
