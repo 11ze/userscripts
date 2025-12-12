@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         查看浏览器地址栏信息
+// @name         查看网址
 // @namespace    https://github.com/11ze
-// @version      0.1.9
+// @version      0.1.10
 // @description  2025-12-12
 // @author       11ze
 // @license      MIT

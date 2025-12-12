@@ -20,7 +20,7 @@
 
 ### [AGE 新页面播放视频并自动复制视频链接](https://openuserjs.org/scripts/11ze/AGE_%E6%96%B0%E9%A1%B5%E9%9D%A2%E6%92%AD%E6%94%BE%E8%A7%86%E9%A2%91)
 
-### [网站亮暗色模式切换](https://openuserjs.org/scripts/11ze/%E7%BD%91%E7%AB%99%E4%BA%AE%E6%9A%97%E8%89%B2%E6%A8%A1%E5%BC%8F%E5%88%87%E6%8D%A2)
+### [亮暗色切换](https://openuserjs.org/scripts/11ze/%E4%BA%AE%E6%9A%97%E8%89%B2%E5%88%87%E6%8D%A2)
 
 - 切换网站的亮暗色模式
 - 打开、刷新网站后不自动切换模式
@@ -32,7 +32,7 @@
 - 哔哩哔哩
 - AGE
 
-### [查看浏览器地址栏信息](https://openuserjs.org/scripts/11ze/%E6%9F%A5%E7%9C%8B%E6%B5%8F%E8%A7%88%E5%99%A8%E5%9C%B0%E5%9D%80%E6%A0%8F%E4%BF%A1%E6%81%AF)
+### [查看网址](https://openuserjs.org/scripts/11ze/%E6%9F%A5%E7%9C%8B%E7%BD%91%E5%9D%80)
 
 ### [改善 JVS 开发体验](https://openuserjs.org/scripts/11ze/%E6%94%B9%E5%96%84_JVS_%E5%BC%80%E5%8F%91%E4%BD%93%E9%AA%8C)
 
