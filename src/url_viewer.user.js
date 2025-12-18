@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         查看网址
 // @namespace    https://github.com/11ze
-// @version      0.1.10
-// @description  2025-12-12
+// @version      0.1.11
+// @description  2025-12-18
 // @author       11ze
 // @license      MIT
 // @match        *://*/*
@@ -253,8 +253,56 @@
     const row = table.insertRow();
     const cell1 = row.insertCell(0);
     const cell2 = row.insertCell(1);
-    cell1.textContent = param.key;
-    cell2.textContent = param.value;
+
+    // 创建参数名元素
+    const keySpan = document.createElement('span');
+    keySpan.textContent = param.key;
+    keySpan.style.cursor = 'pointer';
+    keySpan.style.padding = '4px 8px';
+    keySpan.style.borderRadius = '4px';
+    keySpan.style.transition = 'all 0.2s ease';
+    keySpan.title = '点击复制参数名';
+
+    // 创建参数值元素
+    const valueSpan = document.createElement('span');
+    valueSpan.textContent = param.value;
+    valueSpan.style.cursor = 'pointer';
+    valueSpan.style.padding = '4px 8px';
+    valueSpan.style.borderRadius = '4px';
+    valueSpan.style.transition = 'all 0.2s ease';
+    valueSpan.title = '点击复制参数值';
+
+    // 添加点击复制功能
+    keySpan.onclick = () => {
+      copyToClipboard(param.key, keySpan, '已复制');
+    };
+
+    valueSpan.onclick = () => {
+      copyToClipboard(param.value, valueSpan, '已复制');
+    };
+
+    // 添加悬停效果
+    keySpan.onmouseover = () => {
+      keySpan.style.backgroundColor = '#e0f2fe';
+      keySpan.style.color = '#0369a1';
+    };
+    keySpan.onmouseout = () => {
+      keySpan.style.backgroundColor = '';
+      keySpan.style.color = '';
+    };
+
+    valueSpan.onmouseover = () => {
+      valueSpan.style.backgroundColor = '#e0f2fe';
+      valueSpan.style.color = '#0369a1';
+    };
+    valueSpan.onmouseout = () => {
+      valueSpan.style.backgroundColor = '';
+      valueSpan.style.color = '';
+    };
+
+    cell1.appendChild(keySpan);
+    cell2.appendChild(valueSpan);
+
     cell1.style.padding = '12px 16px';
     cell2.style.padding = '12px 16px';
     cell1.style.borderBottom = '1px solid #f1f5f9';
@@ -265,7 +313,7 @@
     cell2.style.color = '#374151';
     cell1.style.fontWeight = '500';
 
-    // 添加悬停效果
+    // 添加行悬停效果
     row.style.transition = 'background-color 0.2s ease';
     row.onmouseover = () => (row.style.backgroundColor = '#f8fafc');
     row.onmouseout = () => (row.style.backgroundColor = '');
@@ -335,20 +383,20 @@
 
     copyTextToClipboard(text)
       .then(() => {
+        const originalBackground = button.style.background;
+        const originalBoxShadow = button.style.boxShadow;
+        setTimeout(() => {
+          button.textContent = originalText;
+          button.disabled = false;
+          button.style.background = originalBackground;
+          button.style.boxShadow = originalBoxShadow;
+        }, 1000);
+
         const originalText = button.textContent;
         button.textContent = successMessage;
         button.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
         button.style.boxShadow = '0 2px 4px rgba(16, 185, 129, 0.3)';
         button.disabled = true;
-        setTimeout(() => {
-          button.textContent = originalText;
-          button.disabled = false;
-          // 恢复原始样式
-          if (originalText === '复制参数') {
-            button.style.background = 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)';
-            button.style.boxShadow = '0 2px 4px rgba(59, 130, 246, 0.3)';
-          }
-        }, 1000);
       })
       .catch((err) => {
         console.error('复制失败:', err);
@@ -356,7 +404,8 @@
         button.textContent = '复制失败';
         setTimeout(() => {
           button.textContent = '复制参数';
-          button.style.background = 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)';
+          button.style.background = originalBackground;
+          button.style.boxShadow = originalBoxShadow;
         }, 1000);
       });
   }
