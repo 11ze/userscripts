@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         查看网址
 // @namespace    https://github.com/11ze
-// @version      0.1.11
-// @description  2025-12-18
+// @version      0.1.12
+// @description  2025-12-22
 // @author       11ze
 // @license      MIT
 // @match        *://*/*
@@ -12,7 +12,7 @@
 // ==/UserScript==
 
 (function () {
-  'use strict';
+  ('use strict');
 
   function parseUrl(url) {
     const multiplePath = url.split('#');
@@ -272,33 +272,37 @@
     valueSpan.style.transition = 'all 0.2s ease';
     valueSpan.title = '点击复制参数值';
 
-    // 添加点击复制功能
-    keySpan.onclick = () => {
+    // 添加点击复制功能到单元格
+    cell1.onclick = () => {
       copyToClipboard(param.key, keySpan, '已复制');
     };
 
-    valueSpan.onclick = () => {
+    cell2.onclick = () => {
       copyToClipboard(param.value, valueSpan, '已复制');
     };
 
-    // 添加悬停效果
-    keySpan.onmouseover = () => {
-      keySpan.style.backgroundColor = '#e0f2fe';
+    // 添加悬停效果到单元格
+    cell1.onmouseover = () => {
+      cell1.style.backgroundColor = '#e0f2fe';
       keySpan.style.color = '#0369a1';
     };
-    keySpan.onmouseout = () => {
-      keySpan.style.backgroundColor = '';
+    cell1.onmouseout = () => {
+      cell1.style.backgroundColor = '';
       keySpan.style.color = '';
     };
 
-    valueSpan.onmouseover = () => {
-      valueSpan.style.backgroundColor = '#e0f2fe';
+    cell2.onmouseover = () => {
+      cell2.style.backgroundColor = '#e0f2fe';
       valueSpan.style.color = '#0369a1';
     };
-    valueSpan.onmouseout = () => {
-      valueSpan.style.backgroundColor = '';
+    cell2.onmouseout = () => {
+      cell2.style.backgroundColor = '';
       valueSpan.style.color = '';
     };
+
+    // 设置单元格样式，使其可点击
+    cell1.style.cursor = 'pointer';
+    cell2.style.cursor = 'pointer';
 
     cell1.appendChild(keySpan);
     cell2.appendChild(valueSpan);
@@ -356,6 +360,19 @@
   }
 
   function copyToClipboard(text, button, successMessage) {
+    // 防止重复点击
+    if (button.disabled) {
+      return;
+    }
+
+    // 保存原始样式和文本
+    const originalText = button.textContent;
+    const originalBackground = button.style.background;
+    const originalBoxShadow = button.style.boxShadow;
+
+    // 立即禁用按钮，防止重复点击
+    button.disabled = true;
+
     const copyTextToClipboard = (text) => {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         return navigator.clipboard.writeText(text);
@@ -383,30 +400,31 @@
 
     copyTextToClipboard(text)
       .then(() => {
-        const originalBackground = button.style.background;
-        const originalBoxShadow = button.style.boxShadow;
+        // 立即更新按钮状态
+        button.textContent = successMessage;
+        button.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+        button.style.boxShadow = '0 2px 4px rgba(16, 185, 129, 0.3)';
+
+        // 1秒后恢复原始状态
         setTimeout(() => {
           button.textContent = originalText;
           button.disabled = false;
           button.style.background = originalBackground;
           button.style.boxShadow = originalBoxShadow;
         }, 1000);
-
-        const originalText = button.textContent;
-        button.textContent = successMessage;
-        button.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
-        button.style.boxShadow = '0 2px 4px rgba(16, 185, 129, 0.3)';
-        button.disabled = true;
       })
       .catch((err) => {
         console.error('复制失败:', err);
         button.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
         button.textContent = '复制失败';
+
+        // 1.5秒后恢复原始状态
         setTimeout(() => {
-          button.textContent = '复制参数';
+          button.textContent = originalText;
+          button.disabled = false;
           button.style.background = originalBackground;
           button.style.boxShadow = originalBoxShadow;
-        }, 1000);
+        }, 1500);
       });
   }
 
