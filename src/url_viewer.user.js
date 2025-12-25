@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         查看网址
 // @namespace    https://github.com/11ze
-// @version      0.1.13
+// @version      0.1.14
 // @description  2025-12-25
 // @author       11ze
 // @license      MIT
@@ -12,7 +12,7 @@
 // ==/UserScript==
 
 (function () {
-  ('use strict');
+  'use strict';
 
   function parseUrl(url) {
     if (typeof url !== 'string') {
