@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         查看网址
 // @namespace    https://github.com/11ze
-// @version      0.1.12
-// @description  2025-12-22
+// @version      0.1.13
+// @description  2025-12-25
 // @author       11ze
 // @license      MIT
 // @match        *://*/*
@@ -15,12 +15,22 @@
   ('use strict');
 
   function parseUrl(url) {
-    const multiplePath = url.split('#');
+    if (typeof url !== 'string') {
+      console.error('parseUrl: 参数必须是字符串');
+      return [];
+    }
+    if (!url) {
+      console.error('parseUrl: 参数不能为空');
+      return [];
+    }
 
+    const multiplePath = url.split('#');
     const result = [];
 
     for (let i = 0; i < multiplePath.length; i++) {
       const path = multiplePath[i];
+      if (!path) continue;
+
       let host, otherUrl;
 
       if (i === 0) {
@@ -36,17 +46,17 @@
       });
 
       if (otherUrl) {
-        const params = otherUrl.split('&');
+        // 使用 URLSearchParams 解析参数
+        const params = new URLSearchParams(otherUrl);
+        const paramEntries = Array.from(params.entries());
 
-        if (params.length > 0) {
+        if (paramEntries.length > 0) {
           result.push({
             type: 'table',
           });
         }
 
-        for (let j = 0; j < params.length; j++) {
-          const param = params[j];
-          const [key, value] = param.split('=');
+        for (const [key, value] of paramEntries) {
           result.push({
             type: 'param',
             key: key,
@@ -187,12 +197,13 @@
     document.body.appendChild(popup);
 
     // 添加点击事件监听器到 document
-    document.addEventListener('click', function (event) {
+    const closePopup = (event) => {
       if (!popup.contains(event.target) && event.target.id !== 'url-reader-menu-item') {
         popup.remove();
-        document.removeEventListener('click', arguments.call);
+        document.removeEventListener('click', closePopup);
       }
-    });
+    };
+    document.addEventListener('click', closePopup);
   }
 
   function createSeparator() {

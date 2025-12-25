@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         AGE 新页面播放视频
 // @namespace    https://github.com/11ze
-// @version      0.2.3
-// @description  2025-02-21
+// @version      0.2.4
+// @description  2025-12-25
 // @author       11ze
 // @match        https://www.agedm.org/play/*
 // @match        https://age.tv/play/*
@@ -77,22 +77,5 @@
     }
   }
 
-  // 增加节流控制
-  function throttle(func, limit) {
-    let inThrottle;
-    return function () {
-      if (!inThrottle) {
-        func.apply(this, arguments);
-        inThrottle = true;
-        setTimeout(() => (inThrottle = false), limit);
-      }
-    };
-  }
-
-  setInterval(
-    throttle(() => {
-      main();
-    }),
-    1000
-  );
+  setInterval(main, 1000);
 })();

@@ -3,7 +3,7 @@
 // @namespace       https://github.com/11ze
 // @author          11ze
 // @description     为所有网页增加可立即跳转至最大的可滚动区域顶部和底部的按钮
-// @version         0.0.14
+// @version         0.0.15
 // @icon            data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgBAMAAACBVGfHAAAALVBMVEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD////BHg4sAAAADXRSTlMAK1RVW1x3f4CI+vv8UJ/ShgAAAAFiS0dEDm+9ME8AAABqSURBVCjPY2CgHuCYgCbQexNNwe29DagKjmijKOG448C0dwKKAgYGZCVABQwMyErYjoBIrQKEEgEQwchAb4BuLQfYYdpILoU4HcmluSDPXUcyg+1OADOyAqCSo9bX8QchQ+519GhooKK3APJHHdKCOOK5AAAAAElFTkSuQmCC
 // @match           *
 // @include         *
@@ -13,7 +13,6 @@
 
 /* ************************ 页面效果 ************************ */
 
-// const buttonColor = '241,148,138,0.500'; // 红色
 const buttonColor = '247,220,111,0.667'; // 奶黄
 
 const topImage =
@@ -101,7 +100,24 @@ function getTarget() {
 }
 
 function runScrollableElements(isTop) {
-  const elements = document.querySelectorAll('*');
+  // 只检查常见的滚动容器,避免选择所有元素
+  const scrollableSelectors = [
+    'div[style*="overflow"]',
+    '[class*="scroll"]',
+    '[id*="scroll"]',
+    'main',
+    '[role="main"]',
+    '.content',
+    '.container',
+    '.scrollable',
+    'article',
+    'section',
+    '.list',
+    '.table',
+    '[class*="list"]',
+  ];
+  const elements = document.querySelectorAll(scrollableSelectors.join(','));
+
   for (const e of elements) {
     if (
       e.scrollHeight > e.clientHeight &&
