@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.4.11
-// @description 2025-12-10
+// @version     0.4.12
+// @description 2025-12-25
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -164,7 +164,7 @@ const jvsStorage = {
   window.refreshPageIntervalSecond = refreshPageIntervalSecond;
 
   function getQueryParamMapping(url) {
-    if (!url) {
+    if (typeof url !== 'string' || !url) {
       return {};
     }
 
@@ -1435,6 +1435,7 @@ const jvsStorage = {
 
     wrapper.setAttribute('data-11ze-canvas-scroll', 'true');
   }
+  let resetRefreshPageHandler = null;
 
   function resetRefreshPageLastTime() {
     jvsStorage.set(window.refreshPageLastTime, new Date().getTime());
@@ -1458,8 +1459,12 @@ const jvsStorage = {
       return;
     }
 
-    window.removeEventListener('mousedown', resetRefreshPageLastTime, { passive: true });
-    window.addEventListener('mousedown', resetRefreshPageLastTime, { passive: true });
+    // 正确移除和添加事件监听器
+    if (resetRefreshPageHandler) {
+      window.removeEventListener('mousedown', resetRefreshPageHandler, { passive: true });
+    }
+    resetRefreshPageHandler = resetRefreshPageLastTime;
+    window.addEventListener('mousedown', resetRefreshPageHandler, { passive: true });
 
     const currentTime = new Date().getTime();
     if (currentTime - lastTime < 1000 * window.refreshPageIntervalSecond) {
@@ -1569,8 +1574,9 @@ window.onload = function () {
   function cutOverdueLogs(logs, currentTime) {
     // 每个 log 有 time 字段，格式为时间戳
     // 从数组删除时间戳跟当前时间相差 n 天的 log
+    // 倒序遍历避免删除元素时索引错位
 
-    for (let i = 0; i < logs.length; i++) {
+    for (let i = logs.length - 1; i >= 0; i--) {
       const log = logs[i];
 
       if (!log.time) {
