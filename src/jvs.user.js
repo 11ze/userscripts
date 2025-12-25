@@ -66,7 +66,6 @@ const jvsStorage = {
 
   const jvsTimer = setInterval(() => {
     const operations = [
-      expandNames,
       changeTitle,
       enterAppCenter,
       enterTabDesign,
@@ -99,7 +98,7 @@ const jvsStorage = {
   }, 400);
 
   window.addEventListener('beforeunload', () => {
-    jvsStorage.remove(jvsTimer);
+    clearInterval(jvsTimer);
   });
 
   // changeTitle
@@ -271,34 +270,6 @@ const jvsStorage = {
     return modeColorMapping[mode] ?? 'black';
   }
   window.getModeColor = getModeColor;
-
-  /**
-   * 展开应用名称和侧边栏功能名称
-   */
-  function expandNames() {
-    const appNameSelectorList = [
-      // 首页
-      '#app > div > div > div.jvs-layout > div.jvs-main > div.el-scrollbar > div.el-scrollbar__wrap > div > div > div.top-outer-container > div.el-row-bottom-container.el-row > div > div > div > div > p',
-      // 旧应用中心
-      '#template > div.template-manage-content > div.template-manage-box > div.my-template-list > div > div > div.content > div.content-header > h5',
-      // 新首页 > 常用应用
-      '#app > div > div > div.jvs-layout > div.jvs-main > div.el-scrollbar > div.el-scrollbar__wrap > div > div > div.top-outer-container > div > div:nth-child(2) > div > div:nth-child(4) > div > div.card-body.el-col.el-col-24 > div > div > p',
-      // 新首页 > 应用中心
-      '#app > div > div > div.jvs-layout.jvs-layout-tempOpen > div.template-content-box > div.container.el-row > div:nth-child(2) > div > div > div > div:nth-child(1) > p',
-      // 应用左上角
-      '#app > div > div > div.jvs-layout > div.jvs-left > div > div.el-menu-scrollbar.el-scrollbar > div.el-scrollbar__wrap > div > div.app-item-info.app-item-info-hide > div > span',
-      // 应用左上角
-      '#app > div > div > div.jvs-layout > div.jvs-left > div > div.el-menu-scrollbar.el-scrollbar > div.el-scrollbar__wrap > div > div.app-item-info > div > span',
-      // 逻辑设计、列表设计、表单设计
-      '#app > div > div > div.design-header-box > div.header-left',
-    ];
-
-    for (let i = 0; i < appNameSelectorList.length; i++) {
-      document.querySelectorAll(appNameSelectorList[i]).forEach((el) => {
-        el.style.whiteSpace = 'normal';
-      });
-    }
-  }
 
   /**
    * 修改浏览器标签页标题
@@ -1293,39 +1264,41 @@ const jvsStorage = {
       return;
     }
 
+    // 使用命名函数以便后续可以移除事件监听器
+    function handleApplicationClick(event) {
+      const clickedElement = event.currentTarget;
+
+      const idElement = clickedElement.querySelector('label.el-checkbox span.el-checkbox__label');
+      const nameElement = clickedElement.querySelector('p');
+
+      let applicationId = null;
+      let applicationName = null;
+
+      if (idElement) {
+        applicationId = idElement.textContent.trim();
+      } else {
+        console.warn('11ze 未找到 ID 元素:', clickedElement);
+      }
+
+      if (nameElement) {
+        applicationName = nameElement.textContent.trim();
+      } else {
+        console.warn('11ze 未找到名称元素:', clickedElement);
+      }
+
+      if (applicationId !== null && applicationName !== null) {
+        saveAppIdName(applicationId, applicationName);
+      } else {
+        console.warn('11ze 应用中心点击应用未能完整获取点击的应用信息:', clickedElement);
+      }
+    }
+
     applicationElements.forEach(function (appElement) {
       if (appElement.classList.contains('set-click-11ze')) {
         return;
       }
 
-      appElement.addEventListener('click', function (event) {
-        const clickedElement = event.currentTarget;
-
-        const idElement = clickedElement.querySelector('label.el-checkbox span.el-checkbox__label');
-
-        const nameElement = clickedElement.querySelector('p');
-
-        let applicationId = null;
-        let applicationName = null;
-
-        if (idElement) {
-          applicationId = idElement.textContent.trim();
-        } else {
-          console.warn('11ze 未找到 ID 元素:', clickedElement);
-        }
-
-        if (nameElement) {
-          applicationName = nameElement.textContent.trim();
-        } else {
-          console.warn('11ze 未找到名称元素:', clickedElement);
-        }
-
-        if (applicationId !== null && applicationName !== null) {
-          saveAppIdName(applicationId, applicationName);
-        } else {
-          console.warn('11ze 应用中心点击应用未能完整获取点击的应用信息:', clickedElement);
-        }
-      });
+      appElement.addEventListener('click', handleApplicationClick);
       appElement.classList.add('set-click-11ze');
     });
   }
@@ -2036,6 +2009,23 @@ const css = `
     li.getItem > span {
       white-space: normal !important;
     }
+  }
+
+  /* 展开 JVS 应用名称和侧边栏功能名称 */
+  /* 首页 */
+  #app > div > div > div.jvs-layout > div.jvs-main > div.el-scrollbar > div.el-scrollbar__wrap > div > div > div.top-outer-container > div.el-row-bottom-container.el-row > div > div > div > div > p,
+  /* 旧应用中心 */
+  #template > div.template-manage-content > div.template-manage-box > div.my-template-list > div > div > div.content > div.content-header > h5,
+  /* 新首页 > 常用应用 */
+  #app > div > div > div.jvs-layout > div.jvs-main > div.el-scrollbar > div.el-scrollbar__wrap > div > div > div.top-outer-container > div > div:nth-child(2) > div > div:nth-child(4) > div > div.card-body.el-col.el-col-24 > div > div > p,
+  /* 新首页 > 应用中心 */
+  #app > div > div > div.jvs-layout.jvs-layout-tempOpen > div.template-content-box > div.container.el-row > div:nth-child(2) > div > div > div > div:nth-child(1) > p,
+  /* 应用左上角 */
+  #app > div > div > div.jvs-layout > div.jvs-left > div > div.el-menu-scrollbar.el-scrollbar > div.el-scrollbar__wrap > div > div.app-item-info.app-item-info-hide > div > span,
+  #app > div > div > div.jvs-layout > div.jvs-left > div > div.el-menu-scrollbar.el-scrollbar > div.el-scrollbar__wrap > div > div.app-item-info > div > span,
+  /* 逻辑设计、列表设计、表单设计 */
+  #app > div > div > div.design-header-box > div.header-left {
+    white-space: normal !important;
   }
 
   /* 放大公式 icon，原本 16px */

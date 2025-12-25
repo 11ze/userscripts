@@ -166,37 +166,6 @@ function parseUrl(url) {
 - `window.appNameSelectorList` - 应用名称的 DOM 选择器列表
 - `window.logOptions` - 日志过滤选项
 
-**操作函数包装器**（推荐模式）：
-
-```javascript
-/**
- * 创建带缓存的操作函数
- * @param {string} name - 操作名称
- * @param {Function} fn - 原始操作函数
- * @param {Function} shouldRun - 判断是否需要运行的函数(可选)
- */
-function createCachedOperation(name, fn, shouldRun) {
-  return () => {
-    try {
-      // 如果提供了判断函数,先检查是否需要运行
-      if (shouldRun && !shouldRun()) {
-        return;
-      }
-      fn();
-    } catch (error) {
-      console.error('「脚本名称」' + name + ' 运行错误：');
-      console.error(error);
-    }
-  };
-}
-
-// 使用示例
-const operations = [
-  createCachedOperation('expandNames', expandNames),
-  createCachedOperation('fixLayout', fixLayout, () => document.readyState === 'complete'),
-];
-```
-
 ### CSS 样式规范
 
 使用 `GM_addStyle` 添加样式，或使用内联样式：
