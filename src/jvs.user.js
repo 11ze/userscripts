@@ -74,9 +74,7 @@ const jvsStorage = {
       addButtonToOpenNewLogicDesignForNestedLogicFirst,
       addButtonToCopyDesignName,
       addButtonToCopyComponentName,
-      expandFormButton,
       addButtonToClearAllFields,
-      expandLogicVariableButton,
       addButtonToOpenNewFormOrListDesign,
       highlightApps,
       expandFormDesignAllComponentSettings,
@@ -907,25 +905,6 @@ const jvsStorage = {
   }
 
   /**
-   * 新版 JVS，表单设计，自动展开表单设计的按钮设置
-   */
-  function expandFormButton() {
-    const buttons = document.querySelectorAll('.item-body');
-    if (buttons) {
-      for (const button of buttons) {
-        if (button.getAttribute('item-body-checked-11ze') === 'true') {
-          continue;
-        }
-
-        if (button.style.display === 'none') {
-          button.style.display = 'block';
-          button.setAttribute('item-body-checked-11ze', 'true');
-        }
-      }
-    }
-  }
-
-  /**
    * 逻辑设计，添加按钮一键清空所有字段
    */
   function addButtonToClearAllFields() {
@@ -956,25 +935,6 @@ const jvsStorage = {
       };
 
       box.insertBefore(button, box.firstChild);
-    }
-  }
-
-  /**
-   * 新版 JVS，逻辑设计，自动展开变量组件设置里的按钮
-   */
-  function expandLogicVariableButton() {
-    const buttons = document.querySelectorAll('.bottom-body');
-    if (buttons) {
-      for (const button of buttons) {
-        if (button.getAttribute('bottom-body-checked-11ze') === 'true') {
-          continue;
-        }
-
-        if (button.style.display === 'none') {
-          button.style.display = 'block';
-          button.setAttribute('bottom-body-checked-11ze', 'true');
-        }
-      }
     }
   }
 
@@ -2009,6 +1969,16 @@ const css = `
     li.getItem > span {
       white-space: normal !important;
     }
+  }
+
+  /* 表单设计，展开按钮设置 */
+  .item-body {
+    display: block !important;
+  }
+
+  /* 逻辑设计，展开变量组件设置里的按钮 */
+  .bottom-body {
+    display: block !important;
   }
 
   /* 展开 JVS 应用名称和侧边栏功能名称 */
