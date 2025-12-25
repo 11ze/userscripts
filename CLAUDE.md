@@ -160,11 +160,27 @@ function parseUrl(url) {
 - **全局变量**：使用 `window` 对象共享配置和工具函数
 - **设计器类型**：支持逻辑设计、列表设计、表单设计、流程设计
 - **错误处理**：统一的错误处理机制，确保单个操作失败不影响其他操作
+- **性能优化**：使用 CSS 替代 DOM 操作，减少内存占用和提升性能
 
 关键全局配置：
 - `window.designSetting` - 设计器类型对应的颜色和简称
 - `window.appNameSelectorList` - 应用名称的 DOM 选择器列表
 - `window.logOptions` - 日志过滤选项
+
+**JVS 脚本性能优化实践**：
+
+1. **使用 CSS 替代 DOM 操作**
+   - 应用名称展开：使用 `white-space: normal` 而非动态创建按钮
+   - 组件库展开：使用 CSS 类而非 JavaScript 控制
+   - 减少内存占用和垃圾回收压力
+
+2. **避免重复操作**
+   - 使用元素属性标记（如 `data-11ze-*` 或自定义属性）记录处理状态
+   - 每个操作函数开始时检查标记，已处理则跳过
+
+3. **选择器优化**
+   - 使用具体的 CSS 选择器，避免通配符 `*`
+   - 缓存查询结果，避免重复 DOM 查询
 
 ### CSS 样式规范
 
@@ -236,3 +252,42 @@ document.addEventListener('click', closePopup);
 **不要声明未使用的变量**：
 - 如果声明了变量但未使用，要么实现其功能，要么删除声明
 - 使用 JSHint 或 ESLint 检测未使用的变量
+
+**性能优化和内存管理**：
+- 避免频繁创建 DOM 元素，优先使用 CSS 控制 UI 变化
+- 对于动态 UI 内容，优先使用 CSS 的 `display` 或 `content` 属性，而不是创建/删除 DOM 元素
+- 轮询操作中添加状态标记，避免重复执行已完成的工作
+- 在 `beforeunload` 事件中清理定时器，防止内存泄漏
+
+```javascript
+// ✅ 优先使用 CSS 而非 DOM 操作
+// 使用 CSS 展开/收起内容
+element.style.whiteSpace = 'normal';  // 展开
+element.style.whiteSpace = 'nowrap';  // 收起
+
+// ❌ 避免频繁创建/删除 DOM
+const button = document.createElement('button');  // 每次都创建新元素
+element.appendChild(button);
+button.remove();
+```
+
+**使用状态标记避免重复操作**：
+```javascript
+// ✅ 在元素上设置标记，避免重复处理
+if (element.getAttribute('processed-11ze')) {
+  return;  // 已处理，跳过
+}
+element.setAttribute('processed-11ze', 'true');
+```
+
+**正确的资源清理**：
+```javascript
+// ✅ 在页面卸载时清理定时器
+const timer = setInterval(() => {
+  // 操作...
+}, 400);
+
+window.addEventListener('beforeunload', () => {
+  clearInterval(timer);
+});
+```
