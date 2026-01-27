@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         搜索动漫
 // @namespace    https://github.com/11ze
-// @version      0.6.10
-// @description  2025-12-02
+// @version      0.6.11
+// @description  2026-01-27
 // @author       11ze
 // @match        *://*/*
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=agedm.org
+// @icon         https://www.agedm.io/favicon.ico
 // @grant        GM_addStyle
 // @license      MIT
 // ==/UserScript==

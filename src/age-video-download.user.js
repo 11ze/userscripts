@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         AGE 新页面播放视频
 // @namespace    https://github.com/11ze
-// @version      0.2.4
-// @description  2025-12-25
+// @version      0.2.5
+// @description  2026-01-27
 // @author       11ze
 // @match        https://www.agedm.org/play/*
 // @match        https://age.tv/play/*
 // @match        https://agefans.com/play/*
 // @match        https://43.240.156.118:8443/*
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=agedm.org
+// @icon         https://www.agedm.io/favicon.ico
 // @license      MIT
 // ==/UserScript==
 
