@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         查看网址
 // @namespace    https://github.com/11ze
-// @version      0.2.0
+// @version      0.2.1
 // @description  2026-02-07
 // @author       11ze
 // @license      MIT
@@ -51,8 +51,8 @@
     }
     Object.assign(original, normalStyles);
 
-    el.onmouseover = () => setStyles(el, hoverStyles);
-    el.onmouseout = () => setStyles(el, original);
+    el.addEventListener('mouseover', () => setStyles(el, hoverStyles));
+    el.addEventListener('mouseout', () => setStyles(el, original));
   }
 
   function runExitAnimation(el, callback) {
@@ -176,9 +176,10 @@
     marginTop: '8px',
   };
 
+  let toastZIndex = 10000;
+
   const toastStyles = {
     position: 'fixed',
-    zIndex: '10000',
     padding: '10px 16px',
     borderRadius: '8px',
     fontSize: '13px',
@@ -244,6 +245,7 @@
     toast.style.background = type === 'success' ? COLORS.success : COLORS.error;
     toast.style.left = `${x + 16}px`;
     toast.style.top = `${y + 16}px`;
+    toast.style.zIndex = String(toastZIndex++);  // 递增 z-index 避免覆盖
     toast.style.animation = `${ANIM.slideIn} 0.2s ${ANIM.timing}`;
 
     document.body.appendChild(toast);
