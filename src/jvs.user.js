@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.4.12
-// @description 2025-12-25
+// @version     0.4.13
+// @description 2026-02-07
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -460,19 +460,19 @@ const jvsStorage = {
           '更新模型',
           '统计条数',
         ],
-        color: '#ffcbda',
+        color: '#FFD6E7',
       },
       {
         types: ['逻辑引擎', '逻辑应用'],
-        color: '#d4e3fc',
+        color: '#D6E4FF',
       },
       {
         types: ['循环容器', '对数组对象进行遍历'],
-        color: '#c8f0c7',
+        color: '#D9F7D9',
       },
       {
         types: ['中止程序', '提示消息'],
-        color: '#fef7d7',
+        color: '#FEF0C7',
       },
       {
         types: [
@@ -485,7 +485,7 @@ const jvsStorage = {
           '等变量',
           '结构示例',
         ],
-        color: '#e6e6fa',
+        color: '#EFDBFF',
       },
     ];
     for (const component of draggableComponents) {
@@ -1775,7 +1775,7 @@ window.onload = function () {
           <td> ${designName} &nbsp; </td>
           <td> ${datetime} &nbsp; </td>
           <td style="color: ${logFieldColor}"> ${oneLog.type} &nbsp; </td>
-          <td> <a href="${oneLog.url}" target="_blank">设计</a> &nbsp; </td>
+          <td> <a href="${oneLog.url}" target="_blank">修改</a> &nbsp; </td>
         </tr>
       `);
     }
@@ -2048,8 +2048,8 @@ const css = `
   /* 日志弹窗 */
   .popup {
     border: 1px solid #e0e0e0 !important;
-    border-radius: 5px !important;
-    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1) !important;
+    border-radius: 6px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
     background-color: #fff !important;
     position: fixed;
     top: 50px;
@@ -2062,7 +2062,7 @@ const css = `
 
   .table-11ze {
     font-size: 14px !important;
-    min-width: 800px !important;
+    min-width: 600px !important;
     border-bottom: 1px solid #dddddd !important;
     text-align: left !important;
   }
@@ -2070,11 +2070,11 @@ const css = `
   /* 日志弹窗的表格 */
   .log-11ze-table-tr > td,
   .log-11ze-table-tr > th {
-    padding: 0px 0px 5px 5px !important;
+    padding: 4px 8px !important;
   }
 
   .log-11ze-table-tr:hover {
-    background-color: #d5e3fb; /* 悬停时的背景颜色 */
+    background-color: #E8F4FF; /* 悬停时的背景颜色 */
   }
 
   .log-11ze-select-container {
@@ -2091,27 +2091,29 @@ const css = `
   .log-11ze-select {
     display: inline-block;
     background-color: white !important;
-    border-color: #d4e3fc !important;
+    border-color: #D6E4FF !important;
     color: black !important;
-    border: 1px solid #23272e !important;
+    border: 1px solid #D6E4FF !important;
     font-size: 14px !important;
+    border-radius: 6px !important;
   }
 
   .log-11ze-select:hover {
-    background-color: #f5f6f7 !important;
+    background-color: #E8F4FF !important;
     cursor: pointer;
   }
 
   /* 按钮统一样式 */
   .button-11ze {
     background-color: white !important;
-    border-color: #d4e3fc !important;
+    border-color: #D6E4FF !important;
     color: black !important;
-    border: 1px solid #e0e0e0 !important;
+    border: 1px solid #D6E4FF !important;
+    border-radius: 6px !important;
   }
 
   .button-11ze:hover {
-    background-color: #f5f6f7 !important;
+    background-color: #E8F4FF !important;
     cursor: pointer;
   }
 
