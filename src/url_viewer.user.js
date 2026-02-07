@@ -40,13 +40,33 @@
     }
   `);
 
-  function parseUrl(url) {
-    if (typeof url !== 'string') {
-      console.error('parseUrl: 参数必须是字符串');
-      return [];
+  function copyTextToClipboard(text) {
+    if (navigator.clipboard?.writeText) {
+      return navigator.clipboard.writeText(text);
     }
-    if (!url) {
-      console.error('parseUrl: 参数不能为空');
+    // 回退方法：创建一个临时的文本区域元素
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed'; // 避免滚动到底部
+    textArea.style.opacity = '0';
+    textArea.style.pointerEvents = 'none';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+      return document.execCommand('copy')
+        ? Promise.resolve()
+        : Promise.reject(new Error('复制失败'));
+    } catch (err) {
+      return Promise.reject(err);
+    } finally {
+      document.body.removeChild(textArea);
+    }
+  }
+
+  function parseUrl(url) {
+    if (typeof url !== 'string' || !url) {
+      console.error('parseUrl: 参数必须是非空字符串');
       return [];
     }
 
@@ -58,13 +78,9 @@
       if (!path) continue;
 
       let host, otherUrl;
-
-      if (i === 0) {
-        [host, otherUrl] = path.split('?');
-      } else {
-        host = path.split('?')[0];
-        otherUrl = path.split('?')[1];
-      }
+      const parts = path.split('?');
+      host = parts[0];
+      otherUrl = parts[1];
 
       result.push({
         type: 'host',
@@ -125,7 +141,6 @@
     popup.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08), 0 8px 30px rgba(0,0,0,0.12), 0 20px 60px rgba(0,0,0,0.08)';
     popup.style.border = '1px solid rgba(0,0,0,0.06)';
 
-    let currentHost = '';
     let currentTable = null;
     let paramString = '';
     let hasParams = false;
@@ -166,7 +181,7 @@
 
         hasParams = false;
 
-        currentHost = param.value;
+        const currentHost = param.value;
 
         // 创建 host 显示和复制按钮
         const hostDiv = createHostDiv(currentHost, hostIndex);
@@ -368,8 +383,6 @@
     cell2.style.padding = '14px 16px';
     cell1.style.borderBottom = '1px solid #f1f5f9';
     cell2.style.borderBottom = '1px solid #f1f5f9';
-    cell1.style.fontSize = '13px';
-    cell2.style.fontSize = '13px';
     cell1.style.color = '#0f172a';
     cell2.style.color = '#475569';
     cell1.style.fontWeight = '600';
@@ -431,31 +444,6 @@
 
     // 立即禁用按钮，防止重复点击
     button.disabled = true;
-
-    const copyTextToClipboard = (text) => {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        return navigator.clipboard.writeText(text);
-      } else {
-        // 回退方法：创建一个临时的文本区域元素
-        const textArea = document.createElement('textarea');
-        textArea.value = text;
-        textArea.style.position = 'fixed'; // 避免滚动到底部
-        textArea.style.opacity = '0';
-        textArea.style.pointerEvents = 'none';
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        try {
-          return document.execCommand('copy')
-            ? Promise.resolve()
-            : Promise.reject(new Error('复制失败'));
-        } catch (err) {
-          return Promise.reject(err);
-        } finally {
-          document.body.removeChild(textArea);
-        }
-      }
-    };
 
     copyTextToClipboard(text)
       .then(() => {
