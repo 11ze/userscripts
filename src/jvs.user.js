@@ -7,7 +7,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.4.14
+// @version     0.4.15
 // @description 2026-03-06
 // ==/UserScript==
 
