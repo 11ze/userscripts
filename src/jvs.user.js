@@ -106,6 +106,13 @@ const jvsStorage = {
     { ip: '47.107.', env: '正式站' },
   ];
 
+  const designMapping = {
+    逻辑设计: '逻',
+    列表设计: '列',
+    表单设计: '表',
+    流程设计: '流',
+  };
+
   // log
   const designSetting = {
     逻辑设计: { color: 'blue', shortname: '逻辑' },
@@ -193,6 +200,7 @@ const jvsStorage = {
   window.getJvsAppId = getJvsAppId;
 
   function getTabType() {
+    // #tab-design > span
     const typeDom = document.querySelector('#tab-design > span');
     if (!typeDom) {
       return '';
@@ -336,8 +344,21 @@ const jvsStorage = {
     }
     window.getNewTabTitle = getNewTabTitle;
 
+    function getTabType() {
+      const typeDom = document.querySelector('#tab-design > span');
+      if (!typeDom) {
+        return '';
+      }
+
+      if (designMapping[typeDom.textContent]) {
+        return designMapping[typeDom.textContent];
+      }
+
+      return typeDom.textContent.trim();
+    }
+
     const newTabTitle = getNewTabTitle();
-    const tabType = window.getTabType();
+    const tabType = getTabType();
 
     function changeFavicon(iconURL) {
       const links = document.querySelectorAll("link[rel*='icon']"); // 获取现有的 favicon 元素
@@ -1072,6 +1093,7 @@ const jvsStorage = {
         button.style.borderRadius = '5px';
         button.style.borderWidth = '1px';
         button.style.borderStyle = 'solid';
+        button.style.borderColor = '#c8f0c7';
 
         button.onclick = (event) => {
           event.stopPropagation();
@@ -1398,8 +1420,20 @@ window.onload = function () {
   }
 
   function log() {
+    function getTabType() {
+      return window.getTabType();
+    }
+
+    function getUrl() {
+      return window.getUrl();
+    }
+
+    function getJvsAppId() {
+      return window.getJvsAppId();
+    }
+
     function getId() {
-      return window.getQueryParamMapping(window.getUrl())['id'];
+      return getQueryParamMapping(getUrl())['id'];
     }
 
     function getCurrentTime() {
@@ -1427,7 +1461,7 @@ window.onload = function () {
             // 旧版 JVS
             if (textArray.length === 1) {
               const appName = textArray[0].split(' ')[0].trim();
-              window.saveAppIdName(window.getJvsAppId(), appName);
+              window.saveAppIdName(getJvsAppId(), appName);
               return appName;
             }
 
@@ -1446,13 +1480,13 @@ window.onload = function () {
       return '';
     }
 
-    const url = window.getUrl();
+    const url = getUrl();
     const id = getId();
     const time = getCurrentTime();
-    const tabType = window.getTabType();
+    const tabType = getTabType();
     const designName = window.getNewTabTitle();
     const appName = getAppName();
-    const jvsAppId = window.getJvsAppId();
+    const jvsAppId = getJvsAppId();
 
     // 如果有一个为空则返回 null
     if (!designName || !appName || !id || !jvsAppId || !tabType) {
@@ -1530,7 +1564,7 @@ window.onload = function () {
 
     for (let i = logs.length - 1; i >= 0; i--) {
       const log = logs[i];
-      const urlParams = window.getQueryParamMapping(log.url);
+      const urlParams = getQueryParamMapping(log.url);
       const id = urlParams['id'] + log.type;
 
       if (!appIds.includes(id)) {
@@ -1550,6 +1584,10 @@ window.onload = function () {
     const minutes = String(date.getMinutes()).padStart(2, '0');
     const seconds = String(date.getSeconds()).padStart(2, '0');
     return `${month}-${day} ${hours}:${minutes}:${seconds}`;
+  }
+
+  function getQueryParamMapping(url) {
+    return window.getQueryParamMapping(url);
   }
 
   function getJvsAppIdsFromLogs(logs) {
@@ -1576,11 +1614,11 @@ window.onload = function () {
   function getOptions() {
     const options = jvsStorage.get(logOptionsLocalStorageKey, []);
     if (!options) {
-      return window.logOptions;
+      return logOptions;
     }
 
-    if (options.length !== window.logOptions.length) {
-      return window.logOptions;
+    if (options.length !== logOptions.length) {
+      return logOptions;
     }
 
     return options;
