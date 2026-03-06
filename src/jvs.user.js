@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.4.13
-// @description 2026-02-07
+// @version     0.4.14
+// @description 2026-03-06
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -2032,7 +2032,20 @@ const css = `
   /* 日志弹窗的表格 */
   .log-11ze-table-tr > td,
   .log-11ze-table-tr > th {
-    padding: 4px 8px !important;
+    padding: 4px 4px !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    border-right: 1px solid #e5e7eb !important;
+  }
+
+  /* 最后一行不显示分割线 */
+  .log-11ze-table-tr:last-child > td {
+    border-bottom: none !important;
+  }
+
+  /* 最后一列不显示分割线 */
+  .log-11ze-table-tr > td:last-child,
+  .log-11ze-table-tr > th:last-child {
+    border-right: none !important;
   }
 
   .log-11ze-table-tr:hover {
