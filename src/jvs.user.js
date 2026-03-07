@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.5.2
-// @description 2026-03-07
+// @version     0.5.3
+// @description 2026-03-08
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -1211,7 +1211,6 @@ const jvsStorage = {
 
   window.appNameMapKey = '__11ze_JVS_APP_NAME_MAP__';
   window.appIdListUrlMapKey = '__11ze_JVS_APP_ID_LIST_URL_MAP__';
-  window.lastListUrlKey = '__11ze_JVS_LAST_LIST_URL__';
 
   function getAppNameMap() {
     return jvsStorage.get(window.appNameMapKey, {});
@@ -1251,6 +1250,11 @@ const jvsStorage = {
   window.getAppIdListUrlMap = getAppIdListUrlMap;
 
   function getAppIdListUrl(jvsAppId) {
+    // 当前页面必须包含 myiframe，才返回 url
+    if (!window.location.href.includes('myiframe')) {
+      return '';
+    }
+
     const appIdListUrlMap = getAppIdListUrlMap();
     return appIdListUrlMap[jvsAppId] ?? '';
   }
@@ -1282,13 +1286,6 @@ const jvsStorage = {
       return;
     }
 
-    // 保留 localStorage 存储（用于跨标签页共享）
-    const lastUrl = jvsStorage.get(window.lastListUrlKey, '');
-    if (currentUrl === lastUrl) {
-      return;
-    }
-
-    jvsStorage.set(window.lastListUrlKey, currentUrl);
     window.saveAppIdListUrl(jvsAppId, currentUrl);
   }
 
@@ -1626,22 +1623,22 @@ window.onload = function () {
    * 处理日志列表中的应用名称点击事件
    * @param {string} appId - JVS 应用 ID
    * 1. 获取 appid 对应的列表页 URL
-   * 2. 获取最后一次打开的列表页 URL
-   * 3. 如果任一 URL 为空，点击无反应
-   * 4. 否则在新标签页打开最后一次列表页，加载完成后跳转到 jvsAppId 对用的应用
+   * 3. 如果 URL 为空，点击无反应
+   * 4. 跳转到 jvsAppId 对用的应用
    */
   function handleAppNameClick(appId) {
     // 获取当前 appid 对应的列表页 URL
     const listUrl = window.getAppIdListUrl(appId);
     if (!listUrl) return;
 
-    const lastListUrl = jvsStorage.get(window.lastListUrlKey, '');
-    if (!lastListUrl) return;
+    const currentMode = window.getModeFromHistory();
+    const appModelMap = window.getAppModelMap() || {};
+    const logMode = appModelMap[appId];
 
-    const newTab = window.open(lastListUrl, '_blank');
-    newTab.onload = () => {
-      newTab.location.href = listUrl;
-    };
+    const isSameMode = currentMode && currentMode === logMode;
+    if (!isSameMode) return;
+
+    window.location.href = listUrl;
   }
   window.handleAppNameClick = handleAppNameClick;
 
@@ -1863,7 +1860,10 @@ window.onload = function () {
 
       // 获取应用列表页 URL，如果有则显示蓝色（可点击），否则保持默认颜色
       const appListUrl = window.getAppIdListUrl(jvsAppId);
-      const appNameColor = appListUrl ? '#409eff' : '';
+      const isSameMode = mode && mode === window.getModeFromHistory();
+      const appNameColor = isSameMode && appListUrl ? '#409eff' : '';
+      const appNameStyle = appNameColor ? `color: ${appNameColor}; cursor: pointer;` : '';
+      const appNameClass = appNameColor ? 'log-app-name' : '';
 
       listContent.push(`
         <tr class="log-11ze-table-tr">
@@ -1872,7 +1872,7 @@ window.onload = function () {
               ? `<td style="color: ${modeColor}"> ${mode.replace('模式', '')} &nbsp; </td>`
               : ''
           }
-          <td> <span class="log-app-name" data-appid="${jvsAppId}" style="cursor:pointer;color:${appNameColor}"> ${appName} </span> &nbsp; </td>
+          <td> <span class="${appNameClass}" data-appid="${jvsAppId}" style="${appNameStyle}"> ${appName} </span> &nbsp; </td>
           <td style="color: ${currentType.color}"> ${currentType.shortname} &nbsp; </td>
           <td> ${designName} &nbsp; </td>
           <td> ${datetime} &nbsp; </td>
@@ -2001,7 +2001,7 @@ window.onload = function () {
 
   // 逻辑设计的保存按钮
   const saveButton = document.querySelector(
-    '#app > div > div > div.design-header-box > div.header-right > button'
+    '#app > div > div > div.design-header-box > div.header-right > button',
   );
   if (saveButton) {
     saveButton.addEventListener('click', function () {
