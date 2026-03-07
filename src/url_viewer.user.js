@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         查看网址
 // @namespace    https://github.com/11ze
-// @version      0.2.1
-// @description  2026-02-07
+// @version      0.2.2
+// @description  2026-03-07
 // @author       11ze
 // @license      MIT
 // @match        *://*/*
@@ -317,7 +317,6 @@
   function createTable(level = 0) {
     const table = createEl('table', tableStyles);
     table.style.marginLeft = `${level * 24}px`;
-    table.innerHTML = '<tbody></tbody>';
     return table;
   }
 
