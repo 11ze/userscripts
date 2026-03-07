@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.4.15
-// @description 2026-03-06
+// @version     0.5.0
+// @description 2026-03-07
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -83,6 +83,7 @@ const jvsStorage = {
       showNodeExecTime,
       // setCanvasScroll,
       autoRefreshPage,
+      saveAppIdToListUrl,
     ];
 
     for (const operation of operations) {
@@ -1198,6 +1199,8 @@ const jvsStorage = {
   }
 
   window.appNameMapKey = '__11ze_JVS_APP_NAME_MAP__';
+  window.appIdListUrlMapKey = '__11ze_JVS_APP_ID_LIST_URL_MAP__';
+  window.lastListUrlKey = '__11ze_JVS_LAST_LIST_URL__';
 
   function getAppNameMap() {
     return jvsStorage.get(window.appNameMapKey, {});
@@ -1211,11 +1214,66 @@ const jvsStorage = {
   window.getAppIdName = getAppIdName;
 
   function saveAppIdName(jvsAppId, appName) {
+    if (appName === '复制') {
+      return;
+    }
+
+    if (!jvsAppId || !appName) {
+      return;
+    }
+
     const appNameMap = getAppNameMap();
+
+    if (appNameMap[jvsAppId]) {
+      return;
+    }
+
     appNameMap[jvsAppId] = appName;
+    appNameMap[appName] = jvsAppId;
     jvsStorage.set(window.appNameMapKey, appNameMap);
   }
   window.saveAppIdName = saveAppIdName;
+
+  function getAppIdListUrlMap() {
+    return jvsStorage.get(window.appIdListUrlMapKey, {});
+  }
+  window.getAppIdListUrlMap = getAppIdListUrlMap;
+
+  function getAppIdListUrl(jvsAppId) {
+    const appIdListUrlMap = getAppIdListUrlMap();
+    return appIdListUrlMap[jvsAppId] ?? '';
+  }
+  window.getAppIdListUrl = getAppIdListUrl;
+
+  function saveAppIdListUrl(jvsAppId, listUrl) {
+    const appIdListUrlMap = getAppIdListUrlMap();
+    appIdListUrlMap[jvsAppId] = listUrl;
+    jvsStorage.set(window.appIdListUrlMapKey, appIdListUrlMap);
+  }
+  window.saveAppIdListUrl = saveAppIdListUrl;
+
+  function saveAppIdToListUrl() {
+    const currentUrl = window.location.href;
+
+    // 检查 URL 是否包含 myiframe
+    if (!currentUrl.includes('myiframe')) {
+      return;
+    }
+
+    const jvsAppId = window.getJvsAppId();
+    if (!jvsAppId) {
+      return;
+    }
+
+    // 获取上一次的 URL，避免重复保存
+    const lastUrl = jvsStorage.get(window.lastListUrlKey, '');
+    if (currentUrl === lastUrl) {
+      return;
+    }
+
+    jvsStorage.set(window.lastListUrlKey, currentUrl);
+    window.saveAppIdListUrl(jvsAppId, currentUrl);
+  }
 
   function applicationSetClick() {
     const applicationElements = document.querySelectorAll('div.application');
@@ -1547,6 +1605,29 @@ window.onload = function () {
   }
   window.getLogs = getLogs;
 
+  /**
+   * 处理日志列表中的应用名称点击事件
+   * @param {string} appId - JVS 应用 ID
+   * 1. 获取 appid 对应的列表页 URL
+   * 2. 获取最后一次打开的列表页 URL
+   * 3. 如果任一 URL 为空，点击无反应
+   * 4. 否则在新标签页打开最后一次列表页，加载完成后跳转到 jvsAppId 对用的应用
+   */
+  function handleAppNameClick(appId) {
+    // 获取当前 appid 对应的列表页 URL
+    const listUrl = window.getAppIdListUrl(appId);
+    if (!listUrl) return;
+
+    const lastListUrl = jvsStorage.get(window.lastListUrlKey, '');
+    if (!lastListUrl) return;
+
+    const newTab = window.open(lastListUrl, '_blank');
+    newTab.onload = () => {
+      newTab.location.href = listUrl;
+    };
+  }
+  window.handleAppNameClick = handleAppNameClick;
+
   function saveLog(logObj, type) {
     if (!logObj) {
       return;
@@ -1763,6 +1844,10 @@ window.onload = function () {
       const mode = appModeMap[jvsAppId] ?? '';
       const modeColor = window.getModeColor(mode);
 
+      // 获取应用列表页 URL，如果有则显示蓝色（可点击），否则保持默认颜色
+      const appListUrl = window.getAppIdListUrl(jvsAppId);
+      const appNameColor = appListUrl ? '#409eff' : '';
+
       listContent.push(`
         <tr class="log-11ze-table-tr">
           ${
@@ -1770,7 +1855,7 @@ window.onload = function () {
               ? `<td style="color: ${modeColor}"> ${mode.replace('模式', '')} &nbsp; </td>`
               : ''
           }
-          <td> ${appName} &nbsp; </td>
+          <td> <span class="log-app-name" data-appid="${jvsAppId}" style="cursor:pointer;color:${appNameColor}"> ${appName} </span> &nbsp; </td>
           <td style="color: ${currentType.color}"> ${currentType.shortname} &nbsp; </td>
           <td> ${designName} &nbsp; </td>
           <td> ${datetime} &nbsp; </td>
@@ -1803,7 +1888,17 @@ window.onload = function () {
 
     document.body.appendChild(popup);
 
-    // 添加点击事件监听器
+    // 使用事件委托绑定日志表格中的应用名称点击事件
+    // 兼容点击子元素的情况（使用 closest 向上查找）
+    logTable.addEventListener('click', (e) => {
+      const appNameEl = e.target.closest('.log-app-name');
+      if (appNameEl) {
+        const appId = appNameEl.dataset.appid;
+        window.handleAppNameClick(appId);
+      }
+    });
+
+    // 添加点击外部关闭弹窗事件
     document.addEventListener('click', closePopupOnOutsideClick);
   }
 
