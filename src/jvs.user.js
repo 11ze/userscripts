@@ -7,7 +7,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.5.3
+// @version     0.5.4
 // @description 2026-03-08
 // ==/UserScript==
 
@@ -1861,7 +1861,7 @@ window.onload = function () {
       // 获取应用列表页 URL，如果有则显示蓝色（可点击），否则保持默认颜色
       const appListUrl = window.getAppIdListUrl(jvsAppId);
       const isSameMode = mode && mode === window.getModeFromHistory();
-      const appNameColor = isSameMode && appListUrl ? '#409eff' : '';
+      const appNameColor = isSameMode && appListUrl ? 'blue' : '';
       const appNameStyle = appNameColor ? `color: ${appNameColor}; cursor: pointer;` : '';
       const appNameClass = appNameColor ? 'log-app-name' : '';
 
