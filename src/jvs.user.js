@@ -7,7 +7,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.5.4
+// @version     0.5.5
 // @description 2026-03-08
 // ==/UserScript==
 
@@ -1862,7 +1862,7 @@ window.onload = function () {
       const appListUrl = window.getAppIdListUrl(jvsAppId);
       const isSameMode = mode && mode === window.getModeFromHistory();
       const appNameColor = isSameMode && appListUrl ? 'blue' : '';
-      const appNameStyle = appNameColor ? `color: ${appNameColor}; cursor: pointer;` : '';
+      const appNameStyle = appNameColor ? `color: #0066cc; cursor: pointer;` : '';
       const appNameClass = appNameColor ? 'log-app-name' : '';
 
       listContent.push(`
@@ -1874,10 +1874,9 @@ window.onload = function () {
           }
           <td> <span class="${appNameClass}" data-appid="${jvsAppId}" style="${appNameStyle}"> ${appName} </span> &nbsp; </td>
           <td style="color: ${currentType.color}"> ${currentType.shortname} &nbsp; </td>
-          <td> ${designName} &nbsp; </td>
-          <td> ${datetime} &nbsp; </td>
+          <td> <a href="${oneLog.url}" target="_blank">${designName}</a> &nbsp; </td>
           <td style="color: ${logFieldColor}"> ${oneLog.type} &nbsp; </td>
-          <td> <a href="${oneLog.url}" target="_blank">修改</a> &nbsp; </td>
+          <td> ${datetime} &nbsp; </td>
         </tr>
       `);
     }
@@ -1891,9 +1890,8 @@ window.onload = function () {
           <th> 应用 &nbsp;</th>
           <th> 设计 &nbsp;</th>
           <th> 名称 &nbsp;</th>
-          <th> 时间 &nbsp;</th>
           <th> 类型 &nbsp;</th>
-          <th> 操作 &nbsp;</th>
+          <th> 时间 &nbsp;</th>
         </tr>
       </thead>
       <tbody>
