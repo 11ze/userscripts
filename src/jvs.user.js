@@ -7,7 +7,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.5.5
+// @version     0.6.0
 // @description 2026-03-08
 // ==/UserScript==
 
@@ -269,6 +269,40 @@ const jvsStorage = {
     return modeColorMapping[mode] ?? 'black';
   }
   window.getModeColor = getModeColor;
+
+  /**
+   * 获取当前模式下的所有应用列表
+   */
+  function getAppsByCurrentMode() {
+    const currentMode = window.getModeFromHistory() || window.getMode();
+    if (!currentMode) {
+      return [];
+    }
+
+    const appModeMap = window.getAppModelMap();
+    const appNameMap = window.getAppNameMap();
+    const appIdListUrlMap = window.getAppIdListUrlMap();
+
+    const apps = [];
+
+    for (const [appId, mode] of Object.entries(appModeMap)) {
+      if (mode === currentMode) {
+        const appName = appNameMap[appId] || '';
+        const listUrl = appIdListUrlMap[appId] || '';
+
+        if (appName && listUrl) {
+          apps.push({
+            appId,
+            appName,
+            listUrl,
+          });
+        }
+      }
+    }
+
+    return apps;
+  }
+  window.getAppsByCurrentMode = getAppsByCurrentMode;
 
   /**
    * 修改浏览器标签页标题
@@ -1824,7 +1858,68 @@ window.onload = function () {
         showPopup();
       };
     }
-    popup.appendChild(optionsDiv);
+
+    // 创建切换应用按钮
+    const switchAppContainer = document.createElement('div');
+    switchAppContainer.className = 'switch-app-container';
+
+    const hasMyiframe = window.location.href.includes('myiframe');
+    const currentMode = window.getModeFromHistory() || window.getMode();
+
+    // 给 popup 添加 flex 布局，垂直排列
+    // 第一行：切换应用按钮 + 筛选条件
+    // 第二行：日志表格
+    popup.style.display = 'flex';
+    popup.style.flexDirection = 'column';
+    popup.style.gap = '10px';
+
+    if (hasMyiframe && currentMode) {
+      const apps = window.getAppsByCurrentMode();
+
+      if (apps.length > 0) {
+        optionsDiv.style.display = 'flex';
+        optionsDiv.style.gap = '10px';
+        optionsDiv.style.alignItems = 'center';
+
+        const switchButton = document.createElement('button');
+        switchButton.className = 'log-11ze-select';
+        switchButton.textContent = '切换应用 ▼';
+
+        const dropdown = document.createElement('div');
+        dropdown.className = 'switch-app-dropdown';
+        dropdown.style.display = 'none';
+
+        apps.forEach((app) => {
+          const item = document.createElement('div');
+          item.className = 'switch-app-item';
+          item.textContent = app.appName;
+          item.onclick = function () {
+            popup.remove();
+            window.location.href = app.listUrl;
+          };
+          dropdown.appendChild(item);
+        });
+
+        switchButton.onclick = function (e) {
+          e.stopPropagation();
+          dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        };
+
+        switchAppContainer.appendChild(switchButton);
+        switchAppContainer.appendChild(dropdown);
+      }
+    }
+
+    // 创建第一行容器：切换应用按钮 + 筛选条件
+    const headerRow = document.createElement('div');
+    headerRow.style.display = 'flex';
+    headerRow.style.justifyContent = 'flex-end';
+    headerRow.style.gap = '10px';
+    headerRow.style.alignItems = 'center';
+
+    headerRow.appendChild(switchAppContainer);
+    headerRow.appendChild(optionsDiv);
+    popup.appendChild(headerRow);
 
     let logs = getLogs();
 
@@ -2249,6 +2344,42 @@ const css = `
   /* 应用中心， 移除每个分类末尾的透明方块（影响点击） */
   #app > div > div > div.jvs-layout.jvs-layout-tempOpen > div.template-content-box > div > div > div > div > div > div > img {
     display: none !important;
+  }
+
+  /* 切换应用下拉框 */
+  .switch-app-container {
+    position: relative;
+    display: inline-block;
+    margin-right: 10px;
+  }
+
+  .switch-app-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: #fff;
+    border: 1px solid #D6E4FF;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    z-index: 1001;
+    max-height: 300px;
+    overflow-y: auto;
+    min-width: 150px;
+    display: none;
+  }
+
+  .switch-app-item {
+    padding: 8px 15px;
+    cursor: pointer;
+    white-space: nowrap;
+    font-size: 14px;
+    border-radius: 6px;
+  }
+
+  .switch-app-item:hover {
+    background: #6299f8;
+    color: white;
+    cursor: pointer;
   }
 `;
 
