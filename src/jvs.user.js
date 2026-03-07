@@ -7,7 +7,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.5.0
+// @version     0.5.1
 // @description 2026-03-07
 // ==/UserScript==
 
@@ -1260,12 +1260,18 @@ const jvsStorage = {
       return;
     }
 
+    // 使用 window 属性存储当前标签页的上次 URL，避免重复执行
+    if (currentUrl === window._lastListUrl) {
+      return;
+    }
+    window._lastListUrl = currentUrl;
+
     const jvsAppId = window.getJvsAppId();
     if (!jvsAppId) {
       return;
     }
 
-    // 获取上一次的 URL，避免重复保存
+    // 保留 localStorage 存储（用于跨标签页共享）
     const lastUrl = jvsStorage.get(window.lastListUrlKey, '');
     if (currentUrl === lastUrl) {
       return;
