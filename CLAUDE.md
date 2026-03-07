@@ -124,6 +124,10 @@ function createEl(tag, styles = {}, props = {}) {
 - **状态标记**：使用 `getAttribute`/`setAttribute` 避免重复操作
 - **资源清理**：页面卸载时清理定时器（`beforeunload` 事件）
 
+### UI 组件开发
+
+- **复用现有 CSS 类**：添加新组件时先用 Grep 搜索现有类名（如 `.log-11ze-*`），避免重复定义
+
 ### z-index 管理
 
 Toast/弹窗使用递增 z-index 避免覆盖：
