@@ -7,7 +7,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.5.1
+// @version     0.5.2
 // @description 2026-03-07
 // ==/UserScript==
 
@@ -613,6 +613,16 @@ const jvsStorage = {
         continue;
       }
 
+      // 获取逻辑名称
+      let logicName = '';
+      const logs = window.getLogs();
+      for (let i = logs.length - 1; i >= 0; i--) {
+        if (logs[i].id === logicKey) {
+          logicName = logs[i].designName;
+          break;
+        }
+      }
+
       const existedButton = label.querySelector('.' + buttonClass);
       if (existedButton) {
         if (existedButton.getAttribute('target-key') === logicKey) {
@@ -625,7 +635,7 @@ const jvsStorage = {
       const newButton = document.createElement('button');
       newButton.className =
         buttonClass + ' modern-button el-button el-button--primary el-button--mini button-11ze';
-      newButton.innerHTML = '查看';
+      newButton.textContent = logicName ? '查看「' + logicName + '」' : '查看';
       newButton.setAttribute('target-key', logicKey);
       newButton.onclick = function () {
         window.open(newUrl, '_blank');
@@ -653,7 +663,8 @@ const jvsStorage = {
       }
 
       const logicNameElement = label.nextElementSibling.querySelector(
-        '.el-select-dropdown__item.selected > span'
+        // 右边这个 selector 只有刚点开组件的时候能获取到：'.el-select-dropdown__item.selected > span'
+        '#node_detailpannel > div.block-container > div > form > div.el-row > div:nth-child(1) > div > div > div.jvs-form-item > div.el-select.input-height-set.el-select--mini > div > input',
       );
       if (!logicNameElement) {
         continue;
@@ -680,7 +691,7 @@ const jvsStorage = {
       const newButton = document.createElement('button');
       newButton.className =
         buttonClass + ' modern-button el-button el-button--primary el-button--mini button-11ze';
-      newButton.innerHTML = '查看';
+      newButton.textContent = '查看「' + logicName + '」';
       newButton.setAttribute('target-key', logicName);
       newButton.onclick = function () {
         window.open(newUrl, '_blank');
@@ -723,7 +734,7 @@ const jvsStorage = {
       const newButton = document.createElement('button');
       newButton.className =
         buttonClass + ' modern-button el-button el-button--primary el-button--mini button-11ze';
-      newButton.innerHTML = '查看';
+      newButton.textContent = '查看「' + logicName + '」';
       newButton.setAttribute('target-key', logicName);
       newButton.onclick = function () {
         // 第一个按钮是「设计」，第二个「引用」
@@ -804,7 +815,7 @@ const jvsStorage = {
       }
 
       const copyButton = document.createElement('button');
-      copyButton.innerHTML = '复制';
+      copyButton.textContent = '复制';
       copyButton.className =
         'modern-button el-button el-button--primary el-button--mini button-11ze';
       copyButton.id = 'copy-design-name-button-11ze';
@@ -894,7 +905,7 @@ const jvsStorage = {
     }
 
     const copyButton = document.createElement('button');
-    copyButton.innerHTML = '复制';
+    copyButton.textContent = '复制';
     copyButton.className =
       buttonClass + ' modern-button el-button el-button--primary el-button--mini button-11ze';
     copyButton.onclick = function () {
@@ -919,7 +930,7 @@ const jvsStorage = {
 
       const button = document.createElement('button');
       button.className = 'modern-button el-button el-button--primary el-button--mini button-11ze';
-      button.innerHTML = '清空';
+      button.textContent = '清空';
       button.id = 'clear-all-fields-button-11ze' + i;
       button.onclick = function () {
         const ps = box.querySelectorAll('p');
@@ -971,7 +982,7 @@ const jvsStorage = {
       }
 
       const copyButton = document.createElement('button');
-      copyButton.innerHTML = '查看';
+      copyButton.textContent = '查看';
       copyButton.className =
         'modern-button el-button el-button--primary el-button--mini button-11ze';
       copyButton.id = 'open-new-form-or-list-design-button-11ze';
@@ -2220,10 +2231,11 @@ const css = `
   /* 按钮统一样式 */
   .button-11ze {
     background-color: white !important;
-    border-color: #D6E4FF !important;
+    border-color: #409EFF !important;
     color: black !important;
-    border: 1px solid #D6E4FF !important;
+    border: 1px solid #409EFF !important;
     border-radius: 6px !important;
+    padding: 6px 10px !important;
   }
 
   .button-11ze:hover {
