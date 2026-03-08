@@ -122,27 +122,12 @@ const jvsStorage = {
     流程设计: { color: 'purple', shortname: '流程' },
   };
   const logsLocalStorageKey = '__11ze_JVS_LOG_LOGS_';
-  const logOptionsLocalStorageKey = '__11ze_JVS_LOG_OPTIONS_';
   // value 是日志对象的 key
-  const logOptions = [
-    {
-      label: '设计',
-      value: 'tabType',
-      options: ['全部', '逻辑', '表单', '列表', '流程'],
-      selected: '全部',
-    },
-    {
-      label: '类型',
-      value: 'type',
-      options: ['全部', '打开', '保存'],
-      selected: '全部',
-    },
-  ];
+  const logOptions = [];
   const logSaveDays = 365;
   window.designSetting = designSetting;
   window.logsLocalStorageKey = logsLocalStorageKey;
   window.logSaveDays = logSaveDays;
-  window.logOptionsLocalStorageKey = logOptionsLocalStorageKey;
   window.logOptions = logOptions;
 
   window.appNameSelectorList = [
@@ -1719,93 +1704,6 @@ window.onload = function () {
     return window.getQueryParamMapping(url);
   }
 
-  function getJvsAppIdsFromLogs(logs) {
-    const appIds = [];
-    for (let i = 0; i < logs.length; i++) {
-      const log = logs[i];
-      if (!appIds.includes(log.jvsAppId)) {
-        appIds.push(log.jvsAppId);
-      }
-    }
-
-    return appIds;
-  }
-
-  function getRandomColor() {
-    const letters = '0123456789ABCDEF';
-    let color = '#';
-    for (let i = 0; i < 6; i++) {
-      color += letters[Math.floor(Math.random() * 16)];
-    }
-    return color;
-  }
-
-  function getOptions() {
-    const options = jvsStorage.get(logOptionsLocalStorageKey, []);
-    if (!options) {
-      return logOptions;
-    }
-
-    if (options.length !== logOptions.length) {
-      return logOptions;
-    }
-
-    return options;
-  }
-
-  function saveOptions(selectedValue) {
-    if (!selectedValue) {
-      return;
-    }
-
-    const options = getOptions();
-
-    const selectedArray = selectedValue.split('-');
-    const value = selectedArray[0];
-    const selected = selectedArray[1];
-
-    for (let i = 0; i < options.length; i++) {
-      const option = options[i];
-      if (option.value === value) {
-        option.selected = selected;
-      }
-    }
-
-    jvsStorage.set(logOptionsLocalStorageKey, options);
-  }
-
-  function filterLogs(logs, options) {
-    if (!options) {
-      return logs;
-    }
-
-    const filteredLogs = [];
-
-    for (let i = 0; i < logs.length; i++) {
-      let log = logs[i];
-      let allSelected = true;
-
-      for (let j = 0; j < options.length; j++) {
-        const option = options[j];
-
-        if (option.selected === '全部') {
-          continue;
-        }
-
-        if (!log[option.value].includes(option.selected)) {
-          allSelected = false;
-          break;
-        }
-      }
-
-      if (allSelected) {
-        filteredLogs.push(log);
-      }
-    }
-
-    return filteredLogs;
-  }
-
   function showPopup() {
     const popupId = '11ze-jvs-log-popup';
 
@@ -1818,50 +1716,9 @@ window.onload = function () {
       return;
     }
 
-    const optionsDiv = document.createElement('div');
-    optionsDiv.style.textAlign = 'right';
-
-    const lastLogOptions = getOptions();
-
-    for (let i = 0; i < lastLogOptions.length; i++) {
-      const currentDiv = document.createElement('div');
-      currentDiv.className = 'log-11ze-select-container';
-
-      const selectDom = document.createElement('select');
-      selectDom.className = 'log-11ze-select';
-      selectDom.style.borderRadius = '5px';
-
-      for (let j = 0; j < lastLogOptions[i].options.length; j++) {
-        const option = document.createElement('option');
-        option.value = lastLogOptions[i].value + '-' + lastLogOptions[i].options[j];
-        option.textContent = lastLogOptions[i].options[j];
-
-        if (lastLogOptions[i].selected === lastLogOptions[i].options[j]) {
-          option.selected = true;
-        }
-
-        selectDom.appendChild(option);
-      }
-
-      const pDom = document.createElement('p');
-      pDom.className = 'log-11ze-select-label';
-      pDom.textContent = lastLogOptions[i].label;
-      currentDiv.appendChild(pDom);
-      currentDiv.appendChild(selectDom);
-      optionsDiv.appendChild(currentDiv);
-
-      selectDom.onchange = function () {
-        const selectedValue = selectDom.value;
-        saveOptions(selectedValue);
-
-        showPopup();
-        showPopup();
-      };
-    }
-
     // 创建切换应用按钮
     const switchAppContainer = document.createElement('div');
-    switchAppContainer.className = 'switch-app-container';
+    switchAppContainer.className = 'switch-app-container-11ze';
 
     const hasMyiframe = window.location.href.includes('myiframe');
     const currentMode = window.getModeFromHistory() || window.getMode();
@@ -1874,34 +1731,41 @@ window.onload = function () {
     popup.style.gap = '10px';
 
     if (hasMyiframe && currentMode) {
-      const apps = window.getAppsByCurrentMode();
+      // 无应用时不显示切换按钮（点击时动态获取列表）
+      const hasApps = window.getAppsByCurrentMode().length > 0;
 
-      if (apps.length > 0) {
-        optionsDiv.style.display = 'flex';
-        optionsDiv.style.gap = '10px';
-        optionsDiv.style.alignItems = 'center';
-
+      if (hasApps) {
         const switchButton = document.createElement('button');
         switchButton.className = 'log-11ze-select';
         switchButton.textContent = '切换应用 ▼';
 
         const dropdown = document.createElement('div');
-        dropdown.className = 'switch-app-dropdown';
+        dropdown.className = 'switch-app-dropdown-11ze';
         dropdown.style.display = 'none';
 
-        apps.forEach((app) => {
-          const item = document.createElement('div');
-          item.className = 'switch-app-item';
-          item.textContent = app.appName;
-          item.onclick = function () {
-            popup.remove();
-            window.location.href = app.listUrl;
-          };
-          dropdown.appendChild(item);
-        });
-
+        // 点击时动态获取列表
         switchButton.onclick = function (e) {
           e.stopPropagation();
+
+          if (dropdown.style.display === 'none') {
+            // 清空并重新渲染下拉菜单
+            while (dropdown.firstChild) {
+              dropdown.removeChild(dropdown.firstChild);
+            }
+            const apps = window.getAppsByCurrentMode();
+
+            apps.forEach((app) => {
+              const item = document.createElement('div');
+              item.className = 'switch-app-item-11ze';
+              item.textContent = app.appName;
+              item.onclick = function () {
+                popup.remove();
+                window.location.href = app.listUrl;
+              };
+              dropdown.appendChild(item);
+            });
+          }
+
           dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
         };
 
@@ -1913,17 +1777,15 @@ window.onload = function () {
     // 创建第一行容器：切换应用按钮 + 筛选条件
     const headerRow = document.createElement('div');
     headerRow.style.display = 'flex';
-    headerRow.style.justifyContent = 'flex-end';
+    headerRow.style.justifyContent = 'flex-start';
     headerRow.style.gap = '10px';
     headerRow.style.alignItems = 'center';
+    headerRow.style.marginTop = '10px';
 
     headerRow.appendChild(switchAppContainer);
-    headerRow.appendChild(optionsDiv);
     popup.appendChild(headerRow);
 
-    let logs = getLogs();
-
-    logs = filterLogs(logs, lastLogOptions);
+    const logs = getLogs();
 
     const appModeMap = window.getAppModelMap();
     const hasMode = Object.keys(appModeMap).length > 0;
@@ -2295,17 +2157,6 @@ const css = `
     background-color: #E8F4FF; /* 悬停时的背景颜色 */
   }
 
-  .log-11ze-select-container {
-    display: inline-block;
-    margin-right: 10px;
-  }
-
-  .log-11ze-select-label {
-    display: inline-block;
-    margin-right: 5px;
-    font-size: 14px;
-  }
-
   .log-11ze-select {
     display: inline-block;
     background-color: white !important;
@@ -2347,13 +2198,13 @@ const css = `
   }
 
   /* 切换应用下拉框 */
-  .switch-app-container {
+  .switch-app-container-11ze {
     position: relative;
     display: inline-block;
     margin-right: 10px;
   }
 
-  .switch-app-dropdown {
+  .switch-app-dropdown-11ze {
     position: absolute;
     top: 100%;
     left: 0;
@@ -2368,7 +2219,7 @@ const css = `
     display: none;
   }
 
-  .switch-app-item {
+  .switch-app-item-11ze {
     padding: 8px 15px;
     cursor: pointer;
     white-space: nowrap;
@@ -2376,7 +2227,7 @@ const css = `
     border-radius: 6px;
   }
 
-  .switch-app-item:hover {
+  .switch-app-item-11ze:hover {
     background: #6299f8;
     color: white;
     cursor: pointer;
