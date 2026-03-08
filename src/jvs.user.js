@@ -7,7 +7,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.6.0
+// @version     0.7.0
 // @description 2026-03-08
 // ==/UserScript==
 
@@ -1719,6 +1719,7 @@ window.onload = function () {
     // 创建切换应用按钮
     const switchAppContainer = document.createElement('div');
     switchAppContainer.className = 'switch-app-container-11ze';
+    switchAppContainer.style.position = 'relative';
 
     const hasMyiframe = window.location.href.includes('myiframe');
     const currentMode = window.getModeFromHistory() || window.getMode();
@@ -1735,49 +1736,69 @@ window.onload = function () {
       const hasApps = window.getAppsByCurrentMode().length > 0;
 
       if (hasApps) {
-        const switchButton = document.createElement('button');
-        switchButton.className = 'log-11ze-select';
-        switchButton.textContent = '切换应用 ▼';
+        // 创建切换应用按钮和下拉框
+        function createSwitchAppButton() {
+          const buttonWrapper = document.createElement('div');
+          buttonWrapper.className = 'switch-app-button-wrapper-11ze';
 
-        const dropdown = document.createElement('div');
-        dropdown.className = 'switch-app-dropdown-11ze';
-        dropdown.style.display = 'none';
+          const switchButton = document.createElement('button');
+          switchButton.className = 'log-11ze-select log-11ze-switch-btn';
+          switchButton.textContent = '切换应用';
 
-        // 点击时动态获取列表
-        switchButton.onclick = function (e) {
-          e.stopPropagation();
+          const dropdown = document.createElement('div');
+          dropdown.className = 'switch-app-dropdown-11ze';
 
-          if (dropdown.style.display === 'none') {
+          // 悬停时动态获取列表
+          function handleMouseEnter() {
             // 清空并重新渲染下拉菜单
-            while (dropdown.firstChild) {
-              dropdown.removeChild(dropdown.firstChild);
-            }
+            dropdown.replaceChildren();
             const apps = window.getAppsByCurrentMode();
+            const currentAppId = window.getJvsAppId();
 
             apps.forEach((app) => {
               const item = document.createElement('div');
               item.className = 'switch-app-item-11ze';
+              // 当前应用高亮
+              if (app.appId === currentAppId) {
+                item.style.background = '#D6E4FF';
+              }
               item.textContent = app.appName;
-              item.onclick = function () {
+              item.onclick = () => {
                 popup.remove();
                 window.location.href = app.listUrl;
               };
               dropdown.appendChild(item);
             });
+
+            // 获取按钮位置并设置下拉框位置（右对齐）
+            const rect = buttonWrapper.getBoundingClientRect();
+            dropdown.style.display = 'block';
+            dropdown.style.top = `${rect.bottom}px`;
+            dropdown.style.left = `${rect.right - dropdown.offsetWidth}px`;
           }
 
-          dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
-        };
+          // 移开时收起下拉框
+          function handleMouseLeave() {
+            dropdown.style.display = 'none';
+          }
 
-        switchAppContainer.appendChild(switchButton);
-        switchAppContainer.appendChild(dropdown);
+          buttonWrapper.addEventListener('mouseenter', handleMouseEnter);
+          buttonWrapper.addEventListener('mouseleave', handleMouseLeave);
+
+          buttonWrapper.appendChild(switchButton);
+          buttonWrapper.appendChild(dropdown);
+          return buttonWrapper;
+        }
+
+        const buttonWrapper = createSwitchAppButton();
+        switchAppContainer.appendChild(buttonWrapper);
       }
     }
 
     // 创建第一行容器：切换应用按钮 + 筛选条件
     const headerRow = document.createElement('div');
     headerRow.style.display = 'flex';
-    headerRow.style.justifyContent = 'flex-start';
+    headerRow.style.justifyContent = 'flex-end';
     headerRow.style.gap = '10px';
     headerRow.style.alignItems = 'center';
     headerRow.style.marginTop = '10px';
@@ -1815,12 +1836,25 @@ window.onload = function () {
       const mode = appModeMap[jvsAppId] ?? '';
       const modeColor = window.getModeColor(mode);
 
-      // 获取应用列表页 URL，如果有则显示蓝色（可点击），否则保持默认颜色
+      // 获取应用列表页 URL，设置颜色：
+      // - 蓝色：点击切换应用
+      // - 红色：其他环境
       const appListUrl = window.getAppIdListUrl(jvsAppId);
       const isSameMode = mode && mode === window.getModeFromHistory();
-      const appNameColor = isSameMode && appListUrl ? 'blue' : '';
-      const appNameStyle = appNameColor ? `color: #0066cc; cursor: pointer;` : '';
-      const appNameClass = appNameColor ? 'log-app-name' : '';
+      const isSameApp = jvsAppId === window.getJvsAppId();
+      let appNameStyle = '';
+      let appNameClass = '';
+
+      if (!isSameMode) {
+        // 不同环境 - 红色
+        appNameStyle = 'color: #ea3323;';
+      } else if (appListUrl) {
+        if (!isSameApp) {
+          // 可跳转（不同环境）- 蓝色
+          appNameStyle = 'color: #0066cc; cursor: pointer;';
+          appNameClass = 'log-app-name-11ze';
+        }
+      }
 
       listContent.push(`
         <tr class="log-11ze-table-tr">
@@ -1829,9 +1863,9 @@ window.onload = function () {
               ? `<td style="color: ${modeColor}"> ${mode.replace('模式', '')} &nbsp; </td>`
               : ''
           }
-          <td> <span class="${appNameClass}" data-appid="${jvsAppId}" style="${appNameStyle}"> ${appName} </span> &nbsp; </td>
+          <td class="${appNameClass}" data-appid="${jvsAppId}" style="${appNameStyle}"> ${appName} &nbsp; </td>
           <td style="color: ${currentType.color}"> ${currentType.shortname} &nbsp; </td>
-          <td> <a href="${oneLog.url}" target="_blank">${designName}</a> &nbsp; </td>
+          <td class="log-design-name-11ze" data-url="${oneLog.url}"> <a href="${oneLog.url}" target="_blank">${designName}</a> &nbsp; </td>
           <td style="color: ${logFieldColor}"> ${oneLog.type} &nbsp; </td>
           <td> ${datetime} &nbsp; </td>
         </tr>
@@ -1844,7 +1878,14 @@ window.onload = function () {
       <thead>
         <tr style="background-color: #eef5fe" class="log-11ze-table-tr">
           ${hasMode ? `<th> 模式 &nbsp;</th>` : ''}
-          <th> 应用 &nbsp;</th>
+          <th>
+            <span class="app-header-tooltip-11ze"> 应用 &nbsp; ⓘ &nbsp;
+              <span class="app-tooltip-content-11ze">
+                <span style="color: #0066cc;">点击切换应用<br></span>
+                <span style="color: #ea3323;">其他环境</span>
+              </span>
+            </span>
+          </th>
           <th> 设计 &nbsp;</th>
           <th> 名称 &nbsp;</th>
           <th> 类型 &nbsp;</th>
@@ -1860,15 +1901,26 @@ window.onload = function () {
 
     document.body.appendChild(popup);
 
-    // 使用事件委托绑定日志表格中的应用名称点击事件
-    // 兼容点击子元素的情况（使用 closest 向上查找）
-    logTable.addEventListener('click', (e) => {
-      const appNameEl = e.target.closest('.log-app-name');
-      if (appNameEl) {
-        const appId = appNameEl.dataset.appid;
+    // 使用事件委托绑定日志表格中的应用和名称点击事件
+    function handleLogTableClick(e) {
+      // 应用列点击
+      const appTd = e.target.closest('.log-app-name-11ze');
+      if (appTd) {
+        const appId = appTd.dataset.appid;
         window.handleAppNameClick(appId);
+        popup.remove();
+        return;
       }
-    });
+
+      // 名称列点击
+      const nameTd = e.target.closest('.log-design-name-11ze');
+      if (nameTd) {
+        const url = nameTd.dataset.url;
+        window.open(url, '_blank');
+      }
+    }
+
+    logTable.addEventListener('click', handleLogTableClick);
 
     // 添加点击外部关闭弹窗事件
     document.addEventListener('click', closePopupOnOutsideClick);
@@ -2153,8 +2205,14 @@ const css = `
     border-right: none !important;
   }
 
-  .log-11ze-table-tr:hover {
+  .log-11ze-table-tr > td:hover {
     background-color: #E8F4FF; /* 悬停时的背景颜色 */
+  }
+
+  /* 应用列和名称列鼠标变为小手 */
+  .log-app-name-11ze,
+  .log-design-name-11ze {
+    cursor: pointer;
   }
 
   .log-11ze-select {
@@ -2170,6 +2228,27 @@ const css = `
   .log-11ze-select:hover {
     background-color: #E8F4FF !important;
     cursor: pointer;
+  }
+
+  /* 切换应用按钮样式 */
+  .log-11ze-switch-btn {
+    background-color: #6299f8;
+    color: white;
+    border-color: #6299f8;
+    font-weight: bold;
+    padding: 8px 16px;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+  }
+
+  .log-11ze-switch-btn:hover {
+    background-color: #6299f8 !important;
+    border-color: #6299f8 !important;
+    color: white !important;
+  }
+
+  .switch-app-button-wrapper-11ze {
+    position: relative;
+    display: inline-block;
   }
 
   /* 按钮统一样式 */
@@ -2205,7 +2284,7 @@ const css = `
   }
 
   .switch-app-dropdown-11ze {
-    position: absolute;
+    position: fixed;
     top: 100%;
     left: 0;
     background: #fff;
@@ -2228,9 +2307,50 @@ const css = `
   }
 
   .switch-app-item-11ze:hover {
-    background: #6299f8;
+    background: #6299f8 !important;
     color: white;
     cursor: pointer;
+  }
+
+  .app-header-tooltip-11ze {
+    position: relative;
+    cursor: help;
+    display: inline-block;
+  }
+
+  .app-header-tooltip-11ze .app-tooltip-content-11ze {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #fff;
+    border: 1px solid #3b82f6;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #333;
+    white-space: nowrap;
+    box-shadow: 0 2px 12px rgba(59, 130, 246, 0.3);
+    z-index: 1002;
+    margin-bottom: 8px;
+    transition: opacity 0.2s, visibility 0.2s;
+  }
+
+  .app-header-tooltip-11ze:hover .app-tooltip-content-11ze {
+    visibility: visible;
+    opacity: 1;
+  }
+
+  .app-tooltip-content-11ze::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #3b82f6;
   }
 `;
 
