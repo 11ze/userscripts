@@ -7,7 +7,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.1
+// @version     0.7.2
 // @description 2026-03-09
 // ==/UserScript==
 
@@ -1867,7 +1867,7 @@ window.onload = function () {
           }
           <td class="${appNameClass}" data-appid="${jvsAppId}" style="${appNameStyle}"> ${appName} &nbsp; </td>
           <td style="color: ${currentType.color}"> ${currentType.shortname} &nbsp; </td>
-          <td class="log-design-name-11ze" data-url="${oneLog.url}"> <a href="${oneLog.url}" target="_blank">${designName}</a> &nbsp; </td>
+          <td class="log-design-name-11ze" data-url="${oneLog.url}" style="color: #0066cc;"> ${designName} &nbsp; </td>
           <td style="color: ${logFieldColor}"> ${oneLog.type} &nbsp; </td>
           <td> ${datetime} &nbsp; </td>
         </tr>
@@ -2316,9 +2316,9 @@ const css = `
     visibility: hidden;
     opacity: 0;
     position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
+    bottom: auto;
+    left: 100%;
+    transform: translateY(-50%);
     background: #fff;
     border: 1px solid #3b82f6;
     border-radius: 6px;
@@ -2328,7 +2328,7 @@ const css = `
     white-space: nowrap;
     box-shadow: 0 2px 12px rgba(59, 130, 246, 0.3);
     z-index: 1002;
-    margin-bottom: 8px;
+    margin-left: 10px;
     transition: opacity 0.2s, visibility 0.2s;
   }
 
@@ -2340,11 +2340,11 @@ const css = `
   .app-tooltip-content-11ze::after {
     content: '';
     position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%);
+    top: 50%;
+    left: -12px;
+    transform: translateY(-50%);
     border: 6px solid transparent;
-    border-top-color: #3b82f6;
+    border-right-color: #3b82f6;
   }
 `;
 
