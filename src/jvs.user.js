@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.0
-// @description 2026-03-08
+// @version     0.7.1
+// @description 2026-03-09
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -1732,10 +1732,11 @@ window.onload = function () {
     popup.style.gap = '10px';
 
     if (hasMyiframe && currentMode) {
-      // 无应用时不显示切换按钮（点击时动态获取列表）
-      const hasApps = window.getAppsByCurrentMode().length > 0;
+      // 有多个应用时显示切换按钮
+      const apps = window.getAppsByCurrentMode();
+      const hasMultipleApps = apps.length > 1;
 
-      if (hasApps) {
+      if (hasMultipleApps) {
         // 创建切换应用按钮和下拉框
         function createSwitchAppButton() {
           const buttonWrapper = document.createElement('div');
@@ -1760,7 +1761,8 @@ window.onload = function () {
               item.className = 'switch-app-item-11ze';
               // 当前应用高亮
               if (app.appId === currentAppId) {
-                item.style.background = '#D6E4FF';
+                item.style.color = '#3b82f6';
+                item.style.fontWeight = '600';
               }
               item.textContent = app.appName;
               item.onclick = () => {
@@ -2240,12 +2242,6 @@ const css = `
     box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
   }
 
-  .log-11ze-switch-btn:hover {
-    background-color: #6299f8 !important;
-    border-color: #6299f8 !important;
-    color: white !important;
-  }
-
   .switch-app-button-wrapper-11ze {
     position: relative;
     display: inline-block;
@@ -2307,9 +2303,7 @@ const css = `
   }
 
   .switch-app-item-11ze:hover {
-    background: #6299f8 !important;
-    color: white;
-    cursor: pointer;
+    background: #E8F4FF;
   }
 
   .app-header-tooltip-11ze {
