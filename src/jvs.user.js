@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.2
-// @description 2026-03-09
+// @version     0.7.3
+// @description 2026-03-10
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -1716,98 +1716,6 @@ window.onload = function () {
       return;
     }
 
-    // 创建切换应用按钮
-    const switchAppContainer = document.createElement('div');
-    switchAppContainer.className = 'switch-app-container-11ze';
-    switchAppContainer.style.position = 'relative';
-
-    const hasMyiframe = window.location.href.includes('myiframe');
-    const currentMode = window.getModeFromHistory() || window.getMode();
-
-    // 给 popup 添加 flex 布局，垂直排列
-    // 第一行：切换应用按钮 + 筛选条件
-    // 第二行：日志表格
-    popup.style.display = 'flex';
-    popup.style.flexDirection = 'column';
-    popup.style.gap = '10px';
-
-    if (hasMyiframe && currentMode) {
-      // 有多个应用时显示切换按钮
-      const apps = window.getAppsByCurrentMode();
-      const hasMultipleApps = apps.length > 1;
-
-      if (hasMultipleApps) {
-        // 创建切换应用按钮和下拉框
-        function createSwitchAppButton() {
-          const buttonWrapper = document.createElement('div');
-          buttonWrapper.className = 'switch-app-button-wrapper-11ze';
-
-          const switchButton = document.createElement('button');
-          switchButton.className = 'log-11ze-select log-11ze-switch-btn';
-          switchButton.textContent = '切换应用';
-
-          const dropdown = document.createElement('div');
-          dropdown.className = 'switch-app-dropdown-11ze';
-
-          // 悬停时动态获取列表
-          function handleMouseEnter() {
-            // 清空并重新渲染下拉菜单
-            dropdown.replaceChildren();
-            const apps = window.getAppsByCurrentMode();
-            const currentAppId = window.getJvsAppId();
-
-            apps.forEach((app) => {
-              const item = document.createElement('div');
-              item.className = 'switch-app-item-11ze';
-              // 当前应用高亮
-              if (app.appId === currentAppId) {
-                item.style.color = '#3b82f6';
-                item.style.fontWeight = '600';
-              }
-              item.textContent = app.appName;
-              item.onclick = () => {
-                popup.remove();
-                window.location.href = app.listUrl;
-              };
-              dropdown.appendChild(item);
-            });
-
-            // 获取按钮位置并设置下拉框位置（右对齐）
-            const rect = buttonWrapper.getBoundingClientRect();
-            dropdown.style.display = 'block';
-            dropdown.style.top = `${rect.bottom}px`;
-            dropdown.style.left = `${rect.right - dropdown.offsetWidth}px`;
-          }
-
-          // 移开时收起下拉框
-          function handleMouseLeave() {
-            dropdown.style.display = 'none';
-          }
-
-          buttonWrapper.addEventListener('mouseenter', handleMouseEnter);
-          buttonWrapper.addEventListener('mouseleave', handleMouseLeave);
-
-          buttonWrapper.appendChild(switchButton);
-          buttonWrapper.appendChild(dropdown);
-          return buttonWrapper;
-        }
-
-        const buttonWrapper = createSwitchAppButton();
-        switchAppContainer.appendChild(buttonWrapper);
-      }
-    }
-
-    // 创建第一行容器：切换应用按钮 + 筛选条件
-    const headerRow = document.createElement('div');
-    headerRow.style.display = 'flex';
-    headerRow.style.justifyContent = 'flex-end';
-    headerRow.style.gap = '10px';
-    headerRow.style.alignItems = 'center';
-    headerRow.style.marginTop = '10px';
-
-    headerRow.appendChild(switchAppContainer);
-    popup.appendChild(headerRow);
-
     const logs = getLogs();
 
     const appModeMap = window.getAppModelMap();
@@ -1876,6 +1784,7 @@ window.onload = function () {
 
     const logTable = document.createElement('table');
     logTable.className = 'table-11ze';
+    logTable.style.marginTop = '10px';
     logTable.innerHTML = `
       <thead>
         <tr style="background-color: #eef5fe" class="log-11ze-table-tr">
@@ -2232,21 +2141,6 @@ const css = `
     cursor: pointer;
   }
 
-  /* 切换应用按钮样式 */
-  .log-11ze-switch-btn {
-    background-color: #6299f8;
-    color: white;
-    border-color: #6299f8;
-    font-weight: bold;
-    padding: 8px 16px;
-    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
-  }
-
-  .switch-app-button-wrapper-11ze {
-    position: relative;
-    display: inline-block;
-  }
-
   /* 按钮统一样式 */
   .button-11ze {
     background-color: white !important;
@@ -2270,40 +2164,6 @@ const css = `
   /* 应用中心， 移除每个分类末尾的透明方块（影响点击） */
   #app > div > div > div.jvs-layout.jvs-layout-tempOpen > div.template-content-box > div > div > div > div > div > div > img {
     display: none !important;
-  }
-
-  /* 切换应用下拉框 */
-  .switch-app-container-11ze {
-    position: relative;
-    display: inline-block;
-    margin-right: 10px;
-  }
-
-  .switch-app-dropdown-11ze {
-    position: fixed;
-    top: 100%;
-    left: 0;
-    background: #fff;
-    border: 1px solid #D6E4FF;
-    border-radius: 6px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    z-index: 1001;
-    max-height: 300px;
-    overflow-y: auto;
-    min-width: 150px;
-    display: none;
-  }
-
-  .switch-app-item-11ze {
-    padding: 8px 15px;
-    cursor: pointer;
-    white-space: nowrap;
-    font-size: 14px;
-    border-radius: 6px;
-  }
-
-  .switch-app-item-11ze:hover {
-    background: #E8F4FF;
   }
 
   .app-header-tooltip-11ze {
