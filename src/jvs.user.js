@@ -1833,6 +1833,30 @@ window.onload = function () {
 
     logTable.addEventListener('click', handleLogTableClick);
 
+    // 鼠标中间键点击与左键点击一样打开链接，但是会停留在当前页面
+    function handleLogTableMiddleClick(e) {
+      // 中间键 button === 1
+      if (e.button !== 1) return;
+
+      // 应用列中间键点击
+      const appTd = e.target.closest('.log-app-name-11ze');
+      if (appTd) {
+        const appId = appTd.dataset.appid;
+        window.handleAppNameClick(appId);
+        popup.remove();
+        return;
+      }
+
+      // 名称列中间键点击
+      const nameTd = e.target.closest('.log-design-name-11ze');
+      if (nameTd) {
+        const url = nameTd.dataset.url;
+        window.open(url, '_blank');
+      }
+    }
+
+    logTable.addEventListener('auxclick', handleLogTableMiddleClick);
+
     // 添加点击外部关闭弹窗事件
     document.addEventListener('click', closePopupOnOutsideClick);
   }
@@ -2079,7 +2103,10 @@ const css = `
   .popup {
     border: 1px solid #e0e0e0 !important;
     border-radius: 6px !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.1),
+      0 2px 4px -1px rgba(0, 0, 0, 0.06),
+      0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
     background-color: #fff !important;
     position: fixed;
     top: 50px;
