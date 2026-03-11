@@ -7,7 +7,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.5
+// @version     0.7.6
 // @description 2026-03-11
 // ==/UserScript==
 
@@ -654,7 +654,7 @@ const jvsStorage = {
       const newButton = document.createElement('button');
       newButton.className =
         buttonClass + ' modern-button el-button el-button--primary el-button--mini button-11ze';
-      newButton.textContent = logicName ? '查看｜' + logicName : '查看';
+      newButton.textContent = logicName ? '查看：' + logicName : '查看';
       newButton.setAttribute('target-key', logicKey);
       newButton.onclick = function () {
         window.open(newUrl, '_blank');
@@ -710,7 +710,7 @@ const jvsStorage = {
       const newButton = document.createElement('button');
       newButton.className =
         buttonClass + ' modern-button el-button el-button--primary el-button--mini button-11ze';
-      newButton.textContent = '查看｜' + logicName;
+      newButton.textContent = '查看：' + logicName;
       newButton.setAttribute('target-key', logicName);
       newButton.onclick = function () {
         window.open(newUrl, '_blank');
@@ -753,7 +753,7 @@ const jvsStorage = {
       const newButton = document.createElement('button');
       newButton.className =
         buttonClass + ' modern-button el-button el-button--primary el-button--mini button-11ze';
-      newButton.textContent = '查看｜' + logicName;
+      newButton.textContent = '查看：' + logicName;
       newButton.setAttribute('target-key', logicName);
       newButton.onclick = function () {
         // 第一个按钮是「设计」，第二个「引用」
