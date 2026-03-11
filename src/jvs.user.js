@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.3
-// @description 2026-03-10
+// @version     0.7.4
+// @description 2026-03-11
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -1768,6 +1768,8 @@ window.onload = function () {
 
       listContent.push(`
         <tr class="log-11ze-table-tr">
+          <td> ${datetime} &nbsp; </td>
+          <td style="color: ${logFieldColor}"> ${oneLog.type} &nbsp; </td>
           ${
             hasMode
               ? `<td style="color: ${modeColor}"> ${mode.replace('模式', '')} &nbsp; </td>`
@@ -1776,8 +1778,6 @@ window.onload = function () {
           <td class="${appNameClass}" data-appid="${jvsAppId}" style="${appNameStyle}"> ${appName} &nbsp; </td>
           <td style="color: ${currentType.color}"> ${currentType.shortname} &nbsp; </td>
           <td class="log-design-name-11ze" data-url="${oneLog.url}" style="color: #0066cc;"> ${designName} &nbsp; </td>
-          <td style="color: ${logFieldColor}"> ${oneLog.type} &nbsp; </td>
-          <td> ${datetime} &nbsp; </td>
         </tr>
       `);
     }
@@ -1788,6 +1788,8 @@ window.onload = function () {
     logTable.innerHTML = `
       <thead>
         <tr style="background-color: #eef5fe" class="log-11ze-table-tr">
+          <th> 时间 &nbsp;</th>
+          <th> 操作 &nbsp;</th>
           ${hasMode ? `<th> 模式 &nbsp;</th>` : ''}
           <th>
             <span class="app-header-tooltip-11ze"> 应用 &nbsp; ⓘ &nbsp;
@@ -1797,10 +1799,8 @@ window.onload = function () {
               </span>
             </span>
           </th>
-          <th> 设计 &nbsp;</th>
-          <th> 名称 &nbsp;</th>
           <th> 类型 &nbsp;</th>
-          <th> 时间 &nbsp;</th>
+          <th> 名称 &nbsp;</th>
         </tr>
       </thead>
       <tbody>
@@ -1930,7 +1930,7 @@ window.onload = function () {
     button.style.top = '14px';
     button.style.right = '310px';
     button.style.zIndex = '9998';
-    button.style.fontSize = '13px';
+    button.style.fontSize = '14px';
     button.id = 'ze-jvs-log-button';
     button.onclick = function (event) {
       // 阻止事件冒泡到 document
@@ -2101,12 +2101,11 @@ const css = `
 
   /* 日志弹窗 */
   .popup {
-    border: 1px solid #e0e0e0 !important;
-    border-radius: 6px !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    border-radius: 10px !important;
     box-shadow:
-      0 4px 6px -1px rgba(0, 0, 0, 0.1),
-      0 2px 4px -1px rgba(0, 0, 0, 0.06),
-      0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+      0 4px 12px rgba(0, 0, 0, 0.1),
+      0 8px 24px rgba(0, 0, 0, 0.15) !important;
     background-color: #fff !important;
     position: fixed;
     top: 50px;
@@ -2130,6 +2129,14 @@ const css = `
     padding: 4px 4px !important;
     border-bottom: 1px solid #e5e7eb !important;
     border-right: 1px solid #e5e7eb !important;
+  }
+
+  /* 表头样式 */
+  .log-11ze-table-tr > th {
+    background-color: #f8fafc !important;
+    border-bottom: 2px solid #e2e8f0 !important;
+    position: sticky !important;
+    z-index: 1 !important;
   }
 
   /* 最后一行不显示分割线 */
@@ -2173,14 +2180,19 @@ const css = `
     background-color: white !important;
     border-color: #409EFF !important;
     color: black !important;
-    border: 1px solid #409EFF !important;
-    border-radius: 6px !important;
+    border: 1px solid rgba(64, 158, 255, 0.5) !important;
+    border-radius: 8px !important;
     padding: 6px 10px !important;
+    font-size: 13px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+    transition: all 0.2s ease !important;
   }
 
   .button-11ze:hover {
     background-color: #E8F4FF !important;
     cursor: pointer;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15) !important;
+    transform: translateY(-1px);
   }
 
   /* 逻辑设计左上角的逻辑列表弹窗宽度 */
@@ -2204,7 +2216,7 @@ const css = `
     opacity: 0;
     position: absolute;
     bottom: auto;
-    left: 100%;
+    top: 100%;
     transform: translateY(-50%);
     background: #fff;
     border: 1px solid #3b82f6;
