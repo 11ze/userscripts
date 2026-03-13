@@ -7,7 +7,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.9
+// @version     0.7.10
 // @description 2026-03-13
 // ==/UserScript==
 
@@ -2247,7 +2247,6 @@ const css = `
     background-color: #E8F4FF !important;
     cursor: pointer;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15) !important;
-    transform: translateY(-1px);
   }
 
   /* 逻辑设计左上角的逻辑列表弹窗宽度 */
