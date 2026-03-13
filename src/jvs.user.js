@@ -7,7 +7,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.7
+// @version     0.7.8
 // @description 2026-03-13
 // ==/UserScript==
 
@@ -629,6 +629,8 @@ const jvsStorage = {
       const logicKey = label.nextElementSibling.querySelector('.el-input__inner').title;
       const newUrl = getUrlFromLogs(logicKey, true);
       if (!newUrl) {
+        _removeLookLogicButton(label);
+        _createCopyNameButton(label, null);
         continue;
       }
 
@@ -649,6 +651,7 @@ const jvsStorage = {
         }
 
         existedButton.remove();
+        _createCopyNameButton(label, null);
       }
 
       const newButton = document.createElement('button');
@@ -660,8 +663,12 @@ const jvsStorage = {
         window.open(newUrl, '_blank');
       };
       newButton.style.marginLeft = '10px';
+      newButton.style.display = 'block';
+      newButton.style.marginBottom = '6px';
       // 将按钮直接添加到 label 元素中
       label.appendChild(newButton);
+      // 同步创建或更新复制按钮
+      _createCopyNameButton(label, logicName);
     }
   }
 
@@ -689,6 +696,8 @@ const jvsStorage = {
     const existedButton = target.querySelector('.' + buttonClass);
     if (existedButton) {
       if (existedButton.getAttribute('target-key') === logicName) {
+        // 即使查看按钮没变，也需要同步更新复制按钮
+        _createCopyNameButton(target, logicName);
         return null;
       }
       existedButton.remove();
@@ -701,8 +710,80 @@ const jvsStorage = {
     newButton.setAttribute('target-key', logicName);
     newButton.onclick = onClick;
     newButton.style.marginLeft = '10px';
+    newButton.style.display = 'block';
+    newButton.style.marginBottom = '6px';
     target.appendChild(newButton);
+    // 同步创建或更新复制按钮
+    _createCopyNameButton(target, logicName);
     return newButton;
+  }
+
+  // 移除查看逻辑按钮
+  function _removeLookLogicButton(target) {
+    const buttonClass = 'ze-look-logic-button';
+    const existedButton = target.querySelector('.' + buttonClass);
+    if (existedButton) {
+      existedButton.remove();
+    }
+  }
+
+  // 检查 logicName 是否变化，如变化则移除旧按钮并返回是否需要继续处理
+  function _updateButtonsIfNeeded(label) {
+    const existedButton = label.querySelector('.ze-look-logic-button');
+    const existedLogicName = existedButton?.getAttribute('target-key') || null;
+    const logicName = _getSelectedLogicName();
+
+    // 如果 logicName 没变化，跳过处理
+    if (logicName === existedLogicName) {
+      return null;
+    }
+
+    // 没有逻辑名称或发生变化时，移除旧按钮
+    _removeLookLogicButton(label);
+    _createCopyNameButton(label, null);
+    return logicName;
+  }
+
+  // 创建复制名称按钮（工厂函数）
+  function _createCopyNameButton(target, logicName) {
+    const buttonClass = 'ze-copy-logic-name-button';
+    const existedButton = target.querySelector('.' + buttonClass);
+
+    // 如果没有逻辑名称，移除已存在的复制按钮
+    if (!logicName) {
+      if (existedButton) {
+        existedButton.remove();
+      }
+      return null;
+    }
+
+    if (existedButton) {
+      // 如果逻辑名称变化了，删除旧按钮，重新创建
+      if (existedButton.getAttribute('target-logic-name') !== logicName) {
+        existedButton.remove();
+      } else {
+        return null;
+      }
+    }
+
+    const copyButton = document.createElement('button');
+    copyButton.className =
+      buttonClass + ' modern-button el-button el-button--default el-button--mini button-11ze';
+    copyButton.textContent = '复制名称';
+    copyButton.setAttribute('target-logic-name', logicName);
+    copyButton.onclick = function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      navigator.clipboard.writeText(logicName).then(() => {
+        copyButton.textContent = '已复制';
+        setTimeout(() => {
+          copyButton.textContent = '复制名称';
+        }, 1500);
+      });
+    };
+    copyButton.style.marginLeft = '10px';
+    target.appendChild(copyButton);
+    return copyButton;
   }
 
   /**
@@ -716,7 +797,7 @@ const jvsStorage = {
         continue;
       }
 
-      const logicName = _getSelectedLogicName();
+      const logicName = _updateButtonsIfNeeded(label);
       if (!logicName) {
         continue;
       }
@@ -759,7 +840,7 @@ const jvsStorage = {
         continue;
       }
 
-      const logicName = _getSelectedLogicName();
+      const logicName = _updateButtonsIfNeeded(label);
       if (!logicName) {
         continue;
       }
@@ -812,7 +893,7 @@ const jvsStorage = {
       }
 
       const copyButton = document.createElement('button');
-      copyButton.textContent = '复制';
+      copyButton.textContent = '复制名称';
       copyButton.className =
         'modern-button el-button el-button--primary el-button--mini button-11ze';
       copyButton.id = 'copy-design-name-button-11ze';
@@ -821,7 +902,7 @@ const jvsStorage = {
       }
 
       copyButton.onclick = function () {
-        copyToClipboard(designNameText, copyButton, '已复制名称');
+        copyToClipboard(designNameText, copyButton, '已复制');
       };
       designName.parentNode.insertBefore(copyButton, designName.nextSibling);
     }
@@ -902,11 +983,11 @@ const jvsStorage = {
     }
 
     const copyButton = document.createElement('button');
-    copyButton.textContent = '复制';
+    copyButton.textContent = '复制名称';
     copyButton.className =
       buttonClass + ' modern-button el-button el-button--primary el-button--mini button-11ze';
     copyButton.onclick = function () {
-      copyToClipboard(componentNameText, copyButton, '已复制名称');
+      copyToClipboard(componentNameText, copyButton, '已复制');
     };
     copyButton.id = 'copy-component-name-button-11ze';
     copyButton.setAttribute('component-name-11ze', componentNameText);
