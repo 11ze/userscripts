@@ -7,7 +7,7 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.8
+// @version     0.7.9
 // @description 2026-03-13
 // ==/UserScript==
 
@@ -663,8 +663,6 @@ const jvsStorage = {
         window.open(newUrl, '_blank');
       };
       newButton.style.marginLeft = '10px';
-      newButton.style.display = 'block';
-      newButton.style.marginBottom = '6px';
       // 将按钮直接添加到 label 元素中
       label.appendChild(newButton);
       // 同步创建或更新复制按钮
@@ -710,8 +708,6 @@ const jvsStorage = {
     newButton.setAttribute('target-key', logicName);
     newButton.onclick = onClick;
     newButton.style.marginLeft = '10px';
-    newButton.style.display = 'block';
-    newButton.style.marginBottom = '6px';
     target.appendChild(newButton);
     // 同步创建或更新复制按钮
     _createCopyNameButton(target, logicName);
