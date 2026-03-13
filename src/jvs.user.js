@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.6
-// @description 2026-03-11
+// @version     0.7.7
+// @description 2026-03-13
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -665,65 +665,71 @@ const jvsStorage = {
     }
   }
 
+  // 获取选中的逻辑名称
+  function _getSelectedLogicName() {
+    const logicNameElements = document.querySelectorAll(
+      '.el-scrollbar__view.el-select-dropdown__list > .el-select-dropdown__item.selected > span',
+    );
+    let logicName = null;
+    for (const nameElement of logicNameElements) {
+      const text = nameElement.innerText.trim();
+      if (['string', '公式'].includes(text)) {
+        continue;
+      }
+      if (!logicName || text.length > logicName.length) {
+        logicName = text;
+      }
+    }
+    return logicName;
+  }
+
+  // 创建查看按钮（工厂函数）
+  function _createOpenLogicButton(target, logicName, onClick) {
+    const buttonClass = 'ze-look-logic-button';
+    const existedButton = target.querySelector('.' + buttonClass);
+    if (existedButton) {
+      if (existedButton.getAttribute('target-key') === logicName) {
+        return null;
+      }
+      existedButton.remove();
+    }
+
+    const newButton = document.createElement('button');
+    newButton.className =
+      buttonClass + ' modern-button el-button el-button--primary el-button--mini button-11ze';
+    newButton.textContent = '查看：' + logicName;
+    newButton.setAttribute('target-key', logicName);
+    newButton.onclick = onClick;
+    newButton.style.marginLeft = '10px';
+    target.appendChild(newButton);
+    return newButton;
+  }
+
   /**
    * 新版逻辑嵌套组件，检查到【逻辑嵌套】组件时，自动添加一个按钮用于查看对应的逻辑设计
    * 从已打开过的逻辑设计中获取跳转链接
    */
   function addButtonToOpenNewLogicDesignForNestedLogicFirst() {
-    const buttonClass = 'ze-look-logic-button';
-
-    let noLinkFound = false;
-
-    const selector = '.el-form-item__label';
-    const labels = document.querySelectorAll(selector);
+    const labels = document.querySelectorAll('.el-form-item__label');
     for (const label of labels) {
       if (!label.innerText.includes('选择逻辑引擎')) {
         continue;
       }
 
-      const logicNameElement = label.nextElementSibling.querySelector(
-        // 右边这个 selector 只有刚点开组件的时候能获取到：'.el-select-dropdown__item.selected > span'
-        '#node_detailpannel > div.block-container > div > form > div.el-row > div:nth-child(1) > div > div > div.jvs-form-item > div.el-select.input-height-set.el-select--mini > div > input',
-      );
-      if (!logicNameElement) {
+      const logicName = _getSelectedLogicName();
+      if (!logicName) {
         continue;
       }
-
-      const logicName = logicNameElement.innerText.trim();
 
       const jvsAppId = window.getJvsAppId();
       const newUrl = getUrlFromLogsAndUrl(logicName, jvsAppId);
       if (!newUrl) {
-        noLinkFound = true;
-        continue;
+        addButtonToOpenNewLogicDesignForNestedLogic();
+        return;
       }
 
-      const existedButton = label.querySelector('.' + buttonClass);
-      if (existedButton) {
-        if (existedButton.getAttribute('target-key') === logicName) {
-          continue;
-        }
-
-        existedButton.remove();
-      }
-
-      const newButton = document.createElement('button');
-      newButton.className =
-        buttonClass + ' modern-button el-button el-button--primary el-button--mini button-11ze';
-      newButton.textContent = '查看：' + logicName;
-      newButton.setAttribute('target-key', logicName);
-      newButton.onclick = function () {
-        window.open(newUrl, '_blank');
-      };
-      newButton.style.marginLeft = '10px';
-      // 将按钮直接添加到 label 元素中
-      label.appendChild(newButton);
-
+      _createOpenLogicButton(label, logicName, () => window.open(newUrl, '_blank'));
       return;
-    }
-
-    if (noLinkFound) {
-      addButtonToOpenNewLogicDesignForNestedLogic();
     }
   }
 
@@ -733,10 +739,7 @@ const jvsStorage = {
    * 谨慎使用，点到引用按钮会覆盖当前逻辑设计，自动保存，不可逆
    */
   function addButtonToOpenNewLogicDesignForNestedLogic() {
-    const buttonClass = 'ze-look-logic-button';
-
-    const selector = '.el-form-item__label';
-    const labels = document.querySelectorAll(selector);
+    const labels = document.querySelectorAll('.el-form-item__label');
 
     const otherRuleListIcon = document.querySelector('.rule-list-icon');
     if (!otherRuleListIcon) {
@@ -749,28 +752,6 @@ const jvsStorage = {
     }
     otherRuleListIcon.setAttribute('check-logic-design-rule-list-icon-11ze', 'true');
 
-    function createButton(target, element, logicName) {
-      const newButton = document.createElement('button');
-      newButton.className =
-        buttonClass + ' modern-button el-button el-button--primary el-button--mini button-11ze';
-      newButton.textContent = '查看：' + logicName;
-      newButton.setAttribute('target-key', logicName);
-      newButton.onclick = function () {
-        // 第一个按钮是「设计」，第二个「引用」
-        // 点击引用会引用设计覆盖当前逻辑设计，自动保存，不可逆
-        const desginButtons = element
-          .querySelector('.list-item-tool')
-          .querySelectorAll('div.el-tooltip');
-        if (desginButtons.length !== 2) {
-          return;
-        }
-        desginButtons[0].click();
-      };
-      newButton.style.marginLeft = '10px';
-      // 将按钮直接添加到 label 元素中
-      target.appendChild(newButton);
-    }
-
     const otherRuleList = document.querySelectorAll('.other-rule-list > .list-box > .list-item');
 
     for (const label of labels) {
@@ -778,26 +759,23 @@ const jvsStorage = {
         continue;
       }
 
-      const logicNameElement = document.querySelector(
-        '.el-scrollbar__view.el-select-dropdown__list > .el-select-dropdown__item.selected > span'
-      );
-      if (!logicNameElement) {
+      const logicName = _getSelectedLogicName();
+      if (!logicName) {
         continue;
-      }
-
-      const logicName = logicNameElement.innerText.trim();
-      const existedButton = label.querySelector('.' + buttonClass);
-      if (existedButton) {
-        if (existedButton.getAttribute('target-key') === logicName) {
-          continue;
-        }
-
-        existedButton.remove();
       }
 
       for (const otherRule of otherRuleList) {
         if (otherRule.innerHTML.includes(logicName)) {
-          createButton(label, otherRule, logicName);
+          _createOpenLogicButton(label, logicName, () => {
+            // 第一个按钮是「设计」，第二个「引用」
+            // 点击引用会引用设计覆盖当前逻辑设计，自动保存，不可逆
+            const desginButtons = otherRule
+              .querySelector('.list-item-tool')
+              .querySelectorAll('div.el-tooltip');
+            if (desginButtons.length === 2) {
+              desginButtons[0].click();
+            }
+          });
           return;
         }
       }
@@ -843,7 +821,7 @@ const jvsStorage = {
       }
 
       copyButton.onclick = function () {
-        copyToClipboard(designNameText, copyButton, '已复制');
+        copyToClipboard(designNameText, copyButton, '已复制名称');
       };
       designName.parentNode.insertBefore(copyButton, designName.nextSibling);
     }
@@ -928,7 +906,7 @@ const jvsStorage = {
     copyButton.className =
       buttonClass + ' modern-button el-button el-button--primary el-button--mini button-11ze';
     copyButton.onclick = function () {
-      copyToClipboard(componentNameText, copyButton, '已复制');
+      copyToClipboard(componentNameText, copyButton, '已复制名称');
     };
     copyButton.id = 'copy-component-name-button-11ze';
     copyButton.setAttribute('component-name-11ze', componentNameText);
@@ -1907,10 +1885,10 @@ window.onload = function () {
       buttonName = modeSpan.outerHTML + '｜' + buttonName;
     }
 
-    createButton(buttonName);
+    _createButton(buttonName);
   }
 
-  function createButton(buttonName) {
+  function _createButton(buttonName) {
     const existButton = document.getElementById('ze-jvs-log-button');
     if (existButton) {
       if (existButton.innerHTML === buttonName) {
