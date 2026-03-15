@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.10
-// @description 2026-03-13
+// @version     0.7.11
+// @description 2026-03-15
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -71,7 +71,7 @@ const jvsStorage = {
       enterTabDesign,
       adjustInterfaceAndComponentStyle,
       addButtonToOpenNewLogicDesign,
-      addButtonToOpenNewLogicDesignForNestedLogicFirst,
+      firstAddButtonToOpenNewLogicDesignForNestedLogic,
       addButtonToCopyDesignName,
       addButtonToCopyComponentName,
       addButtonToClearAllFields,
@@ -704,7 +704,7 @@ const jvsStorage = {
     const newButton = document.createElement('button');
     newButton.className =
       buttonClass + ' modern-button el-button el-button--primary el-button--mini button-11ze';
-    newButton.textContent = '查看：' + logicName;
+    newButton.textContent = '查看';
     newButton.setAttribute('target-key', logicName);
     newButton.onclick = onClick;
     newButton.style.marginLeft = '10px';
@@ -786,7 +786,7 @@ const jvsStorage = {
    * 新版逻辑嵌套组件，检查到【逻辑嵌套】组件时，自动添加一个按钮用于查看对应的逻辑设计
    * 从已打开过的逻辑设计中获取跳转链接
    */
-  function addButtonToOpenNewLogicDesignForNestedLogicFirst() {
+  function firstAddButtonToOpenNewLogicDesignForNestedLogic() {
     const labels = document.querySelectorAll('.el-form-item__label');
     for (const label of labels) {
       if (!label.innerText.includes('选择逻辑引擎')) {
@@ -801,7 +801,7 @@ const jvsStorage = {
       const jvsAppId = window.getJvsAppId();
       const newUrl = getUrlFromLogsAndUrl(logicName, jvsAppId);
       if (!newUrl) {
-        addButtonToOpenNewLogicDesignForNestedLogic();
+        secondAddButtonToOpenNewLogicDesignForNestedLogic();
         return;
       }
 
@@ -815,7 +815,7 @@ const jvsStorage = {
    * 从左上角的 icon 中获取跳转页面
    * 谨慎使用，点到引用按钮会覆盖当前逻辑设计，自动保存，不可逆
    */
-  function addButtonToOpenNewLogicDesignForNestedLogic() {
+  function secondAddButtonToOpenNewLogicDesignForNestedLogic() {
     const labels = document.querySelectorAll('.el-form-item__label');
 
     const otherRuleListIcon = document.querySelector('.rule-list-icon');
@@ -842,7 +842,12 @@ const jvsStorage = {
       }
 
       for (const otherRule of otherRuleList) {
-        if (otherRule.innerHTML.includes(logicName)) {
+        const otherRuleText = otherRule?.textContent?.trim();
+        if (!otherRuleText) {
+          continue;
+        }
+
+        if (otherRuleText === logicName) {
           _createOpenLogicButton(label, logicName, () => {
             // 第一个按钮是「设计」，第二个「引用」
             // 点击引用会引用设计覆盖当前逻辑设计，自动保存，不可逆
