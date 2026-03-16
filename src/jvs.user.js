@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.11
-// @description 2026-03-15
+// @version     0.7.12
+// @description 2026-03-16
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -622,7 +622,7 @@ const jvsStorage = {
 
     const labels = document.querySelectorAll(selector);
     for (const label of labels) {
-      if (!label.innerText.includes('逻辑引擎远程调用key')) {
+      if (!label.innerText.includes('逻辑引擎远程调用')) {
         continue;
       }
 
