@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.12
-// @description 2026-03-16
+// @version     0.7.13
+// @description 2026-03-21
 // ==/UserScript==
 
 // 检查是否包含 jvs-ui 的 link 标签
@@ -60,32 +60,201 @@ const jvsStorage = {
 (function () {
   'use strict';
 
+  // ==================== 常量配置区 ====================
+
+  /**
+   * @typedef {'逻辑设计' | '列表设计' | '表单设计' | '流程设计'} DesignType
+   * @typedef {'打开' | '保存'} LogAction
+   */
+
+  const CONFIG = {
+    TIMER_INTERVAL: 400,
+    LOG_SAVE_DAYS: 365,
+    REFRESH_INTERVAL_SECOND: 15 * 60,
+  };
+
+  const COLORS = {
+    component: {
+      data: '#FFD6E7', // 数据相关
+      logic: '#D6E4FF', // 逻辑相关
+      loop: '#D9F7D9', // 循环相关
+      warning: '#FEF0C7', // 警告
+      variable: '#EFDBFF', // 变量
+    },
+    design: {
+      逻辑设计: 'blue',
+      列表设计: 'orange',
+      表单设计: 'green',
+      流程设计: 'purple',
+    },
+  };
+
+  const STORAGE_KEYS = {
+    LOGS: '__11ze_JVS_LOG_LOGS_',
+    APP_MODE_MAP: '__11ze_JVS_APP_MODE_MAP__',
+    APP_NAME_MAP: '__11ze_JVS_APP_NAME_MAP__',
+    APP_ID_LIST_URL_MAP: '__11ze_JVS_APP_ID_LIST_URL_MAP__',
+    HIGHLIGHT_APPS: '__11ze_HIGHLIGHT_APPS__',
+    REFRESH_PAGE_LAST_TIME: '__11ze_JVS_REFRESH_PAGE_LAST_TIME__',
+  };
+
+  // ==================== 工具函数区 ====================
+
+  /**
+   * 工具函数集合
+   */
+  const Utils = {
+    /**
+     * 批量设置元素样式
+     * @param {HTMLElement | null} el - 目标元素
+     * @param {Partial<CSSStyleDeclaration>} styles - 样式对象
+     */
+    setStyles(el, styles) {
+      if (!el || !styles) return;
+      Object.assign(el.style, styles);
+    },
+
+    /**
+     * 检查元素是否已标记
+     * @param {HTMLElement} element - 目标元素
+     * @param {string} attrName - 属性名
+     * @param {string | null} [value=null] - 期望的属性值
+     * @returns {boolean}
+     */
+    isMarked(element, attrName, value = null) {
+      if (!element) return false;
+      if (value === null) return element.hasAttribute(attrName);
+      return element.getAttribute(attrName) === value;
+    },
+
+    /**
+     * 标记元素
+     * @param {HTMLElement} element - 目标元素
+     * @param {string} attrName - 属性名
+     * @param {string} [value='true'] - 属性值
+     */
+    mark(element, attrName, value = 'true') {
+      element?.setAttribute(attrName, value);
+    },
+
+    /**
+     * 复制文本到剪贴板
+     * @param {string} text - 要复制的文本
+     * @param {HTMLButtonElement | null} [button] - 触发按钮
+     * @param {string} [successMessage='已复制'] - 成功提示
+     * @returns {Promise<void>}
+     */
+    copyToClipboard(text, button, successMessage = '已复制') {
+      const doCopy = () => {
+        if (navigator.clipboard?.writeText) {
+          return navigator.clipboard.writeText(text);
+        }
+        // 回退方法
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        return Promise.resolve();
+      };
+
+      return doCopy()
+        .then(() => {
+          if (button) {
+            const originalText = button.textContent;
+            button.textContent = successMessage;
+            button.disabled = true;
+            setTimeout(() => {
+              button.textContent = originalText;
+              button.disabled = false;
+            }, 500);
+          }
+        })
+        .catch((err) => {
+          console.error('复制失败:', err);
+        });
+    },
+  };
+
+  /**
+   * @typedef {Object} ButtonOptions
+   * @property {string} [text=''] - 按钮文本
+   * @property {string} [className=''] - 额外的类名
+   * @property {string} [id=''] - 元素 ID
+   * @property {Record<string, string>} [dataset={}] - data 属性
+   * @property {(event: MouseEvent) => void} [onClick] - 点击回调
+   * @property {'primary' | 'default' | 'success' | 'warning' | 'danger'} [type='primary'] - 按钮类型
+   * @property {'mini' | 'small' | 'medium'} [size='mini'] - 按钮尺寸
+   * @property {boolean} [isHtml=false] - text 是否为 HTML 字符串
+   */
+
+  /**
+   * 创建按钮元素
+   * @param {ButtonOptions} options - 按钮配置
+   * @returns {HTMLButtonElement}
+   */
+  function createButton(options = {}) {
+    const {
+      text = '',
+      className = '',
+      id = '',
+      dataset = {},
+      onClick = null,
+      type = 'primary',
+      size = 'mini',
+      isHtml = false,
+    } = options;
+
+    const button = document.createElement('button');
+    if (isHtml) {
+      button.innerHTML = text;
+    } else {
+      button.textContent = text;
+    }
+    button.className = `modern-button el-button el-button--${type} el-button--${size} button-11ze ${className}`.trim();
+
+    if (id) button.id = id;
+    Object.entries(dataset).forEach(([key, value]) => button.setAttribute(key, value));
+    if (onClick) button.addEventListener('click', onClick);
+    button.style.marginLeft = '10px';
+
+    return button;
+  }
+
+  // ==================== 主逻辑 ====================
+
   if (!isJVS(false)) {
     return;
   }
 
-  const jvsTimer = setInterval(() => {
-    const operations = [
-      changeTitle,
-      enterAppCenter,
-      enterTabDesign,
-      adjustInterfaceAndComponentStyle,
-      addButtonToOpenNewLogicDesign,
-      firstAddButtonToOpenNewLogicDesignForNestedLogic,
-      addButtonToCopyDesignName,
-      addButtonToCopyComponentName,
-      addButtonToClearAllFields,
-      addButtonToOpenNewFormOrListDesign,
-      highlightApps,
-      expandFormDesignAllComponentSettings,
-      autoExpandComponentLibraryCategory,
-      applicationSetClick,
-      showNodeExecTime,
-      // setCanvasScroll,
-      autoRefreshPage,
-      saveAppIdToListUrl,
-    ];
+  const operations = [
+    changeTitle,
+    enterAppCenter,
+    enterTabDesign,
+    adjustInterfaceAndComponentStyle,
+    addButtonToOpenNewLogicDesign,
+    firstAddButtonToOpenNewLogicDesignForNestedLogic,
+    addButtonToCopyDesignName,
+    addButtonToCopyComponentName,
+    addButtonToClearAllFields,
+    addButtonToOpenNewFormOrListDesign,
+    highlightApps,
+    expandFormDesignAllComponentSettings,
+    autoExpandComponentLibraryCategory,
+    applicationSetClick,
+    showNodeExecTime,
+    // setCanvasScroll,
+    autoRefreshPage,
+    saveAppIdToListUrl,
+    // 日志模块操作
+    updateLogButton,
+    saveCurrentLog,
+    bindSaveButton,
+  ];
 
+  const jvsTimer = setInterval(() => {
     for (const operation of operations) {
       try {
         operation();
@@ -94,7 +263,7 @@ const jvsStorage = {
         console.error(error);
       }
     }
-  }, 400);
+  }, CONFIG.TIMER_INTERVAL);
 
   window.addEventListener('beforeunload', () => {
     clearInterval(jvsTimer);
@@ -107,28 +276,359 @@ const jvsStorage = {
     { ip: '47.107.', env: '正式站' },
   ];
 
-  const designMapping = {
-    逻辑设计: '逻',
-    列表设计: '列',
-    表单设计: '表',
-    流程设计: '流',
+  /**
+   * @typedef {Object} DesignConfig
+   * @property {string} shortname - 设计类型简称
+   * @property {string} color - 设计类型颜色
+   */
+
+  /**
+   * @type {Record<DesignType, DesignConfig>}
+   */
+  const DESIGN_CONFIG = {
+    逻辑设计: { shortname: '逻', color: COLORS.design.逻辑设计 },
+    列表设计: { shortname: '列', color: COLORS.design.列表设计 },
+    表单设计: { shortname: '表', color: COLORS.design.表单设计 },
+    流程设计: { shortname: '流', color: COLORS.design.流程设计 },
   };
 
-  // log
-  const designSetting = {
-    逻辑设计: { color: 'blue', shortname: '逻辑' },
-    列表设计: { color: 'orange', shortname: '列表' },
-    表单设计: { color: 'green', shortname: '表单' },
-    流程设计: { color: 'purple', shortname: '流程' },
-  };
-  const logsLocalStorageKey = '__11ze_JVS_LOG_LOGS_';
-  // value 是日志对象的 key
-  const logOptions = [];
-  const logSaveDays = 365;
-  window.designSetting = designSetting;
-  window.logsLocalStorageKey = logsLocalStorageKey;
-  window.logSaveDays = logSaveDays;
-  window.logOptions = logOptions;
+  // 兼容旧代码的映射
+  const designMapping = Object.fromEntries(
+    Object.entries(DESIGN_CONFIG).map(([key, val]) => [key, val.shortname])
+  );
+
+  window.designSetting = Object.fromEntries(
+    Object.entries(DESIGN_CONFIG).map(([key, val]) => [key, { color: val.color, shortname: key.replace('设计', '') }])
+  );
+
+  // ==================== 日志模块 ====================
+
+  // 日志状态（闭包内共享）
+  let savedLogDesignName = '';
+  let savedLogAppName = '';
+
+  /**
+   * 创建日志条目
+   * @returns {LogEntry | null} 日志对象，如果数据不完整则返回 null
+   */
+  function createLogEntry() {
+    const url = getUrl();
+    const id = getQueryParamMapping(url)['id'];
+    const jvsAppId = getJvsAppId();
+    const tabType = getTabType();
+    const designName = getNewTabTitle();
+    const appName = getAppNameForLog();
+
+    if (!designName || !appName || !id || !jvsAppId || !tabType) {
+      return null;
+    }
+
+    return { tabType, url, time: Date.now(), designName, appName, id, jvsAppId };
+  }
+
+  /**
+   * 获取应用名称（用于日志记录）
+   * @returns {string} 应用名称
+   */
+  function getAppNameForLog() {
+    for (const selector of appNameSelectorList) {
+      const elements = document.querySelectorAll(selector);
+      for (const el of elements) {
+        const text = el.textContent;
+        if (text) {
+          const textArray = text.trim().split('\n').map((s) => s.trim()).filter(Boolean);
+          if (textArray.length === 1) {
+            const appName = textArray[0].split(' ')[0].trim();
+            saveAppIdName(getJvsAppId(), appName);
+            return appName;
+          }
+          if (document.querySelector('.list-item')) {
+            return textArray[textArray.length - 3] || textArray[0];
+          }
+          return textArray[0];
+        }
+      }
+    }
+    return '';
+  }
+
+  /**
+   * 剪切过期日志
+   */
+  function cutOverdueLogs(logs, currentTime) {
+    for (let i = logs.length - 1; i >= 0; i--) {
+      const log = logs[i];
+      if (!log.time) {
+        logs.splice(i, 1);
+        continue;
+      }
+      if (Math.abs(currentTime - log.time) > CONFIG.LOG_SAVE_DAYS * 24 * 60 * 60 * 1000) {
+        logs.splice(i, 1);
+      }
+    }
+    return uniqueLogs(logs);
+  }
+
+  /**
+   * 获取日志列表
+   */
+  function getLogs() {
+    const logs = jvsStorage.get(STORAGE_KEYS.LOGS, []);
+    if (!logs) return [];
+
+    logs.forEach((log) => {
+      const appName = getAppIdName(log.jvsAppId);
+      if (appName) log.appName = appName;
+    });
+
+    return cutOverdueLogs(logs, Date.now());
+  }
+  window.getLogs = getLogs;
+
+  /**
+   * 保存日志
+   */
+  function saveLog(logObj, type) {
+    if (!logObj) return;
+    logObj.type = type;
+    const logList = getLogs();
+    logList.push(logObj);
+    jvsStorage.set(STORAGE_KEYS.LOGS, logList);
+  }
+
+  /**
+   * 日志去重
+   */
+  function uniqueLogs(logs) {
+    const seen = new Set();
+    const result = [];
+    for (let i = logs.length - 1; i >= 0; i--) {
+      const log = logs[i];
+      const key = getQueryParamMapping(log.url)['id'] + log.type;
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push(log);
+      }
+    }
+    return result.reverse();
+  }
+
+  /**
+   * 格式化时间
+   */
+  function formatTime(time) {
+    const date = new Date(time);
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${month}-${day} ${hours}:${minutes}:${seconds}`;
+  }
+
+  /**
+   * 显示日志弹窗
+   */
+  function showLogPopup() {
+    const popupId = '11ze-jvs-log-popup';
+    const oldPopup = document.getElementById(popupId);
+    if (oldPopup) {
+      oldPopup.remove();
+      return;
+    }
+
+    const logs = getLogs();
+    const appModeMap = getAppModelMap();
+    const hasMode = Object.keys(appModeMap).length > 0;
+    const listContent = [];
+
+    for (let i = logs.length - 1; i >= 0; i--) {
+      const oneLog = logs[i];
+      const datetime = formatTime(oneLog.time);
+      const currentType = DESIGN_CONFIG[oneLog.tabType] ?? { color: 'red', shortname: '未知' };
+      const logFieldColor = oneLog.type === '打开' ? 'black' : 'red';
+
+      let appName = oneLog.appName;
+      if (appName.length > 16) appName = appName.substring(0, 16) + '…';
+
+      const mode = appModeMap[oneLog.jvsAppId] ?? '';
+      const modeColor = getModeColor(mode);
+      const appListUrl = getAppIdListUrl(oneLog.jvsAppId);
+      const isSameMode = mode && mode === getModeFromHistory();
+      const isSameApp = oneLog.jvsAppId === getJvsAppId();
+
+      let appNameStyle = '';
+      let appNameClass = '';
+      if (!isSameMode) {
+        appNameStyle = 'color: #ea3323;';
+      } else if (appListUrl && !isSameApp) {
+        appNameStyle = 'color: #0066cc; cursor: pointer;';
+        appNameClass = 'log-app-name-11ze';
+      }
+
+      listContent.push(`
+        <tr class="log-11ze-table-tr">
+          <td> ${datetime} &nbsp; </td>
+          <td style="color: ${logFieldColor}"> ${oneLog.type} &nbsp; </td>
+          ${hasMode ? `<td style="color: ${modeColor}"> ${mode.replace('模式', '')} &nbsp; </td>` : ''}
+          <td class="${appNameClass}" data-appid="${oneLog.jvsAppId}" style="${appNameStyle}"> ${appName} &nbsp; </td>
+          <td style="color: ${currentType.color}; text-align: center"> ${currentType.shortname} &nbsp; </td>
+          <td class="log-design-name-11ze" data-url="${oneLog.url}" style="color: #0066cc;"> ${oneLog.designName} &nbsp; </td>
+        </tr>
+      `);
+    }
+
+    const popup = document.createElement('div');
+    popup.className = 'popup';
+    popup.id = popupId;
+
+    const logTable = document.createElement('table');
+    logTable.className = 'table-11ze';
+    logTable.style.marginTop = '10px';
+    logTable.innerHTML = `
+      <thead>
+        <tr style="background-color: #eef5fe" class="log-11ze-table-tr">
+          <th> 时间 &nbsp;</th>
+          <th> 操作 &nbsp;</th>
+          ${hasMode ? `<th> 模式 &nbsp;</th>` : ''}
+          <th>
+            <span class="app-header-tooltip-11ze"> 应用 &nbsp; ⓘ &nbsp;
+              <span class="app-tooltip-content-11ze">
+                <span style="color: #0066cc;">点击切换应用<br></span>
+                <span style="color: #ea3323;">其他环境</span>
+              </span>
+            </span>
+          </th>
+          <th style="text-align: center"> 类型 &nbsp;</th>
+          <th> 名称 &nbsp;</th>
+        </tr>
+      </thead>
+      <tbody>${listContent.join('')}</tbody>
+    `;
+
+    popup.appendChild(logTable);
+    document.body.appendChild(popup);
+
+    // 事件委托
+    logTable.addEventListener('click', (e) => {
+      const appTd = e.target.closest('.log-app-name-11ze');
+      if (appTd) {
+        handleAppNameClick(appTd.dataset.appid);
+        popup.remove();
+        return;
+      }
+      const nameTd = e.target.closest('.log-design-name-11ze');
+      if (nameTd) window.open(nameTd.dataset.url, '_blank');
+    });
+
+    logTable.addEventListener('auxclick', (e) => {
+      if (e.button !== 1) return;
+      const appTd = e.target.closest('.log-app-name-11ze');
+      if (appTd) {
+        handleAppNameClick(appTd.dataset.appid);
+        popup.remove();
+        return;
+      }
+      const nameTd = e.target.closest('.log-design-name-11ze');
+      if (nameTd) window.open(nameTd.dataset.url, '_blank');
+    });
+
+    document.addEventListener('click', function closePopupOnOutsideClick(event) {
+      if (popup && !popup.contains(event.target) && !event.target.closest('.button-11ze')) {
+        popup.remove();
+        document.removeEventListener('click', closePopupOnOutsideClick);
+      }
+    });
+  }
+
+  /**
+   * 处理应用名称点击
+   */
+  function handleAppNameClick(appId) {
+    const listUrl = getAppIdListUrl(appId);
+    if (!listUrl) return;
+    const currentMode = getModeFromHistory();
+    const appModelMap = getAppModelMap() || {};
+    const logMode = appModelMap[appId];
+    if (currentMode && currentMode === logMode) {
+      window.location.href = listUrl;
+    }
+  }
+  window.handleAppNameClick = handleAppNameClick;
+
+  /**
+   * 更新日志按钮
+   */
+  function updateLogButton() {
+    const mode = getModeFromHistory() || getMode();
+    const existButton = document.getElementById('ze-jvs-log-button');
+
+    if (existButton) {
+      const currentMode = existButton.dataset.mode || '';
+      if (currentMode === mode) return;
+      existButton.remove();
+    }
+
+    const buttonName = mode
+      ? `<span style="color: ${getModeColor(mode)}">${mode}</span>｜日志`
+      : '日志';
+
+    const button = createButton({
+      text: buttonName,
+      id: 'ze-jvs-log-button',
+      isHtml: true,
+      dataset: { 'data-mode': mode || '' },
+    });
+
+    Utils.setStyles(button, {
+      position: 'fixed',
+      top: '14px',
+      right: '310px',
+      zIndex: '9998',
+      fontSize: '14px',
+    });
+
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      showLogPopup();
+    });
+
+    document.body.appendChild(button);
+  }
+
+  /**
+   * 保存当前页面日志
+   */
+  function saveCurrentLog() {
+    const newLog = createLogEntry();
+    if (newLog && newLog.tabType) {
+      if (newLog.appName.length > 100 || newLog.appName === newLog.designName) {
+        newLog.appName = getAppIdName(newLog.jvsAppId);
+      }
+      if (savedLogDesignName !== newLog.designName || savedLogAppName !== newLog.appName) {
+        saveLog(newLog, '打开');
+        savedLogDesignName = newLog.designName;
+        savedLogAppName = newLog.appName;
+      }
+    }
+  }
+
+  /**
+   * 绑定保存按钮点击事件
+   */
+  function bindSaveButton() {
+    const attrName = 'log-save-bound-11ze';
+    const saveButton = document.querySelector(
+      '#app > div > div > div.design-header-box > div.header-right > button'
+    );
+    if (!saveButton || Utils.isMarked(saveButton, attrName)) return;
+
+    Utils.mark(saveButton, attrName);
+    saveButton.addEventListener('click', () => {
+      const newLog = createLogEntry();
+      if (newLog) saveLog(newLog, '保存');
+    });
+  }
 
   window.appNameSelectorList = [
     // 应用左上角
@@ -140,11 +640,6 @@ const jvsStorage = {
     // 新版 JVS 列表设计、表单设计
     'div.design-header-box > div.header-left',
   ];
-
-  const refreshPageLastTime = '__11ze_JVS_REFRESH_PAGE_LAST_TIME__';
-  const refreshPageIntervalSecond = 15 * 60;
-  window.refreshPageLastTime = refreshPageLastTime;
-  window.refreshPageIntervalSecond = refreshPageIntervalSecond;
 
   function getQueryParamMapping(url) {
     if (typeof url !== 'string' || !url) {
@@ -196,10 +691,8 @@ const jvsStorage = {
   }
   window.getTabType = getTabType;
 
-  window.appModeMapKey = '__11ze_JVS_APP_MODE_MAP__';
-
   function getAppModelMap() {
-    return jvsStorage.get(window.appModeMapKey, {});
+    return jvsStorage.get(STORAGE_KEYS.APP_MODE_MAP, {});
   }
   window.getAppModelMap = getAppModelMap;
 
@@ -218,7 +711,7 @@ const jvsStorage = {
         if (jvsAppId) {
           const appModeMap = window.getAppModelMap();
           appModeMap[jvsAppId] = mode;
-          jvsStorage.set(window.appModeMapKey, appModeMap);
+          jvsStorage.set(STORAGE_KEYS.APP_MODE_MAP, appModeMap);
         }
 
         return mode;
@@ -480,19 +973,19 @@ const jvsStorage = {
           '更新模型',
           '统计条数',
         ],
-        color: '#FFD6E7',
+        color: COLORS.component.data,
       },
       {
         types: ['逻辑引擎', '逻辑应用'],
-        color: '#D6E4FF',
+        color: COLORS.component.logic,
       },
       {
         types: ['循环容器', '对数组对象进行遍历'],
-        color: '#D9F7D9',
+        color: COLORS.component.loop,
       },
       {
         types: ['中止程序', '提示消息'],
-        color: '#FEF0C7',
+        color: COLORS.component.warning,
       },
       {
         types: [
@@ -505,7 +998,7 @@ const jvsStorage = {
           '等变量',
           '结构示例',
         ],
-        color: '#EFDBFF',
+        color: COLORS.component.variable,
       },
     ];
     for (const component of draggableComponents) {
@@ -654,15 +1147,12 @@ const jvsStorage = {
         _createCopyNameButton(label, null);
       }
 
-      const newButton = document.createElement('button');
-      newButton.className =
-        buttonClass + ' modern-button el-button el-button--primary el-button--mini button-11ze';
-      newButton.textContent = logicName ? '查看：' + logicName : '查看';
-      newButton.setAttribute('target-key', logicKey);
-      newButton.onclick = function () {
-        window.open(newUrl, '_blank');
-      };
-      newButton.style.marginLeft = '10px';
+      const newButton = createButton({
+        text: logicName ? '查看：' + logicName : '查看',
+        className: buttonClass,
+        dataset: { 'target-key': logicKey },
+        onClick: () => window.open(newUrl, '_blank'),
+      });
       // 将按钮直接添加到 label 元素中
       label.appendChild(newButton);
       // 同步创建或更新复制按钮
@@ -701,13 +1191,12 @@ const jvsStorage = {
       existedButton.remove();
     }
 
-    const newButton = document.createElement('button');
-    newButton.className =
-      buttonClass + ' modern-button el-button el-button--primary el-button--mini button-11ze';
-    newButton.textContent = '查看';
-    newButton.setAttribute('target-key', logicName);
-    newButton.onclick = onClick;
-    newButton.style.marginLeft = '10px';
+    const newButton = createButton({
+      text: '查看',
+      className: buttonClass,
+      dataset: { 'target-key': logicName },
+      onClick,
+    });
     target.appendChild(newButton);
     // 同步创建或更新复制按钮
     _createCopyNameButton(target, logicName);
@@ -762,22 +1251,17 @@ const jvsStorage = {
       }
     }
 
-    const copyButton = document.createElement('button');
-    copyButton.className =
-      buttonClass + ' modern-button el-button el-button--default el-button--mini button-11ze';
-    copyButton.textContent = '复制名称';
-    copyButton.setAttribute('target-logic-name', logicName);
-    copyButton.onclick = function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      navigator.clipboard.writeText(logicName).then(() => {
-        copyButton.textContent = '已复制';
-        setTimeout(() => {
-          copyButton.textContent = '复制名称';
-        }, 1500);
-      });
-    };
-    copyButton.style.marginLeft = '10px';
+    const copyButton = createButton({
+      text: '复制名称',
+      className: buttonClass,
+      dataset: { 'target-logic-name': logicName },
+      type: 'default',
+      onClick: (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        Utils.copyToClipboard(logicName, copyButton, '已复制');
+      },
+    });
     target.appendChild(copyButton);
     return copyButton;
   }
@@ -893,60 +1377,14 @@ const jvsStorage = {
         return;
       }
 
-      const copyButton = document.createElement('button');
-      copyButton.textContent = '复制名称';
-      copyButton.className =
-        'modern-button el-button el-button--primary el-button--mini button-11ze';
-      copyButton.id = 'copy-design-name-button-11ze';
-      if (designNameText) {
-        copyButton.setAttribute('design-name-11ze', designNameText);
-      }
-
-      copyButton.onclick = function () {
-        copyToClipboard(designNameText, copyButton, '已复制');
-      };
+      const copyButton = createButton({
+        text: '复制名称',
+        id: 'copy-design-name-button-11ze',
+        dataset: { 'design-name-11ze': designNameText },
+        onClick: () => Utils.copyToClipboard(designNameText, copyButton, '已复制'),
+      });
       designName.parentNode.insertBefore(copyButton, designName.nextSibling);
     }
-  }
-
-  function copyToClipboard(text, button, successMessage) {
-    const copyTextToClipboard = (text) => {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        return navigator.clipboard.writeText(text);
-      } else {
-        // 回退方法：创建一个临时的文本区域元素
-        const textArea = document.createElement('textarea');
-        textArea.value = text;
-        // 避免滚动到底部
-        textArea.style.position = 'fixed';
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        try {
-          document.execCommand('copy');
-          return Promise.resolve();
-        } catch (err) {
-          return Promise.reject(err);
-        } finally {
-          document.body.removeChild(textArea);
-        }
-      }
-    };
-
-    copyTextToClipboard(text)
-      .then(() => {
-        const originalText = button.textContent;
-        button.textContent = successMessage;
-        button.disabled = true;
-        setTimeout(() => {
-          button.textContent = originalText;
-          button.disabled = false;
-        }, 1000);
-      })
-      .catch((err) => {
-        console.error('复制失败:', err);
-        alert('复制失败，请重试');
-      });
   }
 
   window.currentPageNotAddCopyComponentNameButton = false;
@@ -983,15 +1421,13 @@ const jvsStorage = {
       existedButton.remove();
     }
 
-    const copyButton = document.createElement('button');
-    copyButton.textContent = '复制名称';
-    copyButton.className =
-      buttonClass + ' modern-button el-button el-button--primary el-button--mini button-11ze';
-    copyButton.onclick = function () {
-      copyToClipboard(componentNameText, copyButton, '已复制');
-    };
-    copyButton.id = 'copy-component-name-button-11ze';
-    copyButton.setAttribute('component-name-11ze', componentNameText);
+    const copyButton = createButton({
+      text: '复制名称',
+      id: 'copy-component-name-button-11ze',
+      className: buttonClass,
+      dataset: { 'component-name-11ze': componentNameText },
+      onClick: () => Utils.copyToClipboard(componentNameText, copyButton, '已复制'),
+    });
     componentName.parentNode.insertBefore(copyButton, componentName.nextSibling);
   }
 
@@ -1007,23 +1443,24 @@ const jvsStorage = {
         continue;
       }
 
-      const button = document.createElement('button');
-      button.className = 'modern-button el-button el-button--primary el-button--mini button-11ze';
-      button.textContent = '清空';
-      button.id = 'clear-all-fields-button-11ze' + i;
-      button.onclick = function () {
-        const ps = box.querySelectorAll('p');
-        for (let i = ps.length - 1; i >= 0; i--) {
-          const el = ps[i];
-          if (el.querySelector('.delete-icon-button')) {
-            el.querySelector('.delete-icon-button > span').click();
-          }
+      const button = createButton({
+        text: '清空',
+        id: 'clear-all-fields-button-11ze' + i,
+        onClick: () => {
+          const ps = box.querySelectorAll('p');
+          for (let i = ps.length - 1; i >= 0; i--) {
+            const el = ps[i];
+            if (el.querySelector('.delete-icon-button')) {
+              el.querySelector('.delete-icon-button > span').click();
+            }
 
-          if (el.querySelector('.el-icon-delete')) {
-            el.querySelector('.el-icon-delete').click();
+            if (el.querySelector('.el-icon-delete')) {
+              el.querySelector('.el-icon-delete').click();
+            }
           }
-        }
-      };
+        },
+      });
+      button.style.marginLeft = '0';
 
       box.insertBefore(button, box.firstChild);
     }
@@ -1051,7 +1488,7 @@ const jvsStorage = {
 
       element.style.whiteSpace = 'normal';
 
-      if (element.getAttribute('form-added-button-11ze')) {
+      if (Utils.isMarked(element, 'form-added-button-11ze')) {
         continue;
       }
 
@@ -1060,21 +1497,19 @@ const jvsStorage = {
         continue;
       }
 
-      const copyButton = document.createElement('button');
-      copyButton.textContent = '查看';
-      copyButton.className =
-        'modern-button el-button el-button--primary el-button--mini button-11ze';
-      copyButton.id = 'open-new-form-or-list-design-button-11ze';
-      copyButton.onclick = function () {
-        window.open(targetUrl, '_blank');
-      };
+      const copyButton = createButton({
+        text: '查看',
+        id: 'open-new-form-or-list-design-button-11ze',
+        onClick: () => window.open(targetUrl, '_blank'),
+      });
+      copyButton.style.marginLeft = '0';
       const targetElement =
         element.parentElement.parentElement.parentElement.parentElement.parentElement.querySelector(
           'td:nth-child(5) > div > div'
         );
       if (targetElement) {
         targetElement.appendChild(copyButton);
-        element.setAttribute('form-added-button-11ze', 'true');
+        Utils.mark(element, 'form-added-button-11ze');
       }
     }
   }
@@ -1092,7 +1527,7 @@ const jvsStorage = {
     // 文字标题元素跟展开内容元素同级
     const buttons = document.querySelectorAll('.el-collapse-item > .el-collapse-item__wrap');
     for (const button of buttons) {
-      if (button.getAttribute('bottom-body-checked-11ze')) {
+      if (Utils.isMarked(button, 'bottom-body-checked-11ze')) {
         continue;
       }
 
@@ -1107,7 +1542,7 @@ const jvsStorage = {
         }
       }
 
-      button.setAttribute('bottom-body-checked-11ze', 'true');
+      Utils.mark(button, 'bottom-body-checked-11ze');
     }
   }
 
@@ -1115,10 +1550,8 @@ const jvsStorage = {
    * 高亮应用中心的应用
    */
   function highlightApps() {
-    const highlightAppsKey = '__11ze_HIGHLIGHT_APPS__';
-
     const labelClass = 'ze-highlight-label';
-    const appList = jvsStorage.get(highlightAppsKey, []);
+    const appList = jvsStorage.get(STORAGE_KEYS.HIGHLIGHT_APPS, []);
 
     function getContentSelector() {
       return 'div > div > div > p';
@@ -1155,7 +1588,7 @@ const jvsStorage = {
       } else {
         appList.push(text);
       }
-      jvsStorage.set(highlightAppsKey, appList);
+      jvsStorage.set(STORAGE_KEYS.HIGHLIGHT_APPS, appList);
     }
 
     function main() {
@@ -1176,20 +1609,19 @@ const jvsStorage = {
         }
 
         // 加一个按钮，点击后高亮
-        const button = document.createElement('button');
+        const button = createButton({
+          className: labelClass,
+          onClick: (event) => {
+            event.stopPropagation();
+            handleClickNode(n);
+          },
+        });
         button.innerHTML = '&nbsp;&nbsp;&nbsp;&nbsp;';
-        button.className =
-          labelClass + ' modern-button el-button el-button--primary el-button--mini';
         button.style.borderColor = '#c8f0c7';
         button.style.borderRadius = '5px';
         button.style.borderWidth = '1px';
         button.style.borderStyle = 'solid';
-        button.style.borderColor = '#c8f0c7';
-
-        button.onclick = (event) => {
-          event.stopPropagation();
-          handleClickNode(n);
-        };
+        button.style.marginLeft = '0';
 
         n.querySelector('div > div > div').appendChild(button);
       });
@@ -1245,7 +1677,7 @@ const jvsStorage = {
         continue;
       }
 
-      if (ruleCategory.getAttribute('auto-expand-component-library-category-11ze')) {
+      if (Utils.isMarked(ruleCategory, 'auto-expand-component-library-category-11ze')) {
         continue;
       }
 
@@ -1262,7 +1694,7 @@ const jvsStorage = {
         }
       }
 
-      ruleCategory.setAttribute('auto-expand-component-library-category-11ze', 'true');
+      Utils.mark(ruleCategory, 'auto-expand-component-library-category-11ze');
     }
 
     function simulateMouseClick(element) {
@@ -1288,11 +1720,8 @@ const jvsStorage = {
     window.autoExpandComponentLibraryCategory11ze = true;
   }
 
-  window.appNameMapKey = '__11ze_JVS_APP_NAME_MAP__';
-  window.appIdListUrlMapKey = '__11ze_JVS_APP_ID_LIST_URL_MAP__';
-
   function getAppNameMap() {
-    return jvsStorage.get(window.appNameMapKey, {});
+    return jvsStorage.get(STORAGE_KEYS.APP_NAME_MAP, {});
   }
   window.getAppNameMap = getAppNameMap;
 
@@ -1319,12 +1748,12 @@ const jvsStorage = {
 
     appNameMap[jvsAppId] = appName;
     appNameMap[appName] = jvsAppId;
-    jvsStorage.set(window.appNameMapKey, appNameMap);
+    jvsStorage.set(STORAGE_KEYS.APP_NAME_MAP, appNameMap);
   }
   window.saveAppIdName = saveAppIdName;
 
   function getAppIdListUrlMap() {
-    return jvsStorage.get(window.appIdListUrlMapKey, {});
+    return jvsStorage.get(STORAGE_KEYS.APP_ID_LIST_URL_MAP, {});
   }
   window.getAppIdListUrlMap = getAppIdListUrlMap;
 
@@ -1342,7 +1771,7 @@ const jvsStorage = {
   function saveAppIdListUrl(jvsAppId, listUrl) {
     const appIdListUrlMap = getAppIdListUrlMap();
     appIdListUrlMap[jvsAppId] = listUrl;
-    jvsStorage.set(window.appIdListUrlMapKey, appIdListUrlMap);
+    jvsStorage.set(STORAGE_KEYS.APP_ID_LIST_URL_MAP, appIdListUrlMap);
   }
   window.saveAppIdListUrl = saveAppIdListUrl;
 
@@ -1522,7 +1951,7 @@ const jvsStorage = {
   let resetRefreshPageHandler = null;
 
   function resetRefreshPageLastTime() {
-    jvsStorage.set(window.refreshPageLastTime, new Date().getTime());
+    jvsStorage.set(STORAGE_KEYS.REFRESH_PAGE_LAST_TIME, Date.now());
   }
 
   function autoRefreshPage() {
@@ -1536,10 +1965,10 @@ const jvsStorage = {
       return;
     }
 
-    let lastTime = jvsStorage.get(window.refreshPageLastTime);
+    let lastTime = jvsStorage.get(STORAGE_KEYS.REFRESH_PAGE_LAST_TIME);
     if (!lastTime) {
-      lastTime = new Date().getTime();
-      jvsStorage.set(window.refreshPageLastTime, lastTime);
+      lastTime = Date.now();
+      jvsStorage.set(STORAGE_KEYS.REFRESH_PAGE_LAST_TIME, lastTime);
       return;
     }
 
@@ -1550,483 +1979,15 @@ const jvsStorage = {
     resetRefreshPageHandler = resetRefreshPageLastTime;
     window.addEventListener('mousedown', resetRefreshPageHandler, { passive: true });
 
-    const currentTime = new Date().getTime();
-    if (currentTime - lastTime < 1000 * window.refreshPageIntervalSecond) {
+    const currentTime = Date.now();
+    if (currentTime - lastTime < 1000 * CONFIG.REFRESH_INTERVAL_SECOND) {
       return;
     }
 
-    jvsStorage.set(window.refreshPageLastTime, currentTime);
+    jvsStorage.set(STORAGE_KEYS.REFRESH_PAGE_LAST_TIME, currentTime);
     location.reload();
   }
 })();
-
-/**
- * 记录和查看开发日志
- */
-window.onload = function () {
-  'use strict';
-
-  if (!isJVS(true)) {
-    return;
-  }
-
-  function log() {
-    function getTabType() {
-      return window.getTabType();
-    }
-
-    function getUrl() {
-      return window.getUrl();
-    }
-
-    function getJvsAppId() {
-      return window.getJvsAppId();
-    }
-
-    function getId() {
-      return getQueryParamMapping(getUrl())['id'];
-    }
-
-    function getCurrentTime() {
-      return new Date().getTime();
-    }
-
-    const appIdSelectorList = window.appNameSelectorList;
-
-    /**
-     * 日志，获取应用名称
-     */
-    function getAppName() {
-      for (let i = 0; i < appIdSelectorList.length; i++) {
-        const allTextElements = document.querySelectorAll(appIdSelectorList[i]);
-
-        for (let j = 0; j < allTextElements.length; j++) {
-          const text = allTextElements[j].textContent;
-          if (text) {
-            const textArray = text
-              .trim()
-              .split('\n')
-              .map((item) => item.trim())
-              .filter((item) => item !== '');
-
-            // 旧版 JVS
-            if (textArray.length === 1) {
-              const appName = textArray[0].split(' ')[0].trim();
-              window.saveAppIdName(getJvsAppId(), appName);
-              return appName;
-            }
-
-            if (document.querySelector('.list-item')) {
-              const name = textArray[textArray.length - 3];
-              if (name) {
-                return name;
-              }
-            }
-
-            return textArray[0];
-          }
-        }
-      }
-
-      return '';
-    }
-
-    const url = getUrl();
-    const id = getId();
-    const time = getCurrentTime();
-    const tabType = getTabType();
-    const designName = window.getNewTabTitle();
-    const appName = getAppName();
-    const jvsAppId = getJvsAppId();
-
-    // 如果有一个为空则返回 null
-    if (!designName || !appName || !id || !jvsAppId || !tabType) {
-      return null;
-    }
-
-    return {
-      tabType,
-      url,
-      time,
-      designName,
-      appName,
-      id,
-      jvsAppId,
-    };
-  }
-
-  function cutOverdueLogs(logs, currentTime) {
-    // 每个 log 有 time 字段，格式为时间戳
-    // 从数组删除时间戳跟当前时间相差 n 天的 log
-    // 倒序遍历避免删除元素时索引错位
-
-    for (let i = logs.length - 1; i >= 0; i--) {
-      const log = logs[i];
-
-      if (!log.time) {
-        logs.splice(i, 1);
-        continue;
-      }
-
-      if (Math.abs(currentTime - log.time) > logSaveDays * 24 * 60 * 60 * 1000) {
-        logs.splice(i, 1);
-        continue;
-      }
-    }
-
-    logs = uniqueLogs(logs);
-
-    jvsStorage.set(logsLocalStorageKey, logs);
-
-    return logs;
-  }
-
-  function getLogs() {
-    const logs = jvsStorage.get(logsLocalStorageKey, []);
-    if (!logs) {
-      return [];
-    }
-
-    logs.forEach((log) => {
-      const appName = window.getAppIdName(log.jvsAppId);
-      if (appName) {
-        log.appName = appName;
-      }
-    });
-
-    return cutOverdueLogs(logs, new Date().getTime());
-  }
-  window.getLogs = getLogs;
-
-  /**
-   * 处理日志列表中的应用名称点击事件
-   * @param {string} appId - JVS 应用 ID
-   * 1. 获取 appid 对应的列表页 URL
-   * 3. 如果 URL 为空，点击无反应
-   * 4. 跳转到 jvsAppId 对用的应用
-   */
-  function handleAppNameClick(appId) {
-    // 获取当前 appid 对应的列表页 URL
-    const listUrl = window.getAppIdListUrl(appId);
-    if (!listUrl) return;
-
-    const currentMode = window.getModeFromHistory();
-    const appModelMap = window.getAppModelMap() || {};
-    const logMode = appModelMap[appId];
-
-    const isSameMode = currentMode && currentMode === logMode;
-    if (!isSameMode) return;
-
-    window.location.href = listUrl;
-  }
-  window.handleAppNameClick = handleAppNameClick;
-
-  function saveLog(logObj, type) {
-    if (!logObj) {
-      return;
-    }
-    logObj.type = type;
-
-    const logList = getLogs();
-    logList.push(logObj);
-    jvsStorage.set(logsLocalStorageKey, logList);
-  }
-
-  function uniqueLogs(logs) {
-    const appIds = [];
-    const uniqueLogs = [];
-
-    for (let i = logs.length - 1; i >= 0; i--) {
-      const log = logs[i];
-      const urlParams = getQueryParamMapping(log.url);
-      const id = urlParams['id'] + log.type;
-
-      if (!appIds.includes(id)) {
-        appIds.push(id);
-        uniqueLogs.push(log);
-      }
-    }
-
-    return uniqueLogs.reverse();
-  }
-
-  function formatTime(time) {
-    const date = new Date(time);
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-    return `${month}-${day} ${hours}:${minutes}:${seconds}`;
-  }
-
-  function getQueryParamMapping(url) {
-    return window.getQueryParamMapping(url);
-  }
-
-  function showPopup() {
-    const popupId = '11ze-jvs-log-popup';
-
-    const popup = document.createElement('div');
-    popup.className = 'popup';
-    popup.id = popupId;
-    const oldPopup = document.getElementById(popupId);
-    if (oldPopup) {
-      oldPopup.remove();
-      return;
-    }
-
-    const logs = getLogs();
-
-    const appModeMap = window.getAppModelMap();
-    const hasMode = Object.keys(appModeMap).length > 0;
-
-    const listContent = [];
-
-    for (let i = logs.length - 1; i >= 0; i--) {
-      const oneLog = logs[i];
-      const datetime = formatTime(oneLog.time);
-
-      const currentType = designSetting[oneLog.tabType] ?? {
-        color: 'red',
-        shortname: '未知',
-      };
-
-      const logFieldColor = oneLog.type === '打开' ? 'black' : 'red';
-
-      let appName = oneLog.appName;
-      if (appName.length > 16) {
-        appName = appName.substring(0, 16) + '…';
-      }
-
-      const designName = oneLog.designName;
-
-      const jvsAppId = oneLog.jvsAppId;
-
-      const mode = appModeMap[jvsAppId] ?? '';
-      const modeColor = window.getModeColor(mode);
-
-      // 获取应用列表页 URL，设置颜色：
-      // - 蓝色：点击切换应用
-      // - 红色：其他环境
-      const appListUrl = window.getAppIdListUrl(jvsAppId);
-      const isSameMode = mode && mode === window.getModeFromHistory();
-      const isSameApp = jvsAppId === window.getJvsAppId();
-      let appNameStyle = '';
-      let appNameClass = '';
-
-      if (!isSameMode) {
-        // 不同环境 - 红色
-        appNameStyle = 'color: #ea3323;';
-      } else if (appListUrl) {
-        if (!isSameApp) {
-          // 可跳转（不同环境）- 蓝色
-          appNameStyle = 'color: #0066cc; cursor: pointer;';
-          appNameClass = 'log-app-name-11ze';
-        }
-      }
-
-      listContent.push(`
-        <tr class="log-11ze-table-tr">
-          <td> ${datetime} &nbsp; </td>
-          <td style="color: ${logFieldColor}"> ${oneLog.type} &nbsp; </td>
-          ${
-            hasMode
-              ? `<td style="color: ${modeColor}"> ${mode.replace('模式', '')} &nbsp; </td>`
-              : ''
-          }
-          <td class="${appNameClass}" data-appid="${jvsAppId}" style="${appNameStyle}"> ${appName} &nbsp; </td>
-          <td style="color: ${currentType.color}"> ${currentType.shortname} &nbsp; </td>
-          <td class="log-design-name-11ze" data-url="${oneLog.url}" style="color: #0066cc;"> ${designName} &nbsp; </td>
-        </tr>
-      `);
-    }
-
-    const logTable = document.createElement('table');
-    logTable.className = 'table-11ze';
-    logTable.style.marginTop = '10px';
-    logTable.innerHTML = `
-      <thead>
-        <tr style="background-color: #eef5fe" class="log-11ze-table-tr">
-          <th> 时间 &nbsp;</th>
-          <th> 操作 &nbsp;</th>
-          ${hasMode ? `<th> 模式 &nbsp;</th>` : ''}
-          <th>
-            <span class="app-header-tooltip-11ze"> 应用 &nbsp; ⓘ &nbsp;
-              <span class="app-tooltip-content-11ze">
-                <span style="color: #0066cc;">点击切换应用<br></span>
-                <span style="color: #ea3323;">其他环境</span>
-              </span>
-            </span>
-          </th>
-          <th> 类型 &nbsp;</th>
-          <th> 名称 &nbsp;</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${listContent.join('')}
-      </tbody>
-    `;
-
-    popup.appendChild(logTable);
-
-    document.body.appendChild(popup);
-
-    // 使用事件委托绑定日志表格中的应用和名称点击事件
-    function handleLogTableClick(e) {
-      // 应用列点击
-      const appTd = e.target.closest('.log-app-name-11ze');
-      if (appTd) {
-        const appId = appTd.dataset.appid;
-        window.handleAppNameClick(appId);
-        popup.remove();
-        return;
-      }
-
-      // 名称列点击
-      const nameTd = e.target.closest('.log-design-name-11ze');
-      if (nameTd) {
-        const url = nameTd.dataset.url;
-        window.open(url, '_blank');
-      }
-    }
-
-    logTable.addEventListener('click', handleLogTableClick);
-
-    // 鼠标中间键点击与左键点击一样打开链接，但是会停留在当前页面
-    function handleLogTableMiddleClick(e) {
-      // 中间键 button === 1
-      if (e.button !== 1) return;
-
-      // 应用列中间键点击
-      const appTd = e.target.closest('.log-app-name-11ze');
-      if (appTd) {
-        const appId = appTd.dataset.appid;
-        window.handleAppNameClick(appId);
-        popup.remove();
-        return;
-      }
-
-      // 名称列中间键点击
-      const nameTd = e.target.closest('.log-design-name-11ze');
-      if (nameTd) {
-        const url = nameTd.dataset.url;
-        window.open(url, '_blank');
-      }
-    }
-
-    logTable.addEventListener('auxclick', handleLogTableMiddleClick);
-
-    // 添加点击外部关闭弹窗事件
-    document.addEventListener('click', closePopupOnOutsideClick);
-  }
-
-  // 新增函数: 检查点击是否在popup外部并关闭popup
-  function closePopupOnOutsideClick(event) {
-    const popup = document.getElementById('11ze-jvs-log-popup');
-    // 这是打开popup的按钮
-    const button = document.querySelector('.modern-button');
-
-    if (popup && !popup.contains(event.target) && event.target !== button) {
-      popup.remove();
-      document.removeEventListener('click', closePopupOnOutsideClick);
-    }
-  }
-
-  window.savedLogDesignName = '';
-  window.savedLogAppName = '';
-  function main() {
-    const newLog = log();
-    if (newLog && newLog.tabType) {
-      // 设计页面没有应用名称时会拿到逻辑设计列表
-      if (newLog.appName.length > 100 || newLog.appName === newLog.designName) {
-        newLog.appName = window.getAppIdName(newLog.jvsAppId);
-      }
-
-      const needToSave =
-        window.savedLogDesignName !== newLog.designName ||
-        window.savedLogAppName !== newLog.appName;
-      if (needToSave) {
-        saveLog(newLog, '打开');
-        window.savedLogDesignName = newLog.designName;
-        window.savedLogAppName = newLog.appName;
-      }
-    }
-
-    // 用于显示当前在的模式
-    let buttonName = '日志';
-    let mode = window.getModeFromHistory();
-    if (!mode) {
-      mode = window.getMode();
-    }
-
-    if (mode) {
-      const modeSpan = document.createElement('span');
-      modeSpan.style.color = window.getModeColor(mode);
-      modeSpan.innerHTML = mode;
-      buttonName = modeSpan.outerHTML + '｜' + buttonName;
-    }
-
-    _createButton(buttonName);
-  }
-
-  function _createButton(buttonName) {
-    const existButton = document.getElementById('ze-jvs-log-button');
-    if (existButton) {
-      if (existButton.innerHTML === buttonName) {
-        return;
-      }
-
-      existButton.remove();
-    }
-
-    // 在页面固定位置（绝对位置，悬浮）插入一个按钮
-    // 点击按钮打开一个弹窗显示内容（全局唯一），已有窗口则直接显示
-
-    const button = document.createElement('button');
-    button.innerHTML = buttonName;
-    button.className = 'modern-button el-button el-button--primary el-button--mini button-11ze';
-    button.style.position = 'fixed';
-    button.style.top = '14px';
-    button.style.right = '310px';
-    button.style.zIndex = '9998';
-    button.style.fontSize = '14px';
-    button.id = 'ze-jvs-log-button';
-    button.onclick = function (event) {
-      // 阻止事件冒泡到 document
-      event.stopPropagation();
-      showPopup();
-    };
-
-    document.body.appendChild(button);
-  }
-
-  // 逻辑设计的保存按钮
-  const saveButton = document.querySelector(
-    '#app > div > div > div.design-header-box > div.header-right > button',
-  );
-  if (saveButton) {
-    saveButton.addEventListener('click', function () {
-      const newLog = log();
-      if (newLog) {
-        saveLog(newLog, '保存');
-      }
-    });
-  }
-
-  const jvsLogTimer = setInterval(() => {
-    try {
-      main();
-    } catch (error) {
-      console.error('「改善 JVS 开发体验」日志功能运行错误：');
-      console.error(error);
-    }
-  }, 400);
-
-  window.addEventListener('beforeunload', () => {
-    clearInterval(jvsLogTimer);
-  });
-};
 
 window.iconMap = {
   列: 'data:image/png;base64,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',
