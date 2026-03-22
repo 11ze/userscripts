@@ -62,7 +62,7 @@
   /**
    * 全局状态对象（替代所有 window.xxx 状态变量）
    */
-  const state = {
+  const STATE = {
     tabDesignClicked: false, // 替代 window.secondTabDesignClicked11ze
     skipCopyComponentButton: false, // 替代 window.currentPageNotAddCopyComponentNameButton
     componentLibraryExpanded: false, // 替代 window.autoExpandComponentLibraryCategory11ze
@@ -990,10 +990,10 @@
     }
 
     if (element.getAttribute('second-tab-design-clicked-11ze')) {
-      if (state.tabDesignClicked) {
+      if (STATE.tabDesignClicked) {
         return;
       }
-      state.tabDesignClicked = true;
+      STATE.tabDesignClicked = true;
       element.click();
 
       return;
@@ -1450,11 +1450,11 @@
 
     // 不在旧版加按钮，如果父级有子元素 el-icon-document-copy，则 return
     if (componentName.parentNode.querySelector('.el-icon-document-copy')) {
-      state.skipCopyComponentButton = true;
+      STATE.skipCopyComponentButton = true;
       return;
     }
 
-    if (state.skipCopyComponentButton) {
+    if (STATE.skipCopyComponentButton) {
       return;
     }
 
@@ -1710,7 +1710,7 @@
    * 逻辑设计，自动展开组件库里指定的分类
    */
   function autoExpandComponentLibraryCategory() {
-    if (state.componentLibraryExpanded) {
+    if (STATE.componentLibraryExpanded) {
       return;
     }
 
@@ -1765,7 +1765,7 @@
       simulateMouseClick(container);
     }
 
-    state.componentLibraryExpanded = true;
+    STATE.componentLibraryExpanded = true;
   }
 
   function getAppNameMap() {
@@ -1826,10 +1826,10 @@
     }
 
     // 使用 state 存储 URL，避免重复执行
-    if (currentUrl === state.lastListUrl) {
+    if (currentUrl === STATE.lastListUrl) {
       return;
     }
-    state.lastListUrl = currentUrl;
+    STATE.lastListUrl = currentUrl;
 
     const jvsAppId = getJvsAppId();
     if (!jvsAppId) {
@@ -2014,11 +2014,11 @@
     }
 
     // 正确移除和添加事件监听器
-    if (state.pageHandler) {
-      window.removeEventListener('mousedown', state.pageHandler, { passive: true });
+    if (STATE.pageHandler) {
+      window.removeEventListener('mousedown', STATE.pageHandler, { passive: true });
     }
-    state.pageHandler = resetRefreshPageLastTime;
-    window.addEventListener('mousedown', state.pageHandler, { passive: true });
+    STATE.pageHandler = resetRefreshPageLastTime;
+    window.addEventListener('mousedown', STATE.pageHandler, { passive: true });
 
     const currentTime = Date.now();
     if (currentTime - lastTime < 1000 * CONFIG.REFRESH_INTERVAL_SECOND) {
