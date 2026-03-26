@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.15
-// @description 2026-03-26 删除切换应用功能，去掉日志操作列
+// @version     0.7.16
+// @description 2026-03-26 日志应用名称不再变色
 // ==/UserScript==
 
 (function () {
@@ -540,18 +540,12 @@
 
       const mode = appModeMap[oneLog.jvsAppId] ?? '';
       const modeColor = getModeColor(mode);
-      const isSameMode = mode && mode === getModeFromHistory();
-
-      let appNameStyle = '';
-      if (!isSameMode) {
-        appNameStyle = 'color: #ea3323;';
-      }
 
       listContent.push(`
         <tr class="log-11ze-table-tr">
           <td> ${datetime} &nbsp; </td>
           ${hasMode ? `<td style="color: ${modeColor}"> ${mode.replace('模式', '')} &nbsp; </td>` : ''}
-          <td style="${appNameStyle}"> ${appName} &nbsp; </td>
+          <td> ${appName} &nbsp; </td>
           <td style="color: ${currentType.color}"> ${currentType.shortname} &nbsp; </td>
           <td class="log-design-name-11ze" data-url="${oneLog.url}" style="color: #1f6fff;"> ${oneLog.designName} &nbsp; </td>
         </tr>
