@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.14
-// @description 2026-03-22 模块化重构：移除全局变量，封装 LogModule 和 DesignModule
+// @version     0.7.15
+// @description 2026-03-26 删除切换应用功能，去掉日志操作列
 // ==/UserScript==
 
 (function () {
@@ -52,7 +52,6 @@
     LOGS: '__11ze_JVS_LOG_LOGS_',
     APP_MODE_MAP: '__11ze_JVS_APP_MODE_MAP__',
     APP_NAME_MAP: '__11ze_JVS_APP_NAME_MAP__',
-    APP_ID_LIST_URL_MAP: '__11ze_JVS_APP_ID_LIST_URL_MAP__',
     HIGHLIGHT_APPS: '__11ze_HIGHLIGHT_APPS__',
     REFRESH_PAGE_LAST_TIME: '__11ze_JVS_REFRESH_PAGE_LAST_TIME__',
   };
@@ -66,7 +65,6 @@
     tabDesignClicked: false, // 替代 window.secondTabDesignClicked11ze
     skipCopyComponentButton: false, // 替代 window.currentPageNotAddCopyComponentNameButton
     componentLibraryExpanded: false, // 替代 window.autoExpandComponentLibraryCategory11ze
-    lastListUrl: '', // 替代 window._lastListUrl
     pageHandler: null, // 替代 resetRefreshPageHandler
   };
 
@@ -141,6 +139,9 @@
       }
     },
   };
+
+  // 清理废弃的存储键（切换应用功能已移除）
+  jvsStorage.remove('__11ze_JVS_APP_ID_LIST_URL_MAP__');
 
   // ==================== 工具函数区 ====================
 
@@ -286,7 +287,6 @@
 
     // 辅助方法
     getAppName: getAppNameForLog,
-    handleAppNameClick: handleAppNameClick,
 
     // URL 工具方法
     getUrlFromLogs: getUrlFromLogs,
@@ -323,7 +323,6 @@
     applicationSetClick: applicationSetClick,
     showNodeExecTime: showNodeExecTime,
     autoRefreshPage: autoRefreshPage,
-    saveAppIdToListUrl: saveAppIdToListUrl,
   };
 
   // ==================== 主逻辑 ====================
@@ -347,7 +346,6 @@
     DesignModule.showNodeExecTime,
     // setCanvasScroll,
     DesignModule.autoRefreshPage,
-    DesignModule.saveAppIdToListUrl,
     // 日志模块
     LogModule.updateButton,
     LogModule.saveCurrent,
@@ -379,10 +377,10 @@
    * @type {Record<DesignType, DesignConfig>}
    */
   const DESIGN_CONFIG = {
-    逻辑设计: { shortname: '逻', color: COLORS.design.逻辑设计 },
-    列表设计: { shortname: '列', color: COLORS.design.列表设计 },
-    表单设计: { shortname: '表', color: COLORS.design.表单设计 },
-    流程设计: { shortname: '流', color: COLORS.design.流程设计 },
+    逻辑设计: { shortname: '逻辑', color: COLORS.design.逻辑设计 },
+    列表设计: { shortname: '列表', color: COLORS.design.列表设计 },
+    表单设计: { shortname: '表单', color: COLORS.design.表单设计 },
+    流程设计: { shortname: '流程', color: COLORS.design.流程设计 },
   };
 
   // ==================== 日志模块 ====================
@@ -531,36 +529,31 @@
 
     for (let i = logs.length - 1; i >= 0; i--) {
       const oneLog = logs[i];
+      if (oneLog.type === '保存') {
+        continue;
+      }
       const datetime = formatTime(oneLog.time);
       const currentType = DESIGN_CONFIG[oneLog.tabType] ?? { color: 'red', shortname: '未知' };
-      const logFieldColor = oneLog.type === '打开' ? 'black' : 'red';
 
       let appName = oneLog.appName;
       if (appName.length > 16) appName = appName.substring(0, 16) + '…';
 
       const mode = appModeMap[oneLog.jvsAppId] ?? '';
       const modeColor = getModeColor(mode);
-      const appListUrl = getAppIdListUrl(oneLog.jvsAppId);
       const isSameMode = mode && mode === getModeFromHistory();
-      const isSameApp = oneLog.jvsAppId === getJvsAppId();
 
       let appNameStyle = '';
-      let appNameClass = '';
       if (!isSameMode) {
         appNameStyle = 'color: #ea3323;';
-      } else if (appListUrl && !isSameApp) {
-        appNameStyle = 'color: #0066cc; cursor: pointer;';
-        appNameClass = 'log-app-name-11ze';
       }
 
       listContent.push(`
         <tr class="log-11ze-table-tr">
           <td> ${datetime} &nbsp; </td>
-          <td style="color: ${logFieldColor}"> ${oneLog.type} &nbsp; </td>
           ${hasMode ? `<td style="color: ${modeColor}"> ${mode.replace('模式', '')} &nbsp; </td>` : ''}
-          <td class="${appNameClass}" data-appid="${oneLog.jvsAppId}" style="${appNameStyle}"> ${appName} &nbsp; </td>
-          <td style="color: ${currentType.color}; text-align: center"> ${currentType.shortname} &nbsp; </td>
-          <td class="log-design-name-11ze" data-url="${oneLog.url}" style="color: #0066cc;"> ${oneLog.designName} &nbsp; </td>
+          <td style="${appNameStyle}"> ${appName} &nbsp; </td>
+          <td style="color: ${currentType.color}"> ${currentType.shortname} &nbsp; </td>
+          <td class="log-design-name-11ze" data-url="${oneLog.url}" style="color: #1f6fff;"> ${oneLog.designName} &nbsp; </td>
         </tr>
       `);
     }
@@ -576,16 +569,8 @@
       <thead>
         <tr style="background-color: #eef5fe" class="log-11ze-table-tr">
           <th> 时间 &nbsp;</th>
-          <th> 操作 &nbsp;</th>
           ${hasMode ? `<th> 模式 &nbsp;</th>` : ''}
-          <th>
-            <span class="app-header-tooltip-11ze"> 应用 &nbsp; ⓘ &nbsp;
-              <span class="app-tooltip-content-11ze">
-                <span style="color: #0066cc;">点击切换应用<br></span>
-                <span style="color: #ea3323;">其他环境</span>
-              </span>
-            </span>
-          </th>
+          <th> 应用 &nbsp;</th>
           <th style="text-align: center"> 类型 &nbsp;</th>
           <th> 名称 &nbsp;</th>
         </tr>
@@ -598,24 +583,12 @@
 
     // 事件委托
     logTable.addEventListener('click', (e) => {
-      const appTd = e.target.closest('.log-app-name-11ze');
-      if (appTd) {
-        handleAppNameClick(appTd.dataset.appid);
-        popup.remove();
-        return;
-      }
       const nameTd = e.target.closest('.log-design-name-11ze');
       if (nameTd) window.open(nameTd.dataset.url, '_blank');
     });
 
     logTable.addEventListener('auxclick', (e) => {
       if (e.button !== 1) return;
-      const appTd = e.target.closest('.log-app-name-11ze');
-      if (appTd) {
-        handleAppNameClick(appTd.dataset.appid);
-        popup.remove();
-        return;
-      }
       const nameTd = e.target.closest('.log-design-name-11ze');
       if (nameTd) window.open(nameTd.dataset.url, '_blank');
     });
@@ -626,20 +599,6 @@
         document.removeEventListener('click', closePopupOnOutsideClick);
       }
     });
-  }
-
-  /**
-   * 处理应用名称点击
-   */
-  function handleAppNameClick(appId) {
-    const listUrl = getAppIdListUrl(appId);
-    if (!listUrl) return;
-    const currentMode = getModeFromHistory();
-    const appModelMap = getAppModelMap() || {};
-    const logMode = appModelMap[appId];
-    if (currentMode && currentMode === logMode) {
-      window.location.href = listUrl;
-    }
   }
 
   /**
@@ -812,39 +771,6 @@
       正式模式: 'red',
     };
     return modeColorMapping[mode] ?? 'black';
-  }
-
-  /**
-   * 获取当前模式下的所有应用列表
-   */
-  function getAppsByCurrentMode() {
-    const currentMode = getModeFromHistory() || getMode();
-    if (!currentMode) {
-      return [];
-    }
-
-    const appModeMap = getAppModelMap();
-    const appNameMap = getAppNameMap();
-    const appIdListUrlMap = getAppIdListUrlMap();
-
-    const apps = [];
-
-    for (const [appId, mode] of Object.entries(appModeMap)) {
-      if (mode === currentMode) {
-        const appName = appNameMap[appId] || '';
-        const listUrl = appIdListUrlMap[appId] || '';
-
-        if (appName && listUrl) {
-          apps.push({
-            appId,
-            appName,
-            listUrl,
-          });
-        }
-      }
-    }
-
-    return apps;
   }
 
   /**
@@ -1797,48 +1723,6 @@
     jvsStorage.set(STORAGE_KEYS.APP_NAME_MAP, appNameMap);
   }
 
-  function getAppIdListUrlMap() {
-    return jvsStorage.get(STORAGE_KEYS.APP_ID_LIST_URL_MAP, {});
-  }
-
-  function getAppIdListUrl(jvsAppId) {
-    // 当前页面必须包含 myiframe，才返回 url
-    if (!window.location.href.includes('myiframe')) {
-      return '';
-    }
-
-    const appIdListUrlMap = getAppIdListUrlMap();
-    return appIdListUrlMap[jvsAppId] ?? '';
-  }
-
-  function saveAppIdListUrl(jvsAppId, listUrl) {
-    const appIdListUrlMap = getAppIdListUrlMap();
-    appIdListUrlMap[jvsAppId] = listUrl;
-    jvsStorage.set(STORAGE_KEYS.APP_ID_LIST_URL_MAP, appIdListUrlMap);
-  }
-
-  function saveAppIdToListUrl() {
-    const currentUrl = window.location.href;
-
-    // 检查 URL 是否包含 myiframe
-    if (!currentUrl.includes('myiframe')) {
-      return;
-    }
-
-    // 使用 state 存储 URL，避免重复执行
-    if (currentUrl === STATE.lastListUrl) {
-      return;
-    }
-    STATE.lastListUrl = currentUrl;
-
-    const jvsAppId = getJvsAppId();
-    if (!jvsAppId) {
-      return;
-    }
-
-    saveAppIdListUrl(jvsAppId, currentUrl);
-  }
-
   function applicationSetClick() {
     const applicationElements = document.querySelectorAll('div.application');
 
@@ -2228,8 +2112,7 @@ const JVS_STYLES = `
     background-color: #E8F4FF; /* 悬停时的背景颜色 */
   }
 
-  /* 应用列和名称列鼠标变为小手 */
-  .log-app-name-11ze,
+  /* 名称列鼠标变为小手 */
   .log-design-name-11ze {
     cursor: pointer;
   }
@@ -2278,46 +2161,6 @@ const JVS_STYLES = `
     display: none !important;
   }
 
-  .app-header-tooltip-11ze {
-    position: relative;
-    cursor: help;
-    display: inline-block;
-  }
-
-  .app-header-tooltip-11ze .app-tooltip-content-11ze {
-    visibility: hidden;
-    opacity: 0;
-    position: absolute;
-    bottom: auto;
-    top: 100%;
-    transform: translateY(-50%);
-    background: #fff;
-    border: 1px solid #3b82f6;
-    border-radius: 6px;
-    padding: 8px 12px;
-    font-size: 13px;
-    color: #333;
-    white-space: nowrap;
-    box-shadow: 0 2px 12px rgba(59, 130, 246, 0.3);
-    z-index: 1002;
-    margin-left: 10px;
-    transition: opacity 0.2s, visibility 0.2s;
-  }
-
-  .app-header-tooltip-11ze:hover .app-tooltip-content-11ze {
-    visibility: visible;
-    opacity: 1;
-  }
-
-  .app-tooltip-content-11ze::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: -12px;
-    transform: translateY(-50%);
-    border: 6px solid transparent;
-    border-right-color: #3b82f6;
-  }
 `;
 
 GM_addStyle(JVS_STYLES);
