@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.16
-// @description 2026-03-26 日志应用名称不再变色
+// @version     0.7.17
+// @description 2026-04-07 修改复制按钮名称为「复制」
 // ==/UserScript==
 
 (function () {
@@ -1199,7 +1199,7 @@
     return logicName;
   }
 
-  // 创建复制名称按钮（工厂函数）
+  // 创建复制按钮（工厂函数）
   function _createCopyNameButton(target, logicName) {
     const buttonClass = 'ze-copy-logic-name-button';
     const existedButton = target.querySelector('.' + buttonClass);
@@ -1222,7 +1222,7 @@
     }
 
     const copyButton = createButton({
-      text: '复制名称',
+      text: '复制',
       className: buttonClass,
       dataset: { 'target-logic-name': logicName },
       type: 'default',
@@ -1348,7 +1348,7 @@
       }
 
       const copyButton = createButton({
-        text: '复制名称',
+        text: '复制',
         id: 'copy-design-name-button-11ze',
         dataset: { 'design-name-11ze': designNameText },
         onClick: () => Utils.copyToClipboard(designNameText, copyButton, '已复制'),
@@ -1390,7 +1390,7 @@
     }
 
     const copyButton = createButton({
-      text: '复制名称',
+      text: '复制',
       id: 'copy-component-name-button-11ze',
       className: buttonClass,
       dataset: { 'component-name-11ze': componentNameText },
