@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.17
-// @description 2026-04-07 修改复制按钮名称为「复制」
+// @version     0.7.18
+// @description 2026-04-07 优化逻辑名称显示
 // ==/UserScript==
 
 (function () {
@@ -1110,6 +1110,7 @@
       const existedButton = label.querySelector('.' + buttonClass);
       if (existedButton) {
         if (existedButton.getAttribute('target-key') === logicKey) {
+          _createLogicNameDisplay(label, logicName);
           continue;
         }
 
@@ -1117,8 +1118,10 @@
         _createCopyNameButton(label, null);
       }
 
+      _createLogicNameDisplay(label, logicName);
+
       const newButton = createButton({
-        text: logicName ? '查看：' + logicName : '查看',
+        text: '查看',
         className: buttonClass,
         dataset: { 'target-key': logicKey },
         onClick: () => window.open(newUrl, '_blank'),
@@ -1154,12 +1157,15 @@
     const existedButton = target.querySelector('.' + buttonClass);
     if (existedButton) {
       if (existedButton.getAttribute('target-key') === logicName) {
-        // 即使查看按钮没变，也需要同步更新复制按钮
+        // 即使查看按钮没变，也需要同步更新复制按钮和名称展示
+        _createLogicNameDisplay(target, logicName);
         _createCopyNameButton(target, logicName);
         return null;
       }
       existedButton.remove();
     }
+
+    _createLogicNameDisplay(target, logicName);
 
     const newButton = createButton({
       text: '查看',
@@ -1180,6 +1186,7 @@
     if (existedButton) {
       existedButton.remove();
     }
+    _createLogicNameDisplay(target, null);
   }
 
   // 检查 logicName 是否变化，如变化则移除旧按钮并返回是否需要继续处理
@@ -1197,6 +1204,28 @@
     _removeLookLogicButton(label);
     _createCopyNameButton(label, null);
     return logicName;
+  }
+
+  // 创建逻辑名称展示（只读，工厂函数）
+  function _createLogicNameDisplay(target, logicName) {
+    const displayClass = 'ze-logic-name-display';
+    const existed = target.querySelector('.' + displayClass);
+
+    if (!logicName) {
+      if (existed) existed.remove();
+      return null;
+    }
+
+    if (existed) {
+      if (existed.textContent === logicName) return null;
+      existed.remove();
+    }
+
+    const span = document.createElement('span');
+    span.className = displayClass;
+    span.textContent = logicName;
+    target.appendChild(span);
+    return span;
   }
 
   // 创建复制按钮（工厂函数）
@@ -2143,6 +2172,18 @@ const JVS_STYLES = `
     background-color: #E8F4FF !important;
     cursor: pointer;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15) !important;
+  }
+
+  .ze-logic-name-display {
+    display: block;
+    width: 100%;
+    margin: 4px 0 2px 0;
+    padding: 2px 0;
+    font-size: 13px;
+    color: #606266;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   /* 逻辑设计左上角的逻辑列表弹窗宽度 */
