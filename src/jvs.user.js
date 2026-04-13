@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.18
-// @description 2026-04-07 优化逻辑名称显示
+// @version     0.7.19
+// @description 2026-04-13 新增日志按钮拖拽功能
 // ==/UserScript==
 
 (function () {
@@ -25,6 +25,7 @@
     TIMER_INTERVAL: 400,
     LOG_SAVE_DAYS: 365,
     REFRESH_INTERVAL_SECOND: 15 * 60,
+    LOG_BAR: { top: 14, right: 310, popupGap: 6 },
     ENV_LIST: [
       { ip: 'dev.', env: '开发站' },
       { ip: 'test.', env: '测试站' },
@@ -234,6 +235,68 @@
    * @property {'mini' | 'small' | 'medium'} [size='mini'] - 按钮尺寸
    * @property {boolean} [isHtml=false] - text 是否为 HTML 字符串
    */
+
+  /**
+   * 使容器可通过把手拖拽移动
+   * @param {HTMLElement} handle - 拖拽把手元素
+   * @param {HTMLElement} container - 被拖拽的容器元素
+   * @param {{ minTop?: number, maxRight?: number, onMove?: (newTop: number, newRight: number) => void }} [options] - 拖拽配置
+   */
+  function makeDraggable(handle, container, options = {}) {
+    const { minTop = CONFIG.LOG_BAR.top, maxRight = CONFIG.LOG_BAR.right, onMove } = options;
+
+    handle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startTop = parseInt(container.style.top, 10) || minTop;
+      const startRight = parseInt(container.style.right, 10) || maxRight;
+      const containerHeight = container.offsetHeight;
+      const originalTransition = container.style.transition;
+
+      handle.style.cursor = 'grabbing';
+      container.style.transition = 'none';
+
+      // 拖拽时禁用 iframe 防止 mouseup 事件丢失
+      const iframes = document.querySelectorAll('iframe');
+      iframes.forEach((iframe) => { iframe.style.pointerEvents = 'none'; });
+
+      let moved = false;
+
+      function onMouseMove(e) {
+        e.preventDefault();
+        moved = true;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        const newRight = Math.min(Math.max(startRight - dx, 0), maxRight);
+        const newTop = Math.max(startTop + dy, minTop);
+        container.style.top = newTop + 'px';
+        container.style.right = newRight + 'px';
+        onMove?.(newTop, newRight, containerHeight);
+      }
+
+      function onMouseUp() {
+        document.removeEventListener('mousemove', onMouseMove, true);
+        document.removeEventListener('mouseup', onMouseUp, true);
+        iframes.forEach((iframe) => { iframe.style.pointerEvents = ''; });
+        handle.style.cursor = '';
+        container.style.transition = originalTransition;
+
+        if (moved) {
+          const preventClick = (e) => {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            document.removeEventListener('click', preventClick, true);
+          };
+          document.addEventListener('click', preventClick, true);
+        }
+      }
+
+      document.addEventListener('mousemove', onMouseMove, true);
+      document.addEventListener('mouseup', onMouseUp, true);
+    });
+  }
 
   /**
    * 创建按钮元素
@@ -556,6 +619,14 @@
     popup.className = 'popup';
     popup.id = popupId;
 
+    // 弹窗位置以按钮右下角为准
+    const btnContainer = document.getElementById('ze-jvs-log-container');
+    if (btnContainer) {
+      const containerTop = parseInt(btnContainer.style.top, 10) || CONFIG.LOG_BAR.top;
+      popup.style.top = (containerTop + btnContainer.offsetHeight + CONFIG.LOG_BAR.popupGap) + 'px';
+      popup.style.right = btnContainer.style.right || CONFIG.LOG_BAR.right + 'px';
+    }
+
     const logTable = document.createElement('table');
     logTable.className = 'table-11ze';
     logTable.style.marginTop = '10px';
@@ -588,7 +659,7 @@
     });
 
     document.addEventListener('click', function closePopupOnOutsideClick(event) {
-      if (popup && !popup.contains(event.target) && !event.target.closest('.button-11ze')) {
+      if (popup && !popup.contains(event.target) && !event.target.closest('#ze-jvs-log-container')) {
         popup.remove();
         document.removeEventListener('click', closePopupOnOutsideClick);
       }
@@ -600,12 +671,13 @@
    */
   function updateLogButton() {
     const mode = getModeFromHistory() || getMode();
-    const existButton = document.getElementById('ze-jvs-log-button');
+    const existContainer = document.getElementById('ze-jvs-log-container');
 
-    if (existButton) {
-      const currentMode = existButton.dataset.mode || '';
+    if (existContainer) {
+      const existButton = existContainer.querySelector('#ze-jvs-log-button');
+      const currentMode = existButton?.dataset.mode || '';
       if (currentMode === mode) return;
-      existButton.remove();
+      existContainer.remove();
     }
 
     const buttonName = mode
@@ -620,11 +692,8 @@
     });
 
     Utils.setStyles(button, {
-      position: 'fixed',
-      top: '14px',
-      right: '310px',
-      zIndex: '9998',
       fontSize: '14px',
+      margin: '0',
     });
 
     button.addEventListener('click', (event) => {
@@ -632,7 +701,34 @@
       showLogPopup();
     });
 
-    document.body.appendChild(button);
+    const handle = document.createElement('div');
+    handle.className = 'drag-handle-11ze';
+    handle.textContent = '⋮';
+
+    const container = document.createElement('div');
+    container.id = 'ze-jvs-log-container';
+    Utils.setStyles(container, {
+      position: 'fixed',
+      top: CONFIG.LOG_BAR.top + 'px',
+      right: CONFIG.LOG_BAR.right + 'px',
+      zIndex: '9998',
+      display: 'flex',
+      alignItems: 'stretch',
+      transition: 'transform 0.2s ease',
+    });
+    container.appendChild(button);
+    container.appendChild(handle);
+
+    makeDraggable(handle, container, {
+      onMove(newTop, newRight, containerHeight) {
+        const popup = document.getElementById('11ze-jvs-log-popup');
+        if (popup) {
+          popup.style.top = (newTop + containerHeight + CONFIG.LOG_BAR.popupGap) + 'px';
+          popup.style.right = newRight + 'px';
+        }
+      },
+    });
+    document.body.appendChild(container);
   }
 
   /**
@@ -2090,7 +2186,7 @@ const JVS_STYLES = `
     background-color: #fff !important;
     position: fixed;
     top: 50px;
-    right: 310px;
+    right: 310px; /* 默认值，由 JS 动态覆盖 */
     z-index: 9999;
     padding: 0 10px 10px 10px;
     max-height: 800px;
@@ -2155,23 +2251,39 @@ const JVS_STYLES = `
     cursor: pointer;
   }
 
-  /* 按钮统一样式 */
-  .button-11ze {
+  /* 日志栏共享样式 */
+  .button-11ze,
+  .drag-handle-11ze {
     background-color: white !important;
     border-color: #409EFF !important;
     color: black !important;
     border: 1px solid rgba(64, 158, 255, 0.5) !important;
     border-radius: 8px !important;
     padding: 6px 10px !important;
+    margin: 2px 4px !important;
     font-size: 13px !important;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
     transition: all 0.2s ease !important;
   }
 
-  .button-11ze:hover {
+  .button-11ze:hover,
+  .drag-handle-11ze:hover {
     background-color: #E8F4FF !important;
-    cursor: pointer;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15) !important;
+  }
+
+  .button-11ze:hover {
+    cursor: pointer;
+  }
+
+  .drag-handle-11ze {
+    margin: 2px 4px 2px 0 !important;
+    font-size: 14px !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    user-select: none;
   }
 
   .ze-logic-name-display {
