@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.19
-// @description 2026-04-13 新增日志按钮拖拽功能
+// @version     0.7.20
+// @description 2026-05-07 更换拖动日志按钮时的图标
 // ==/UserScript==
 
 (function () {
@@ -255,7 +255,7 @@
       const containerHeight = container.offsetHeight;
       const originalTransition = container.style.transition;
 
-      handle.style.cursor = 'grabbing';
+      handle.style.cursor = 'move';
       container.style.transition = 'none';
 
       // 拖拽时禁用 iframe 防止 mouseup 事件丢失
@@ -2282,7 +2282,7 @@ const JVS_STYLES = `
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: grab;
+    cursor: move;
     user-select: none;
   }
 
