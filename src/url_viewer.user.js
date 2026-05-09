@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         查看网址
 // @namespace    https://github.com/11ze
-// @version      0.2.2
-// @description  2026-03-07
+// @version      0.2.3
+// @description  2026-05-09 移除关闭按钮动画
 // @author       11ze
 // @license      MIT
 // @match        *://*/*
@@ -355,23 +355,7 @@
   function createCloseButton(popup) {
     const button = createEl('button', closeButtonStyles, { textContent: '关闭' });
 
-    button.onclick = () => runExitAnimation(popup);
-
-    setHover(
-      button,
-      {
-        backgroundColor: COLORS.blueBgLight,
-        borderColor: '#cbd5e1',
-        transform: 'translateY(-1px)',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-      },
-      {
-        backgroundColor: COLORS.bg,
-        borderColor: COLORS.border,
-        transform: 'translateY(0)',
-        boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
-      }
-    );
+    button.onclick = () => popup.remove();
 
     return button;
   }
