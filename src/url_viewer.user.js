@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         查看网址
 // @namespace    https://github.com/11ze
-// @version      0.2.3
-// @description  2026-05-09 移除关闭按钮动画
+// @version      0.3.0
+// @description  2026-05-09 新增参数编辑功能
 // @author       11ze
 // @license      MIT
 // @match        *://*/*
@@ -160,6 +160,49 @@
     transition: 'color 0.15s ease',
   };
 
+  const valueInputStyles = {
+    width: '100%',
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: '6px',
+    padding: '6px 10px',
+    fontSize: '13px',
+    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace',
+    color: COLORS.textSecondary,
+    backgroundColor: COLORS.blueBgLight,
+    outline: 'none',
+    cursor: 'text',
+    transition: 'border-color 0.15s ease, background-color 0.15s ease',
+    boxSizing: 'border-box',
+  };
+
+  const buttonBarStyles = {
+    display: 'flex',
+    gap: '8px',
+    marginTop: '8px',
+    width: '100%',
+  };
+
+  const modeGroupStyles = {
+    flexDirection: 'column',
+    gap: '8px',
+    width: '100%',
+  };
+
+  const primaryButtonStyles = {
+    padding: '12px 16px',
+    cursor: 'pointer',
+    fontSize: '13px',
+    background: COLORS.blue,
+    border: 'none',
+    borderRadius: '8px',
+    color: '#ffffff',
+    fontWeight: '600',
+    transition: 'all 0.2s ease',
+    height: '42px',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
+    flex: '1',
+  };
+
   const closeButtonStyles = {
     padding: '12px 16px',
     cursor: 'pointer',
@@ -168,12 +211,11 @@
     border: `1px solid ${COLORS.border}`,
     borderRadius: '8px',
     color: COLORS.textMuted,
-    width: '100%',
     fontWeight: '600',
     transition: 'all 0.2s ease',
     height: '42px',
     boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
-    marginTop: '8px',
+    width: '100%',
   };
 
   let toastZIndex = 10000;
@@ -192,6 +234,11 @@
 
   // ==================== 动画样式 ====================
   GM_addStyle(`
+    input[data-param-key]:focus {
+      border-color: ${COLORS.blue};
+      background-color: ${COLORS.blueBg};
+    }
+
     @keyframes ${ANIM.slideIn} {
       from {
         opacity: 0;
@@ -320,7 +367,7 @@
     return table;
   }
 
-  function addParamRow(table, param) {
+  function addParamRow(table, param, hashIndex = 0) {
     const row = table.insertRow();
     const cell1 = row.insertCell(0);
     const cell2 = row.insertCell(1);
@@ -337,6 +384,8 @@
     // 参数值单元格
     const valueSpan = createEl('span', valueSpanStyles, { textContent: param.value });
     valueSpan.title = '点击复制参数值';
+    valueSpan.dataset.paramKey = param.key;
+    valueSpan.dataset.hashIndex = String(hashIndex);
     cell2.onclick = (e) => copyToClipboard(param.value, e.clientX, e.clientY);
     setStyles(cell2, { ...cellStyles, color: COLORS.textSecondary });
     setHover(cell2, { backgroundColor: COLORS.blueBg }, { backgroundColor: '' });
@@ -352,12 +401,140 @@
     row.style.transition = 'none';
   }
 
-  function createCloseButton(popup) {
-    const button = createEl('button', closeButtonStyles, { textContent: '关闭' });
+  // ==================== 模式切换 ====================
+  function switchToEditMode(popup, bar) {
+    const valueSpans = popup.querySelectorAll('span[data-param-key]');
+    valueSpans.forEach((span) => {
+      const input = createEl('input', valueInputStyles, {
+        value: span.textContent,
+      });
+      input.dataset.paramKey = span.dataset.paramKey;
+      input.dataset.hashIndex = span.dataset.hashIndex;
+      input.dataset.originalValue = span.textContent;
 
-    button.onclick = () => popup.remove();
+      const cell = span.closest('td');
+      cell.onclick = null;
+      cell.style.cursor = 'text';
+      span.replaceWith(input);
+    });
 
-    return button;
+    // 切换按钮: 隐藏查看模式按钮，显示编辑模式按钮
+    bar.querySelector('.view-mode').style.display = 'none';
+    bar.querySelector('.edit-mode').style.display = 'flex';
+  }
+
+  function switchToViewMode(popup, bar) {
+    const inputs = popup.querySelectorAll('input[data-param-key]');
+    inputs.forEach((input) => {
+      const span = createEl('span', valueSpanStyles, {
+        textContent: input.dataset.originalValue,
+      });
+      span.title = '点击复制参数值';
+      span.dataset.paramKey = input.dataset.paramKey;
+      span.dataset.hashIndex = input.dataset.hashIndex;
+      setHover(span, { color: COLORS.blueHover }, { color: '' });
+
+      const cell = input.closest('td');
+      cell.onclick = (e) => copyToClipboard(span.textContent, e.clientX, e.clientY);
+      cell.style.cursor = 'pointer';
+
+      input.replaceWith(span);
+    });
+
+    // 切换按钮
+    bar.querySelector('.edit-mode').style.display = 'none';
+    bar.querySelector('.view-mode').style.display = 'flex';
+  }
+
+  // ==================== URL 重建 ====================
+  function buildUrlFromPanel(popup) {
+    const inputs = popup.querySelectorAll('input[data-param-key]');
+
+    // 按 hash-index 分组
+    const grouped = {};
+    inputs.forEach((input) => {
+      const idx = input.dataset.hashIndex;
+      if (!grouped[idx]) grouped[idx] = [];
+      grouped[idx].push({ key: input.dataset.paramKey, value: input.value });
+    });
+
+    const url = new URL(window.location.href);
+
+    // 重建主 URL 参数 (hash-index=0)
+    if (grouped[0]) {
+      const params = new URLSearchParams();
+      grouped[0].forEach(({ key, value }) => params.set(key, value));
+      url.search = params.toString();
+    }
+
+    // 重建 hash 片段中的参数 (hash-index>0)
+    const hashTables = Array.from(popup.querySelectorAll('table[data-hash-index]'))
+      .filter((table) => table.dataset.hashIndex !== '0')
+      .sort((a, b) => Number(a.dataset.hashIndex) - Number(b.dataset.hashIndex));
+
+    if (hashTables.length > 0) {
+      const newHash = hashTables.map((table) => {
+        const idx = table.dataset.hashIndex;
+        const hostPath = table.dataset.hashHost;
+        const params = new URLSearchParams();
+        if (grouped[idx]) {
+          grouped[idx].forEach(({ key, value }) => params.append(key, value));
+        }
+        return hostPath + (params.toString() ? '?' + params.toString() : '');
+      }).join('#');
+
+      url.hash = newHash;
+    }
+
+    return url.toString();
+  }
+
+  // ==================== 底部按钮栏 ====================
+  function createBottomBar(popup) {
+    const bar = createEl('div', buttonBarStyles);
+    const hasParams = popup.querySelectorAll('span[data-param-key]').length > 0;
+
+    // 查看模式按钮组
+    const viewModeGroup = createEl('div', { ...modeGroupStyles, display: 'flex' });
+    viewModeGroup.classList.add('view-mode');
+
+    const closeButton = createEl('button', closeButtonStyles, { textContent: '关闭' });
+    closeButton.onclick = () => popup.remove();
+    setHover(closeButton, { borderColor: COLORS.textMuted }, { borderColor: COLORS.border });
+
+    if (hasParams) {
+      const editButton = createEl('button', primaryButtonStyles, { textContent: '编辑' });
+      editButton.onclick = () => switchToEditMode(popup, bar);
+      setHover(editButton, { background: COLORS.blueHover }, { background: COLORS.blue });
+      viewModeGroup.appendChild(editButton);
+    } else {
+      closeButton.style.flex = '1';
+    }
+
+    viewModeGroup.appendChild(closeButton);
+
+    // 编辑模式按钮组
+    const editModeGroup = createEl('div', { ...modeGroupStyles, display: 'none' });
+    editModeGroup.classList.add('edit-mode');
+
+    const goButton = createEl('button', primaryButtonStyles, { textContent: '跳转' });
+    goButton.onclick = () => {
+      window.location.href = buildUrlFromPanel(popup);
+      window.location.reload();
+    };
+    setHover(goButton, { background: COLORS.blueHover }, { background: COLORS.blue });
+
+    const cancelButton = createEl('button', closeButtonStyles, { textContent: '取消' });
+    cancelButton.onclick = () => switchToViewMode(popup, bar);
+    setHover(cancelButton, { borderColor: COLORS.textMuted }, { borderColor: COLORS.border });
+
+    editModeGroup.appendChild(goButton);
+    editModeGroup.appendChild(cancelButton);
+
+    bar.appendChild(viewModeGroup);
+    bar.appendChild(editModeGroup);
+
+    return bar;
   }
 
   // ==================== 主函数 ====================
@@ -380,6 +557,7 @@
 
     // 构建参数列表
     let currentTable = null;
+    let currentHost = '';
     let hostIndex = 0;
 
     for (const item of urlInfo) {
@@ -387,18 +565,21 @@
         if (currentTable) {
           popup.appendChild(createSeparator());
         }
+        currentHost = item.value;
         popup.appendChild(createHostDiv(item.value, hostIndex));
         hostIndex++;
       } else if (item.type === 'table') {
         currentTable = createTable(hostIndex - 1);
+        currentTable.dataset.hashHost = currentHost;
+        currentTable.dataset.hashIndex = String(hostIndex - 1);
         popup.appendChild(currentTable);
       } else if (item.type === 'param') {
-        addParamRow(currentTable, item);
+        addParamRow(currentTable, item, hostIndex - 1);
       }
     }
 
-    // 关闭按钮
-    popup.appendChild(createCloseButton(popup));
+    // 底部按钮栏
+    popup.appendChild(createBottomBar(popup));
 
     document.body.appendChild(popup);
     popup.style.animation = `${ANIM.slideIn} 0.3s ${ANIM.timing}`;
