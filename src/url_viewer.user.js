@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         查看网址
 // @namespace    https://github.com/11ze
-// @version      0.3.0
-// @description  2026-05-09 新增参数编辑功能
+// @version      0.4.0
+// @description  2026-05-09 添加 Ctrl+U 切换面板快捷键并移除关闭动画延迟
 // @author       11ze
 // @license      MIT
 // @match        *://*/*
@@ -499,7 +499,7 @@
     viewModeGroup.classList.add('view-mode');
 
     const closeButton = createEl('button', closeButtonStyles, { textContent: '关闭' });
-    closeButton.onclick = () => popup.remove();
+    closeButton.onclick = () => { popup.remove(); };
     setHover(closeButton, { borderColor: COLORS.textMuted }, { borderColor: COLORS.border });
 
     if (hasParams) {
@@ -587,11 +587,24 @@
     // 点击外部关闭
     const closePopup = (event) => {
       if (!popup.contains(event.target) && event.target.id !== 'url-reader-menu-item') {
-        runExitAnimation(popup, () => document.removeEventListener('click', closePopup));
+        popup.remove();
+        document.removeEventListener('click', closePopup);
       }
     };
     document.addEventListener('click', closePopup);
   }
 
   GM_registerMenuCommand('查看', main);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.key === 'u') {
+      e.preventDefault();
+      const existing = document.getElementById('11ze-url-reader-popup');
+      if (existing) {
+        existing.remove();
+      } else {
+        main();
+      }
+    }
+  });
 })();
