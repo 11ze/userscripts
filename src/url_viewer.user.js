@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         查看网址
 // @namespace    https://github.com/11ze
-// @version      0.4.0
-// @description  2026-05-09 添加 Ctrl+U 切换面板快捷键并移除关闭动画延迟
+// @version      0.4.1
+// @description  2026-05-09 添加 Ctrl + U 提示
 // @author       11ze
 // @license      MIT
 // @match        *://*/*
@@ -498,7 +498,7 @@
     const viewModeGroup = createEl('div', { ...modeGroupStyles, display: 'flex' });
     viewModeGroup.classList.add('view-mode');
 
-    const closeButton = createEl('button', closeButtonStyles, { textContent: '关闭' });
+    const closeButton = createEl('button', closeButtonStyles, { textContent: '关闭（Ctrl + U）' });
     closeButton.onclick = () => { popup.remove(); };
     setHover(closeButton, { borderColor: COLORS.textMuted }, { borderColor: COLORS.border });
 
@@ -594,7 +594,7 @@
     document.addEventListener('click', closePopup);
   }
 
-  GM_registerMenuCommand('查看', main);
+  GM_registerMenuCommand('查看 (Ctrl + U)', main);
 
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey && e.key === 'u') {
