@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.20
-// @description 2026-05-07 更换拖动日志按钮时的图标
+// @version     0.7.21
+// @description 2026-06-12 移除自动刷新页面更新登录状态
 // ==/UserScript==
 
 (function () {
@@ -408,7 +408,7 @@
     DesignModule.applicationSetClick,
     DesignModule.showNodeExecTime,
     // setCanvasScroll,
-    DesignModule.autoRefreshPage,
+    // DesignModule.autoRefreshPage,
     // 日志模块
     LogModule.updateButton,
     LogModule.saveCurrent,
@@ -1998,6 +1998,10 @@
     jvsStorage.set(STORAGE_KEYS.REFRESH_PAGE_LAST_TIME, Date.now());
   }
 
+  /**
+   * 每 15 分钟自动刷新页面，避免自动退出登录状态
+   * @returns
+   */
   function autoRefreshPage() {
     const currentUrl = window.location.href;
     const needRefreshUrlKeyword = ['myiframe', 'wel'];
