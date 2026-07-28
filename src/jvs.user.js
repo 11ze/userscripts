@@ -8,7 +8,7 @@
 // @license     MIT
 // @author      11ze
 // @version     0.7.21
-// @description 2026-06-12 移除自动刷新页面更新登录状态
+// @description 2026-07-28 去掉日志按钮和拖拽图标之间的间距
 // ==/UserScript==
 
 (function () {
@@ -2280,8 +2280,13 @@ const JVS_STYLES = `
     cursor: pointer;
   }
 
+  /* 日志按钮紧贴拖拽把手，去除中间间距 */
+  #ze-jvs-log-button {
+    margin-right: 0 !important;
+  }
+
   .drag-handle-11ze {
-    margin: 2px 4px 2px 0 !important;
+    margin: 2px 0 !important;
     font-size: 14px !important;
     display: flex;
     align-items: center;
