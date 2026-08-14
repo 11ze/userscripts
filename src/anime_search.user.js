@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         搜索动漫
 // @namespace    https://github.com/11ze
-// @version      0.6.11
-// @description  2026-01-27
+// @version      0.6.12
+// @description  2026-08-14
 // @author       11ze
 // @match        *://*/*
 // @icon         data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItc2VhcmNoIj48Y2lyY2xlIGN4PSIxMSIgY3k9IjExIiByPSI4Ij48L2NpcmNsZT48cGF0aCBkPSJtMjEgMjEtNC4zNS00LjM1Ij48L3BhdGg+PC9zdmc+
@@ -13,20 +13,36 @@
 (function () {
   'use strict';
 
-  const domainList = [
-    'agedm',
-    'agefans',
-    'douban.com/subject',
-    'douban.com/game',
-    'bilibili.com/bangumi/play',
-  ];
-
-  let inDomain = false;
-  if (domainList.some((domain) => window.location.href.includes(domain))) {
-    inDomain = true;
+  /**
+   * 站点判定：hostname + pathname 推出所属站点，query 不参与判定
+   */
+  function detectSite(href) {
+    let url;
+    try {
+      url = new URL(href);
+    } catch {
+      return null;
+    }
+    const host = url.hostname;
+    const path = url.pathname;
+    if (host.includes('agedm') || host.includes('agefans')) {
+      return 'age';
+    }
+    if (host === 'douban.com' || host.endsWith('.douban.com')) {
+      if (path.startsWith('/subject') || path.startsWith('/game')) {
+        return 'douban';
+      }
+    }
+    if (host === 'bilibili.com' || host.endsWith('.bilibili.com')) {
+      if (path.startsWith('/bangumi/play')) {
+        return 'bilibili';
+      }
+    }
+    return null;
   }
 
-  if (!inDomain) {
+  const site = detectSite(window.location.href);
+  if (!site) {
     return;
   }
 
@@ -56,14 +72,10 @@
     return resultArray.join(' ');
   }
 
-  function addButton(selector, targetWeb, from, buttonName) {
-    const hDom = document.querySelector(selector);
-    if (!hDom) {
-      return;
-    }
-
-    console.log(from);
-
+  /**
+   * 标题提取：span 优先回退元素文本，做译名去重
+   */
+  function extractTitle(hDom) {
     let text = '';
 
     const span = hDom.querySelector('span');
@@ -77,48 +89,87 @@
       text = hDom.textContent;
     }
 
-    text = text.replace(/🔍|🏆/g, '');
+    // 剥离自挂按钮的 🔍🏆，防止重跑时把按钮文字读进标题
+    return uniqueText(text.replace(/🔍|🏆/g, ''));
+  }
 
-    const button = document.createElement('button');
-    button.textContent = buttonName;
-    button.style.cssText = `
-      margin-left: 6px;
-      padding: 6px 10px;
-      border: 1px solid #e1e5e9;
-      border-radius: 6px;
-      background: #ffffff;
-      color: #495057;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-    `;
+  const COLORS = {
+    buttonBg: '#ffffff',
+    buttonBorder: '#e1e5e9',
+    buttonText: '#495057',
+    buttonHoverBg: '#f8f9fa',
+    buttonHoverBorder: '#ced4da',
+    shadowRest: '0 1px 2px rgba(0,0,0,0.05)',
+    shadowHover: '0 2px 4px rgba(0,0,0,0.08)',
+  };
 
-    button.addEventListener('mouseenter', function () {
-      this.style.backgroundColor = '#f8f9fa';
-      this.style.borderColor = '#ced4da';
-      this.style.boxShadow = '0 2px 4px rgba(0,0,0,0.08)';
+  function setStyles(el, styles) {
+    Object.assign(el.style, styles);
+  }
+
+  function setHover(el, hoverStyles, normalStyles = {}) {
+    el.addEventListener('mouseover', function () {
+      setStyles(this, hoverStyles);
     });
-
-    button.addEventListener('mouseleave', function () {
-      this.style.backgroundColor = '#ffffff';
-      this.style.borderColor = '#e1e5e9';
-      this.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
+    el.addEventListener('mouseout', function () {
+      setStyles(this, normalStyles);
     });
+  }
 
-    button.addEventListener('click', function () {
-      window.open(targetWeb + uniqueText(text), '_blank');
-    });
-    hDom.appendChild(button);
-
-    return true;
+  function createEl(tag, styles = {}, props = {}) {
+    const el = document.createElement(tag);
+    setStyles(el, styles);
+    Object.assign(el, props);
+    return el;
   }
 
   // const targetWeb = 'http://localhost:9060/search?&type=video&url=box=';
   const targetWeb = 'https://so.wangze.tech?q=';
 
   const douban = 'https://www.douban.com/search?q=';
+
+  const BUTTON_STYLES = {
+    marginLeft: '6px',
+    padding: '6px 10px',
+    border: `1px solid ${COLORS.buttonBorder}`,
+    borderRadius: '6px',
+    background: COLORS.buttonBg,
+    color: COLORS.buttonText,
+    fontSize: '14px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    boxShadow: COLORS.shadowRest,
+  };
+
+  const BUTTON_HOVER_STYLES = {
+    backgroundColor: COLORS.buttonHoverBg,
+    borderColor: COLORS.buttonHoverBorder,
+    boxShadow: COLORS.shadowHover,
+  };
+
+  const BUTTON_NORMAL_STYLES = {
+    backgroundColor: COLORS.buttonBg,
+    borderColor: COLORS.buttonBorder,
+    boxShadow: COLORS.shadowRest,
+  };
+
+  /**
+   * 按钮渲染：一对跨站搜索按钮（🔍 聚合搜索 / 🏆 豆瓣）
+   */
+  function createButtonPair(title) {
+    return [
+      ['🔍', targetWeb],
+      ['🏆', douban],
+    ].map(([buttonName, target]) => {
+      const button = createEl('button', BUTTON_STYLES, { textContent: buttonName });
+      setHover(button, BUTTON_HOVER_STYLES, BUTTON_NORMAL_STYLES);
+      button.addEventListener('click', function () {
+        window.open(target + title, '_blank');
+      });
+      return button;
+    });
+  }
 
   const list = [
     {
@@ -138,21 +189,26 @@
       name: '豆瓣',
     },
     {
-      dom: '#__next > div > div > div > div > div > div > a',
+      dom: "a[class*='mediainfo_mediaTitle']",
       name: '哔哩哔哩看番',
     },
   ];
 
   for (let i = 0; i < list.length; i++) {
     const item = list[i];
-    const added = addButton(item.dom, targetWeb, item.name, '🔍');
-    addButton(item.dom, douban, item.name, '🏆');
-    if (added) {
-      break;
+    const hDom = document.querySelector(item.dom);
+    if (!hDom) {
+      continue;
     }
+
+    const title = extractTitle(hDom);
+    for (const button of createButtonPair(title)) {
+      hDom.appendChild(button);
+    }
+    break;
   }
 
-  if (window.location.href.includes('age')) {
+  if (site === 'age') {
     const css = `
       .comment-box-cover,
       .comment-function-wrapper,
@@ -167,5 +223,9 @@
       }
     `;
     GM_addStyle(css);
+  }
+
+  if (window.__ANIME_SEARCH_TEST__) {
+    window.__ANIME_SEARCH_TEST__.hooks = { detectSite, extractTitle, uniqueText, createButtonPair };
   }
 })();
