@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         搜索动漫
 // @namespace    https://github.com/11ze
-// @version      0.6.13
+// @version      0.6.14
 // @description  2026-08-14
 // @author       11ze
 // @match        *://*/*
@@ -137,6 +137,10 @@
     color: COLORS.buttonText,
     fontSize: '14px',
     fontWeight: '500',
+    lineHeight: '1',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     cursor: 'pointer',
     transition: 'all 0.2s ease',
     boxShadow: COLORS.shadowRest,

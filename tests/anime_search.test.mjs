@@ -267,6 +267,15 @@ test('createButtonPair：返回一对 🔍/🏆 按钮', () => {
   assert.equal(douban.textContent, '🏆');
 });
 
+test('createButtonPair：emoji 收紧行高并居中，防继承标题行高撑大按钮', () => {
+  const { createButtonPair } = loadScriptHooks();
+  const [search] = createButtonPair('咒术回战');
+  assert.equal(search.style.lineHeight, '1');
+  assert.equal(search.style.display, 'inline-flex');
+  assert.equal(search.style.alignItems, 'center');
+  assert.equal(search.style.justifyContent, 'center');
+});
+
 test('createButtonPair：按钮绑定 hover 样式切换', () => {
   const { createButtonPair } = loadScriptHooks();
   const [search] = createButtonPair('咒术回战');
