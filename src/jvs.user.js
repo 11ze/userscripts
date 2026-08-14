@@ -49,6 +49,50 @@
     },
   };
 
+  /**
+   * 组件类型上色配置：数组顺序即匹配优先级
+   */
+  const COMPONENT_TYPE_COLORS = [
+    {
+      types: [
+        '数据模型',
+        '跳过数据权限',
+        '删除数据',
+        '新增数据',
+        '查询单条',
+        '查询所有',
+        '更新模型',
+        '统计条数',
+      ],
+      color: COLORS.component.data,
+    },
+    {
+      types: ['逻辑引擎', '逻辑应用'],
+      color: COLORS.component.logic,
+    },
+    {
+      types: ['循环容器', '对数组对象进行遍历'],
+      color: COLORS.component.loop,
+    },
+    {
+      types: ['中止程序', '提示消息'],
+      color: COLORS.component.warning,
+    },
+    {
+      types: [
+        '对象变量',
+        '数组变量',
+        '对象数组变量',
+        '固定变量',
+        '对象结构',
+        '公式值',
+        '等变量',
+        '结构示例',
+      ],
+      color: COLORS.component.variable,
+    },
+  ];
+
   const STORAGE_KEYS = {
     LOGS: '__11ze_JVS_LOG_LOGS_',
     APP_MODE_MAP: '__11ze_JVS_APP_MODE_MAP__',
@@ -423,6 +467,7 @@
   if (window.__JVS_TEST__) {
     window.__JVS_TEST__.hooks = {
       createOperationRunner: createOperationRunner,
+      paintComponents: paintComponents,
       cutOverdueLogs: cutOverdueLogs,
       uniqueLogs: uniqueLogs,
       enrichLogsWithAppName: enrichLogsWithAppName,
@@ -1101,86 +1146,13 @@
    */
   function adjustInterfaceAndComponentStyle() {
     // 旧版 JVS，逻辑设计，所有在用可拖拽组件，改颜色
-    const draggableComponents = document.querySelectorAll(
-      'div.jvs-rule-node.ef-node-container.jtk-droppable',
-    );
-    const typeToColorList = [
-      {
-        types: [
-          '数据模型',
-          '跳过数据权限',
-          '删除数据',
-          '新增数据',
-          '查询单条',
-          '查询所有',
-          '更新模型',
-          '统计条数',
-        ],
-        color: COLORS.component.data,
-      },
-      {
-        types: ['逻辑引擎', '逻辑应用'],
-        color: COLORS.component.logic,
-      },
-      {
-        types: ['循环容器', '对数组对象进行遍历'],
-        color: COLORS.component.loop,
-      },
-      {
-        types: ['中止程序', '提示消息'],
-        color: COLORS.component.warning,
-      },
-      {
-        types: [
-          '对象变量',
-          '数组变量',
-          '对象数组变量',
-          '固定变量',
-          '对象结构',
-          '公式值',
-          '等变量',
-          '结构示例',
-        ],
-        color: COLORS.component.variable,
-      },
-    ];
-    for (const component of draggableComponents) {
-      const text = component.innerText.trim();
-      for (const typeToColor of typeToColorList) {
-        if (typeToColor.types.some((t) => text.includes(t))) {
-          component.style.backgroundColor = typeToColor.color;
-          component.style.borderColor = typeToColor.color;
-          break;
-        }
-      }
-    }
+    paintComponents('div.jvs-rule-node.ef-node-container.jtk-droppable', 'innerText');
 
     // 新版 JVS，逻辑设计，所有在用可拖拽组件，改颜色
-    const newDraggableComponents = document.querySelectorAll('.jvs-rule-node.ef-node-container');
-    for (const component of newDraggableComponents) {
-      // 获取组件所有文本
-      const text = component.textContent.trim();
-      for (const typeToColor of typeToColorList) {
-        if (typeToColor.types.some((t) => text.includes(t))) {
-          component.style.backgroundColor = typeToColor.color;
-          component.style.borderColor = typeToColor.color;
-          break;
-        }
-      }
-    }
+    paintComponents('.jvs-rule-node.ef-node-container', 'textContent');
 
     // 设置侧边栏可选组件的颜色
-    const sidebarComponents = document.querySelectorAll('.getItem');
-    for (const component of sidebarComponents) {
-      const text = component.innerText.trim();
-      for (const typeToColor of typeToColorList) {
-        if (typeToColor.types.some((t) => text.includes(t))) {
-          component.style.backgroundColor = typeToColor.color;
-          component.style.borderColor = typeToColor.color;
-          break;
-        }
-      }
-    }
+    paintComponents('.getItem', 'innerText');
 
     // 新版 JVS，表单设计，组件的名称全部显示出来
     const formComponents = document.querySelectorAll('.formitem2');
@@ -1191,6 +1163,25 @@
       }
 
       component.classList.add('active-formitem2');
+    }
+  }
+
+  /**
+   * 给选择器命中的组件按类型上色（背景 + 边框）
+   * @param {string} selector - 组件选择器
+   * @param {'innerText' | 'textContent'} textProperty - 参与匹配的文本属性
+   */
+  function paintComponents(selector, textProperty) {
+    const components = document.querySelectorAll(selector);
+    for (const component of components) {
+      const text = component[textProperty].trim();
+      for (const typeToColor of COMPONENT_TYPE_COLORS) {
+        if (typeToColor.types.some((t) => text.includes(t))) {
+          component.style.backgroundColor = typeToColor.color;
+          component.style.borderColor = typeToColor.color;
+          break;
+        }
+      }
     }
   }
 

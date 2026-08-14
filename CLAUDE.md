@@ -62,7 +62,7 @@ if (!domainList.some((domain) => window.location.href.includes(domain))) return;
 - **设计器类型**：支持逻辑、列表、表单、流程设计
 - **性能优化**：使用 CSS 替代 DOM 操作，减少内存占用
 
-测试：`node --test tests/jvs.runner.test.mjs tests/jvs.storage.test.mjs` 覆盖调度器契约和存储域规则（过期剪切、去重、目录幂等写入）；测试通过 `window.__JVS_TEST__` 条件钩子取用 IIFE 内部函数（浏览器中该钩子永不激活）。
+测试：`node --test tests/jvs.runner.test.mjs tests/jvs.storage.test.mjs tests/jvs.paint.test.mjs` 覆盖调度器契约、存储域规则（过期剪切、去重、目录幂等写入）和组件上色机制；测试通过 `window.__JVS_TEST__` 条件钩子取用 IIFE 内部函数（浏览器中该钩子永不激活）。
 
 ## 代码规范
 
