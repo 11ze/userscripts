@@ -56,16 +56,13 @@ if (!domainList.some((domain) => window.location.href.includes(domain))) return;
 
 [jvs.user.js](src/jvs.user.js) 采用模块化操作函数架构：
 
-- **环境检测**：`isJVS()` 检测 JVS UI 相关 link 标签
-- **操作队列**：`operations` 数组包含所有功能函数，每 400ms 执行一次
-- **全局变量**：使用 `window` 对象共享配置和工具函数
+- **环境检测**：`isJVS()` 检测 JVS UI 相关 link 标签，非 JVS 站点早退
+- **操作队列**：`operations` 混合数组由 `createOperationRunner` 调度，每 400ms 执行一次。普通函数每 tick 执行；`{ name, probe, apply }` 对象由 probe 返回的键控制——返回 null/undefined 表示本 tick 不适用，键不变时跳过 apply
+- **状态管理**：`STATE` 对象管理页面级闩锁状态；配置常量（`CONFIG`、`COLORS`、`DESIGN_CONFIG`、`APP_NAME_SELECTORS`）均在 IIFE 闭包内
 - **设计器类型**：支持逻辑、列表、表单、流程设计
 - **性能优化**：使用 CSS 替代 DOM 操作，减少内存占用
 
-关键全局配置：
-- `window.designSetting` - 设计器类型对应的颜色和简称
-- `window.appNameSelectorList` - 应用名称的 DOM 选择器列表
-- `window.logOptions` - 日志过滤选项
+测试：`node --test tests/jvs.runner.test.mjs` 覆盖调度器契约；测试通过 `window.__JVS_TEST__` 条件钩子取用 IIFE 内部函数（浏览器中该钩子永不激活）。
 
 ## 代码规范
 

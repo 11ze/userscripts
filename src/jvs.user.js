@@ -344,8 +344,6 @@
     save: saveLog,
     getAll: getLogs,
     showPopup: showLogPopup,
-    updateButton: updateLogButton,
-    saveCurrent: saveCurrentLog,
     bindSaveButton: bindSaveButton,
 
     // 辅助方法
@@ -390,6 +388,92 @@
 
   // ==================== 主逻辑 ====================
 
+  /**
+   * 创建轮询调度器，统一处理 operations 混合数组
+   * 普通函数每 tick 执行；{ name, probe, apply } 对象由 probe 返回的键控制：
+   * probe 返回 null/undefined 表示本 tick 不适用；键不变时跳过 apply
+   * @param {Array<Function | {name: string, probe: Function, apply: Function}>} operations
+   * @param {(name: string, error: unknown) => void} onError - 单个操作出错时的回调
+   * @returns {() => void} tick 函数
+   */
+  function createOperationRunner(operations, onError) {
+    const lastKeys = new Map();
+
+    return function tick() {
+      for (const operation of operations) {
+        try {
+          if (typeof operation === 'function') {
+            operation();
+            continue;
+          }
+
+          const key = operation.probe();
+          if (key === null || key === undefined) continue;
+          if (lastKeys.get(operation) === key) continue;
+          lastKeys.set(operation, key);
+          operation.apply();
+        } catch (error) {
+          onError(operation.name, error);
+        }
+      }
+    };
+  }
+
+  // 测试钩子：浏览器中 __JVS_TEST__ 不存在，此分支永不执行
+  if (window.__JVS_TEST__) {
+    window.__JVS_TEST__.hooks = { createOperationRunner: createOperationRunner };
+  }
+
+  /**
+   * 构建待保存的日志条目，appName 过长或与设计名相同时回退为存储中的应用名
+   * @returns {LogEntry | null} 数据不完整时返回 null
+   */
+  function buildLogForSave() {
+    const newLog = createLogEntry();
+    if (!newLog || !newLog.tabType) {
+      return null;
+    }
+    if (newLog.appName.length > 100 || newLog.appName === newLog.designName) {
+      newLog.appName = getAppIdName(newLog.jvsAppId);
+    }
+    return newLog;
+  }
+
+  /**
+   * 保存当前页面日志（designName 或 appName 变化时落库，由调度器的键对比控制）
+   */
+  const saveCurrentLogOperation = {
+    name: 'saveCurrentLog',
+    probe() {
+      const newLog = buildLogForSave();
+      // \u0000 不会出现在页面名称里，用作组合键分隔符
+      return newLog ? newLog.designName + '\u0000' + newLog.appName : null;
+    },
+    apply() {
+      const newLog = buildLogForSave();
+      if (newLog) {
+        saveLog(newLog, '打开');
+      }
+    },
+  };
+
+  /**
+   * 更新日志按钮（容器缺失或按钮模式与当前不符时重建，由调度器的键对比控制）
+   */
+  const updateLogButtonOperation = {
+    name: 'updateLogButton',
+    probe() {
+      const mode = getModeFromHistory() || getMode();
+      const existContainer = document.getElementById('ze-jvs-log-container');
+      if (!existContainer) {
+        return 'missing';
+      }
+      const currentMode = existContainer.querySelector('#ze-jvs-log-button')?.dataset.mode || '';
+      return currentMode === mode ? 'stable:' + mode : 'stale:' + currentMode + '->' + mode;
+    },
+    apply: updateLogButton,
+  };
+
   const operations = [
     // 设计器模块
     DesignModule.changeTitle,
@@ -410,21 +494,20 @@
     // setCanvasScroll,
     // DesignModule.autoRefreshPage,
     // 日志模块
-    LogModule.updateButton,
-    LogModule.saveCurrent,
+    updateLogButtonOperation,
+    saveCurrentLogOperation,
     LogModule.bindSaveButton,
   ];
 
-  const jvsTimer = setInterval(() => {
-    for (const operation of operations) {
-      try {
-        operation();
-      } catch (error) {
-        console.error('「改善 JVS 开发体验」' + operation.name + ' 运行错误：');
-        console.error(error);
-      }
-    }
-  }, CONFIG.TIMER_INTERVAL);
+  function reportOperationError(name, error) {
+    console.error('「改善 JVS 开发体验」' + name + ' 运行错误：');
+    console.error(error);
+  }
+
+  const jvsTimer = setInterval(
+    createOperationRunner(operations, reportOperationError),
+    CONFIG.TIMER_INTERVAL,
+  );
 
   window.addEventListener('beforeunload', () => {
     clearInterval(jvsTimer);
@@ -447,10 +530,6 @@
   };
 
   // ==================== 日志模块 ====================
-
-  // 日志状态（闭包内共享）
-  let savedLogDesignName = '';
-  let savedLogAppName = '';
 
   /**
    * 创建日志条目
@@ -729,23 +808,6 @@
       },
     });
     document.body.appendChild(container);
-  }
-
-  /**
-   * 保存当前页面日志
-   */
-  function saveCurrentLog() {
-    const newLog = createLogEntry();
-    if (newLog && newLog.tabType) {
-      if (newLog.appName.length > 100 || newLog.appName === newLog.designName) {
-        newLog.appName = getAppIdName(newLog.jvsAppId);
-      }
-      if (savedLogDesignName !== newLog.designName || savedLogAppName !== newLog.appName) {
-        saveLog(newLog, '打开');
-        savedLogDesignName = newLog.designName;
-        savedLogAppName = newLog.appName;
-      }
-    }
   }
 
   /**
