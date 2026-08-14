@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         查看网址
 // @namespace    https://github.com/11ze
-// @version      0.4.1
-// @description  2026-05-09 添加 Ctrl + U 提示
+// @version      0.4.2
+// @description  2026-08-14 修复重复参数键编辑后丢失和参数值中 ? 后内容截断
 // @author       11ze
 // @license      MIT
 // @match        *://*/*

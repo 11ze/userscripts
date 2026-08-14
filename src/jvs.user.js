@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.22
-// @description 2026-07-28 去掉日志按钮和拖拽图标之间的间距
+// @version     0.7.23
+// @description 2026-08-14 内部架构重构，行为保持
 // ==/UserScript==
 
 (function () {
