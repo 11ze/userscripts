@@ -421,7 +421,16 @@
 
   // 测试钩子：浏览器中 __JVS_TEST__ 不存在，此分支永不执行
   if (window.__JVS_TEST__) {
-    window.__JVS_TEST__.hooks = { createOperationRunner: createOperationRunner };
+    window.__JVS_TEST__.hooks = {
+      createOperationRunner: createOperationRunner,
+      cutOverdueLogs: cutOverdueLogs,
+      uniqueLogs: uniqueLogs,
+      enrichLogsWithAppName: enrichLogsWithAppName,
+      saveAppIdName: saveAppIdName,
+      getAppIdName: getAppIdName,
+      saveLog: saveLog,
+      getLogs: getLogs,
+    };
   }
 
   /**
@@ -598,18 +607,24 @@
   }
 
   /**
-   * 获取日志列表
+   * 获取日志列表（纯读：剪切过期与重复条目，不改动 appName）
    */
   function getLogs() {
     const logs = jvsStorage.get(STORAGE_KEYS.LOGS, []);
     if (!logs) return [];
 
+    return cutOverdueLogs(logs, Date.now());
+  }
+
+  /**
+   * 用应用目录补全日志的 appName（仅用于展示，不回写存储）
+   */
+  function enrichLogsWithAppName(logs) {
     logs.forEach((log) => {
       const appName = getAppIdName(log.jvsAppId);
       if (appName) log.appName = appName;
     });
-
-    return cutOverdueLogs(logs, Date.now());
+    return logs;
   }
 
   /**
@@ -664,7 +679,7 @@
       return;
     }
 
-    const logs = getLogs();
+    const logs = enrichLogsWithAppName(getLogs());
     const appModeMap = getAppModelMap();
     const hasMode = Object.keys(appModeMap).length > 0;
     const listContent = [];
