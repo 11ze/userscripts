@@ -378,58 +378,6 @@
 
   // ==================== 模块封装 ====================
 
-  /**
-   * 日志模块
-   * 封装日志相关的所有功能
-   */
-  const LogModule = {
-    // 核心方法
-    createEntry: createLogEntry,
-    save: saveLog,
-    getAll: getLogs,
-    showPopup: showLogPopup,
-    bindSaveButton: bindSaveButton,
-
-    // 辅助方法
-    getAppName: getAppNameForLog,
-
-    // URL 工具方法
-    getUrlFromLogs: getUrlFromLogs,
-    getUrlFromLogsAndUrl: getUrlFromLogsAndUrl,
-  };
-
-  /**
-   * 设计器模块
-   * 封装设计器相关的所有功能
-   */
-  const DesignModule = {
-    // 标题和环境
-    changeTitle: changeTitle,
-    enterAppCenter: enterAppCenter,
-    enterTab: enterTabDesign,
-
-    // 样式调整
-    adjustStyle: adjustInterfaceAndComponentStyle,
-
-    // 按钮添加
-    addOpenLogicButton: addButtonToOpenNewLogicDesign,
-    firstAddNestedLogicButton: firstAddButtonToOpenNewLogicDesignForNestedLogic,
-    addCopyDesignNameButton: addButtonToCopyDesignName,
-    addCopyComponentNameButton: addButtonToCopyComponentName,
-    addClearFieldsButton: addButtonToClearAllFields,
-    addOpenFormOrListButton: addButtonToOpenNewFormOrListDesign,
-
-    // 展开/高亮
-    expandFormSettings: expandFormDesignAllComponentSettings,
-    autoExpandComponentLibrary: autoExpandComponentLibraryCategory,
-    highlightApps: highlightApps,
-
-    // 其他
-    applicationSetClick: applicationSetClick,
-    showNodeExecTime: showNodeExecTime,
-    autoRefreshPage: autoRefreshPage,
-  };
-
   // ==================== 主逻辑 ====================
 
   /**
@@ -530,27 +478,27 @@
 
   const operations = [
     // 设计器模块
-    DesignModule.changeTitle,
-    DesignModule.enterAppCenter,
-    DesignModule.enterTab,
-    DesignModule.adjustStyle,
-    DesignModule.addOpenLogicButton,
-    DesignModule.firstAddNestedLogicButton,
-    DesignModule.addCopyDesignNameButton,
-    DesignModule.addCopyComponentNameButton,
-    DesignModule.addClearFieldsButton,
-    DesignModule.addOpenFormOrListButton,
-    DesignModule.highlightApps,
-    DesignModule.expandFormSettings,
-    DesignModule.autoExpandComponentLibrary,
-    DesignModule.applicationSetClick,
-    DesignModule.showNodeExecTime,
+    changeTitle,
+    enterAppCenter,
+    enterTabDesign,
+    adjustInterfaceAndComponentStyle,
+    addButtonToOpenNewLogicDesign,
+    firstAddButtonToOpenNewLogicDesignForNestedLogic,
+    addButtonToCopyDesignName,
+    addButtonToCopyComponentName,
+    addButtonToClearAllFields,
+    addButtonToOpenNewFormOrListDesign,
+    highlightApps,
+    expandFormDesignAllComponentSettings,
+    autoExpandComponentLibraryCategory,
+    applicationSetClick,
+    showNodeExecTime,
     // setCanvasScroll,
-    // DesignModule.autoRefreshPage,
+    // autoRefreshPage,
     // 日志模块
     updateLogButtonOperation,
     saveCurrentLogOperation,
-    LogModule.bindSaveButton,
+    bindSaveButton,
   ];
 
   function reportOperationError(name, error) {
