@@ -64,6 +64,16 @@ if (!domainList.some((domain) => window.location.href.includes(domain))) return;
 
 测试：`node --test tests/jvs.runner.test.mjs tests/jvs.storage.test.mjs tests/jvs.paint.test.mjs` 覆盖调度器契约、存储域规则（过期剪切、去重、目录幂等写入）和组件上色机制；测试通过 `window.__JVS_TEST__` 条件钩子取用 IIFE 内部函数（浏览器中该钩子永不激活）。
 
+### url_viewer 脚本架构
+
+[url_viewer.user.js](src/url_viewer.user.js) 的 URL 解析采用结构化模型：
+
+- **解析模型**：`parseUrl` 返回 `[{host, params: [{key, value}]}]`，段内取第一个 `?` 之后的全部作为查询串（参数值里的 `?` 不截断），渲染循环直接按结构遍历，重复参数键保留多行
+- **解码顺序**：先对整串 `decodeURIComponent` 再按 `#` 分段——让参数里编码的 # 炸开成独立段，iframe 嵌套路由才能分节展示
+- **编辑路径**：以 DOM 为数据模型（`dataset.hashIndex`/`hashHost`/`paramKey`），重建 URL 时主 URL 与 hash 段都用 `URLSearchParams.append` 保留重复键
+
+测试：`node --test tests/url_viewer.url.test.mjs` 覆盖 URL 解析行为；测试通过 `window.__URL_VIEWER_TEST__` 条件钩子取用 IIFE 内部函数（浏览器中该钩子永不激活）。
+
 ## 代码规范
 
 ### 事件处理

@@ -312,37 +312,37 @@
   }
 
   // ==================== URL 解析 ====================
+  /**
+   * 把 URL 拆成 host 段列表，每段携带自己的查询参数
+   * 段内取第一个 ? 之后的全部作为查询串，参数值里的 ? 不截断
+   * 调用方需先对整串 decodeURIComponent：让参数里编码的 #
+   * 炸开成独立段，iframe 嵌套路由才能分节展示
+   */
   function parseUrl(url) {
     if (typeof url !== 'string' || !url) {
       console.error('parseUrl: 参数必须是非空字符串');
       return [];
     }
 
-    const result = [];
-    const parts = url.split('#');
+    const segments = [];
 
-    for (const part of parts) {
+    for (const part of url.split('#')) {
       if (!part) continue;
 
-      const [host, queryString] = part.split('?');
-
-      result.push({ type: 'host', value: host });
+      const [host, ...queryParts] = part.split('?');
+      const queryString = queryParts.join('?');
+      const params = [];
 
       if (queryString) {
-        const params = new URLSearchParams(queryString);
-        const entries = Array.from(params.entries());
-
-        if (entries.length > 0) {
-          result.push({ type: 'table' });
-        }
-
-        for (const [key, value] of entries) {
-          result.push({ type: 'param', key, value: value || '' });
+        for (const [key, value] of new URLSearchParams(queryString).entries()) {
+          params.push({ key: key, value: value });
         }
       }
+
+      segments.push({ host: host, params: params });
     }
 
-    return result;
+    return segments;
   }
 
   // ==================== DOM 创建函数 ====================
@@ -463,7 +463,7 @@
     // 重建主 URL 参数 (hash-index=0)
     if (grouped[0]) {
       const params = new URLSearchParams();
-      grouped[0].forEach(({ key, value }) => params.set(key, value));
+      grouped[0].forEach(({ key, value }) => params.append(key, value));
       url.search = params.toString();
     }
 
@@ -540,7 +540,6 @@
   // ==================== 主函数 ====================
   function main() {
     const urlInfo = parseUrl(decodeURIComponent(window.location.href));
-    console.log('url-reader: urlInfo', urlInfo);
 
     const popup = createEl('div', popupStyles, {
       id: '11ze-url-reader-popup',
@@ -555,28 +554,28 @@
 
     popup.appendChild(createSeparator());
 
-    // 构建参数列表
-    let currentTable = null;
-    let currentHost = '';
-    let hostIndex = 0;
+    // 构建参数列表；出现过表之后，每个 host 段前都加分隔线
+    let separatorNeeded = false;
 
-    for (const item of urlInfo) {
-      if (item.type === 'host') {
-        if (currentTable) {
-          popup.appendChild(createSeparator());
-        }
-        currentHost = item.value;
-        popup.appendChild(createHostDiv(item.value, hostIndex));
-        hostIndex++;
-      } else if (item.type === 'table') {
-        currentTable = createTable(hostIndex - 1);
-        currentTable.dataset.hashHost = currentHost;
-        currentTable.dataset.hashIndex = String(hostIndex - 1);
-        popup.appendChild(currentTable);
-      } else if (item.type === 'param') {
-        addParamRow(currentTable, item, hostIndex - 1);
+    urlInfo.forEach((segment, index) => {
+      if (separatorNeeded) {
+        popup.appendChild(createSeparator());
       }
-    }
+
+      popup.appendChild(createHostDiv(segment.host, index));
+
+      if (segment.params.length === 0) return;
+
+      const table = createTable(index);
+      table.dataset.hashHost = segment.host;
+      table.dataset.hashIndex = String(index);
+      popup.appendChild(table);
+      for (const param of segment.params) {
+        addParamRow(table, param, index);
+      }
+
+      separatorNeeded = true;
+    });
 
     // 底部按钮栏
     popup.appendChild(createBottomBar(popup));
@@ -592,6 +591,13 @@
       }
     };
     document.addEventListener('click', closePopup);
+  }
+
+  if (window.__URL_VIEWER_TEST__) {
+    window.__URL_VIEWER_TEST__.hooks = {
+      parseUrl: parseUrl,
+      buildUrlFromPanel: buildUrlFromPanel,
+    };
   }
 
   GM_registerMenuCommand('查看 (Ctrl + U)', main);
