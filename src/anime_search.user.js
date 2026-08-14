@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         搜索动漫
 // @namespace    https://github.com/11ze
-// @version      0.6.12
+// @version      0.6.13
 // @description  2026-08-14
 // @author       11ze
 // @match        *://*/*
@@ -89,8 +89,8 @@
       text = hDom.textContent;
     }
 
-    // 剥离自挂按钮的 🔍🏆，防止重跑时把按钮文字读进标题
-    return uniqueText(text.replace(/🔍|🏆/g, ''));
+    // 剥离自挂按钮的 🔍🏆ℹ️，防止重跑时把按钮文字读进标题
+    return uniqueText(text.replace(/🔍|🏆|ℹ️/g, ''));
   }
 
   const COLORS = {
@@ -171,6 +171,26 @@
     });
   }
 
+  /**
+   * 详情页跳转：play 页 pathname 提取番剧 id，拼站内 detail 地址；非 play 页返回 null
+   */
+  function buildDetailHref(pathname, origin) {
+    const match = pathname.match(/^\/play\/([^/]+)/);
+    return match ? `${origin}/detail/${match[1]}` : null;
+  }
+
+  /**
+   * 按钮渲染：ℹ️ 详情页跳转按钮，点击当前标签页跳转
+   */
+  function createDetailButton(href) {
+    const button = createEl('button', BUTTON_STYLES, { textContent: 'ℹ️' });
+    setHover(button, BUTTON_HOVER_STYLES, BUTTON_NORMAL_STYLES);
+    button.addEventListener('click', function () {
+      location.href = href;
+    });
+    return button;
+  }
+
   const list = [
     {
       dom: 'div.body_content_wrapper h2',
@@ -205,6 +225,11 @@
     for (const button of createButtonPair(title)) {
       hDom.appendChild(button);
     }
+
+    const detailHref = buildDetailHref(location.pathname, location.origin);
+    if (detailHref) {
+      hDom.appendChild(createDetailButton(detailHref));
+    }
     break;
   }
 
@@ -226,6 +251,13 @@
   }
 
   if (window.__ANIME_SEARCH_TEST__) {
-    window.__ANIME_SEARCH_TEST__.hooks = { detectSite, extractTitle, uniqueText, createButtonPair };
+    window.__ANIME_SEARCH_TEST__.hooks = {
+      detectSite,
+      extractTitle,
+      uniqueText,
+      createButtonPair,
+      buildDetailHref,
+      createDetailButton,
+    };
   }
 })();

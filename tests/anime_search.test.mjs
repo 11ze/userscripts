@@ -54,8 +54,12 @@ function makeTitleElement(text = '咒术回战 第二季') {
 /**
  * element 非空时，主循环首个选择器即命中该假标题元素
  */
-function loadScriptSandbox({ element } = {}) {
+function loadScriptSandbox({ element, href } = {}) {
   const source = fs.readFileSync(sourcePath, 'utf8');
+
+  // 默认豆瓣条目页：过站点判定闸门
+  const pageHref = href ?? 'https://www.douban.com/subject/26363254/';
+  const pageUrl = new URL(pageHref);
 
   const sandbox = {
     console: {
@@ -66,8 +70,9 @@ function loadScriptSandbox({ element } = {}) {
     URL: URL,
     GM_addStyle() {},
     location: {
-      // 豆瓣条目页：过站点判定闸门
-      href: 'https://www.douban.com/subject/26363254/',
+      href: pageHref,
+      origin: pageUrl.origin,
+      pathname: pageUrl.pathname,
     },
     document: {
       querySelectorCalls: [],
@@ -168,13 +173,13 @@ test('extractTitle：span 缺失或为空时回退元素文本', () => {
   assert.equal(extractTitle(emptySpan), '后备标题');
 });
 
-test('extractTitle：剥离自挂按钮的 🔍🏆', () => {
+test('extractTitle：剥离自挂按钮的 🔍🏆ℹ️', () => {
   const { extractTitle } = loadScriptHooks();
   const element = {
     querySelector() {
       return null;
     },
-    textContent: '标题 🔍🏆',
+    textContent: '标题 🔍🏆ℹ️',
   };
   assert.equal(extractTitle(element), '标题');
 });
@@ -224,6 +229,28 @@ test('detectSite：无关站点与非法 URL 返回 null', () => {
   const { detectSite } = loadScriptHooks();
   assert.equal(detectSite('https://example.com/'), null);
   assert.equal(detectSite('not-a-url'), null);
+});
+
+test('buildDetailHref：play 页 pathname 拼 detail 地址', () => {
+  const { buildDetailHref } = loadScriptHooks();
+  assert.equal(
+    buildDetailHref('/play/20260212/1/1', 'https://www.agedm.io'),
+    'https://www.agedm.io/detail/20260212',
+  );
+});
+
+test('buildDetailHref：镜像域 origin 随传入拼接', () => {
+  const { buildDetailHref } = loadScriptHooks();
+  assert.equal(
+    buildDetailHref('/play/20260212/1/1', 'https://agefans.vip'),
+    'https://agefans.vip/detail/20260212',
+  );
+});
+
+test('buildDetailHref：非 play 页返回 null', () => {
+  const { buildDetailHref } = loadScriptHooks();
+  assert.equal(buildDetailHref('/detail/20260212', 'https://www.agedm.io'), null);
+  assert.equal(buildDetailHref('/', 'https://www.agedm.io'), null);
 });
 
 test('测试钩子暴露 createButtonPair', () => {
@@ -279,4 +306,30 @@ test('按钮挂载：首个命中的选择器挂一对按钮并停止', () => {
   assert.deepEqual(sandbox.__openCalls, [
     { url: 'https://so.wangze.tech?q=咒术回战 第二季', target: '_blank' },
   ]);
+});
+
+test('按钮挂载：AGE play 页追加 ℹ️ 详情按钮并当前页跳转', () => {
+  const titleElement = makeTitleElement('咒术回战 第二季');
+  const sandbox = loadScriptSandbox({
+    element: titleElement,
+    href: 'https://www.agedm.io/play/20260212/1/1',
+  });
+
+  assert.equal(titleElement.appended.length, 3, '搜索对 + ℹ️ 详情按钮');
+  const detailButton = titleElement.appended[2];
+  assert.equal(detailButton.tagName, 'button');
+  assert.equal(detailButton.textContent, 'ℹ️');
+
+  detailButton.fire('click');
+  assert.equal(sandbox.location.href, 'https://www.agedm.io/detail/20260212');
+});
+
+test('按钮挂载：非 play 页不追加 ℹ️ 详情按钮', () => {
+  const titleElement = makeTitleElement('咒术回战 第二季');
+  const sandbox = loadScriptSandbox({
+    element: titleElement,
+    href: 'https://www.agedm.io/detail/20260212',
+  });
+
+  assert.equal(titleElement.appended.length, 2);
 });
