@@ -6,16 +6,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Tampermonkey 用户脚本集合，使用原生 JavaScript 编写，无需构建工具。
 
-| 脚本 | 功能 | 目标网站 |
-|------|------|----------|
-| [jvs.user.js](src/jvs.user.js) | 改善 JVS 低代码平台开发体验 | JVS 相关域名 |
-| [url_viewer.user.js](src/url_viewer.user.js) | 解析和显示当前页面 URL 参数 | 所有网站 |
-| [anime_search.user.js](src/anime_search.user.js) | 添加动漫聚合搜索和豆瓣评分 | AGE、Bilibili、豆瓣 |
-| [color_mode_switch.user.js](src/color_mode_switch.user.js) | 网站亮暗色模式切换 | 所有网站 |
-| [age-video-download.user.js](src/age-video-download.user.js) | AGE 网站视频下载辅助 | AGE |
-| [bilibili-live-mask.user.js](src/bilibili-live-mask.user.js) | 移除 B 站直播遮挡区域 | Bilibili |
-| [jump_bottom.user.js](src/jump_bottom.user.js) | 快速跳转到页面顶部/底部 | 所有网站 |
-
 ## 开发指南
 
 ### 脚本头部规范
@@ -33,24 +23,6 @@ Tampermonkey 用户脚本集合，使用原生 JavaScript 编写，无需构建�
 // @grant        GM_* 权限声明
 // ==/UserScript==
 ```
-
-### 常用 GM_* API
-
-- `GM_addStyle` - 动态添加 CSS 样式
-- `GM_registerMenuCommand` - 注册 Tampermonkey 菜单命令
-
-### 架构模式
-
-**1. 域名检测模式**：使用域名列表判断是否运行脚本
-
-```javascript
-const domainList = ['example.com', 'test.org'];
-if (!domainList.some((domain) => window.location.href.includes(domain))) return;
-```
-
-**2. 轮询执行模式**：对动态加载内容使用 `setInterval` 持续检测 DOM
-
-**3. 本地存储工具**：统一的 localStorage 封装处理 JSON 数据
 
 ### JVS 脚本架构
 
@@ -193,7 +165,7 @@ const theme = {
 
 ## 发布流程
 
-1. 更新脚本版本号和日期
+1. 更新脚本版本号和描述
 2. 在 [OpenUserJS](https://openuserjs.org/) 上传新版本
 3. 更新 README.md 中的脚本链接
 
@@ -201,8 +173,7 @@ const theme = {
 
 - 所有脚本针对最新版浏览器（Chromium 100+）
 - 脚本之间相互独立，无共享依赖
-- 可使用 ES6+ 特性（箭头函数、模板字符串、const/let、解构赋值等）
 - 使用 `'use strict'` 严格模式
-- 图标优先使用 data URI 以避免外部依赖
+- 图标优先使用 data URI 以避免外部依赖，如果是网站 icon，则可以拼接 /favicon.ico
 - 脚本头部使用语义化版本号 `x.y.z`
-- `@description` 字段包含最后更新日期 (YYYY-MM-DD)
+- `@description` 描述更新内容
