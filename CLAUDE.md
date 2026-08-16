@@ -58,6 +58,17 @@ Tampermonkey 用户脚本集合，使用原生 JavaScript 编写，无需构建�
 
 测试：`node --test tests/anime_search.test.mjs` 覆盖站点判定（含 query 泄漏回归）、标题提取、按钮渲染、详情跳转与挂载循环；测试通过 `window.__ANIME_SEARCH_TEST__` 条件钩子取用 IIFE 内部函数（浏览器中该钩子永不激活）。
 
+### color_mode_switch 脚本架构
+
+[color_mode_switch.user.js](src/color_mode_switch.user.js) 按「状态存取 → 反转样式表 → 按钮渲染」组织：
+
+- **iframe 闸门**：头部 `@noframes` 声明只在顶层 frame 运行（对齐 jvs/url_viewer 惯例），iframe 内不再重复注入按钮与反转滤镜，跨 frame 写同一存储键的失步问题随之消除
+- **状态存取**：`readState(storage)` / `writeState(storage, reverseColorMode)` 注入式存储端口——storage 由调用方传入，异常（隐私模式 SecurityError / 配额 QuotaExceeded）时读出关闭、写返回 false；`toggleReverseColorMode` 写失败即短路，内存态、存储态、视觉态三方一致
+- **反转样式表**：`buildReverseColorCss()` 纯函数生成——整页 `invert(1) hue-rotate(180deg)`、媒体与自挂按钮容器二次反转抵消、`.reverse-color-mode-ignore` / `[data-theme]` / `[data-color-mode]` 仅清除自身 filter（CSS filter 下子树无法脱离整页反转）
+- **按钮渲染**：`STYLES` 常量 + `setStyles` / `setHover` / `createEl` 最小工具集（自 anime_search 复制，脚本相互独立）；按钮显隐走闭包元素引用 `toggleButtonElement`，不回查 DOM
+
+测试：`node --test tests/color_mode_switch.test.mjs` 覆盖状态存取（含隐私模式读异常、配额写异常回归）、反转样式表（含死规则与按钮自反回归）、元数据（`@noframes`、`@description` 单条含日期）与按钮挂载/显隐/交互；测试通过 `window.__COLOR_MODE_SWITCH_TEST__` 条件钩子取用 IIFE 内部函数（浏览器中该钩子永不激活）。
+
 ## 代码规范
 
 ### 事件处理
@@ -165,7 +176,7 @@ const theme = {
 
 ## 发布流程
 
-1. 更新脚本版本号和描述
+1. 更新脚本 `@version` 和 `@description`
 2. 在 [OpenUserJS](https://openuserjs.org/) 上传新版本
 3. 更新 README.md 中的脚本链接
 
@@ -175,5 +186,5 @@ const theme = {
 - 脚本之间相互独立，无共享依赖
 - 使用 `'use strict'` 严格模式
 - 图标优先使用 data URI 以避免外部依赖，如果是网站 icon，则可以拼接 /favicon.ico
-- 脚本头部使用语义化版本号 `x.y.z`
-- `@description` 描述更新内容
+- `version` 使用语义化版本号 `x.y.z`
+- `@description` 包含日期和更新内容
