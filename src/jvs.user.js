@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.24
-// @description 2026-08-17 修复旧版 JVS 非设计页面误显「逻」图标：设计类型判定加设计器头部与已知类型双重校验
+// @version     0.7.25
+// @description 2026-08-17 修复旧版 JVS 逻辑设计展开组件名称后折行文字被裁：行高压至 20px 在原文字框内显示两行，节点框不变
 // ==/UserScript==
 
 (function () {
@@ -424,6 +424,7 @@
       saveLog: saveLog,
       getLogs: getLogs,
       getTabType: getTabType,
+      getStyles: () => JVS_STYLES,
     };
   }
 
@@ -2172,12 +2173,23 @@ const JVS_STYLES = `
     display: none !important;
   }
 
-  /* 逻辑设计，展开组件名称 */
+  /* 逻辑设计，展开组件名称（.ef-node-text 折行后的善后规则见下方旧版节点块） */
   .ef-node-text,
   .canvas-tool-item {
     white-space: normal !important;
     width: 100% !important;
     color: #363b4c !important;
+  }
+
+  /* 旧版 JVS，逻辑设计，展开组件名称折行后在原文字框内显示两行（行高 20px、框内居中），节点框与连线锚点不动 */
+  .jvs-rule-node.ef-node-container.jtk-droppable {
+    .ef-node-text {
+      line-height: 20px !important;
+      min-height: 48px !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: center !important;
+    }
   }
 
   /* 逻辑设计，调整页面设置和已使用逻辑的宽度 */
