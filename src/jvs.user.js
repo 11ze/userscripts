@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.23
-// @description 2026-08-14 内部架构重构，行为保持
+// @version     0.7.24
+// @description 2026-08-17 修复旧版 JVS 非设计页面误显「逻」图标：设计类型判定加设计器头部与已知类型双重校验
 // ==/UserScript==
 
 (function () {
@@ -423,6 +423,7 @@
       getAppIdName: getAppIdName,
       saveLog: saveLog,
       getLogs: getLogs,
+      getTabType: getTabType,
     };
   }
 
@@ -871,13 +872,25 @@
     return urlParams['jvsAppId'];
   }
 
+  /**
+   * 获取当前设计器类型
+   *
+   * 旧版 JVS 的非设计页面上 #tab-design 页签会残留（文本「逻辑设计」），
+   * 必须同时确认设计器头部存在、且文本是已知设计类型，否则视为非设计页面
+   * @returns {DesignType | ''}
+   */
   function getTabType() {
+    if (!document.querySelector('.design-header-box')) {
+      return '';
+    }
+
     const typeDom = document.querySelector('#tab-design > span');
     if (!typeDom) {
       return '';
     }
 
-    return typeDom.textContent.trim();
+    const tabType = typeDom.textContent.trim();
+    return DESIGN_CONFIG[tabType] ? tabType : '';
   }
 
   function getAppModelMap() {

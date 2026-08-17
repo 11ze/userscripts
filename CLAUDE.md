@@ -31,10 +31,10 @@ Tampermonkey 用户脚本集合，使用原生 JavaScript 编写，无需构建�
 - **环境检测**：`isJVS()` 检测 JVS UI 相关 link 标签，非 JVS 站点早退
 - **操作队列**：`operations` 混合数组由 `createOperationRunner` 调度，每 400ms 执行一次。普通函数每 tick 执行；`{ name, probe, apply }` 对象由 probe 返回的键控制——返回 null/undefined 表示本 tick 不适用，键不变时跳过 apply
 - **状态管理**：`STATE` 对象管理页面级闩锁状态；配置常量（`CONFIG`、`COLORS`、`DESIGN_CONFIG`、`APP_NAME_SELECTORS`）均在 IIFE 闭包内
-- **设计器类型**：支持逻辑、列表、表单、流程设计
+- **设计器类型**：支持逻辑、列表、表单、流程设计；`getTabType()` 判定当前设计器类型——须同时满足 `.design-header-box`（设计器头部）存在且 `#tab-design > span` 文本是 `DESIGN_CONFIG` 已知类型，旧版 JVS 非设计页面残留的「逻辑设计」页签因此被排除，favicon 不再误显「逻」图标
 - **性能优化**：使用 CSS 替代 DOM 操作，减少内存占用
 
-测试：`node --test tests/jvs.runner.test.mjs tests/jvs.storage.test.mjs tests/jvs.paint.test.mjs` 覆盖调度器契约、存储域规则（过期剪切、去重、目录幂等写入）和组件上色机制；测试通过 `window.__JVS_TEST__` 条件钩子取用 IIFE 内部函数（浏览器中该钩子永不激活）。
+测试：`node --test tests/jvs.runner.test.mjs tests/jvs.storage.test.mjs tests/jvs.paint.test.mjs tests/jvs.tabtype.test.mjs` 覆盖调度器契约、存储域规则（过期剪切、去重、目录幂等写入）、组件上色机制和设计器类型判定；测试通过 `window.__JVS_TEST__` 条件钩子取用 IIFE 内部函数（浏览器中该钩子永不激活）。
 
 ### url_viewer 脚本架构
 
