@@ -1,12 +1,12 @@
 # CLAUDE.md
 
-Tampermonkey 用户脚本集合：原生 JavaScript，无构建工具、无包管理器，每个 `src/*.user.js` 独立安装运行。目标浏览器 Chromium 120+。
+Tampermonkey 用户脚本集合：原生 JavaScript，无构建工具、无包管理器，每个 `src/*.user.js` 独立安装运行。目标浏览器 Chromium 120+（可用 `:has()` 与 CSS nesting）。
 
-## 硬约束（适用于所有脚本）
+## 硬约束
 
 - 脚本相互独立，禁止跨脚本引入或共享依赖
 - `'use strict'` 严格模式
-- 测试为 `node --test tests/<script>.test.mjs`（与脚本同名对应），通过 `window.__*_TEST__` 条件钩子取用 IIFE 内部函数（浏览器中该钩子永不激活）
+- 测试为 `node --test tests/<script>.test.mjs`，通过 `window.__*_TEST__` 条件钩子取用 IIFE 内部函数（浏览器中该钩子永不激活）
 
 ## 按需阅读
 
