@@ -144,6 +144,145 @@ test('旧版节点展开名称的规则不波及既有「展开组件名称」�
   );
 });
 
+test('新版节点框高不变，仅放开文本层溢出让折行名称画到框外', () => {
+  const hooks = loadScriptHooks();
+  const styles = hooks.getStyles();
+
+  // 唯一规则是文本层 overflow: visible——祖先层全是 visible，折行名称溢出框外
+  // 完整显示；框与 .top 维持原生固定高，布局流与连线锚点走原生
+  assertDeclaration(
+    styles,
+    '.jvs-rule-node.ef-node-container:not(.jtk-droppable) .ef-node-text',
+    'overflow: visible !important'
+  );
+
+  // 节点本体严禁加定位：原生 static，inline 里的 top/left 是应用写的画布坐标
+  // 冗余，一激活（relative/absolute）节点就飞——回归护栏
+  const nodeBlock = getBlock(styles, '.jvs-rule-node.ef-node-container:not(.jtk-droppable)');
+  assert.notEqual(nodeBlock, null, '缺少新版节点基础规则块');
+  assert.doesNotMatch(
+    nodeBlock,
+    /position:\s*(relative|absolute)/,
+    '节点本体不得加定位，会激活 inline 冗余坐标导致节点错位'
+  );
+});
+
+test('新版只把静止灰线虚线改实线（状态线不碰、粗细颜色原生）、端点显形为白底圆点', () => {
+  const hooks = loadScriptHooks();
+  const styles = hooks.getStyles();
+
+  // 线：只命中无状态类的静止灰线；success 绿虚线动画（日志回放）等状态线一律排除
+  // （应用加新状态类须回来补 :not），线色线宽都由应用控制，禁止覆盖
+  const linkSelector =
+    '.butterfly-svg path.butterflies-link:not(.active, .success, .error, .abnormal, .async)';
+  const linkBlock = getBlock(styles, linkSelector);
+  assert.notEqual(linkBlock, null, '缺少连线规则块（须带状态类 :not 排除）');
+  assert.doesNotMatch(linkBlock, /stroke:/, '连线块不得覆盖 stroke，会压掉应用变色');
+  assert.doesNotMatch(
+    linkBlock,
+    /stroke-width:/,
+    '连线块不得覆盖 stroke-width，粗细要保持原生'
+  );
+  assertDeclaration(
+    styles,
+    linkSelector,
+    'stroke-dasharray: none !important'
+  );
+
+  // 端点：原生 8px 透明 div 显形为白底圆点，空连线位也可拖线
+  assertDeclaration(
+    styles,
+    '.butterfly-wrapper .butterflie-circle-endpoint',
+    'border-radius: 50% !important'
+  );
+  assertDeclaration(
+    styles,
+    '.butterfly-wrapper .butterflie-circle-endpoint',
+    'background: #fff !important'
+  );
+  assertDeclaration(
+    styles,
+    '.butterfly-wrapper .butterflie-circle-endpoint',
+    'border: 1px solid #909399 !important'
+  );
+});
+
+test('新版节点隐藏左侧图标，文字左移占满，规则隔离到新版', () => {
+  const hooks = loadScriptHooks();
+  const styles = hooks.getStyles();
+
+  // 图标类名带 flow-node-drag 但实测非拖拽把手（拖拽走整个节点），可安全隐藏
+  assertDeclaration(
+    styles,
+    '.jvs-rule-node.ef-node-container:not(.jtk-droppable) .ef-node-left-ico',
+    'display: none !important'
+  );
+});
+
+test('右侧执行结果图标槽空置时收起，有图标恢复占位', () => {
+  const hooks = loadScriptHooks();
+  const styles = hooks.getStyles();
+
+  // 有结果时槽内 reference 图标挂 el-node-state-success/error 字体图标类，
+  // 空置时没有（图标是字体不是 svg、:empty 也不可用），用 :has 判空；
+  // 文字层 width:100% 自动占满，有执行结果图标时恢复原生占位不压字
+  assertDeclaration(
+    styles,
+    '.jvs-rule-node.ef-node-container:not(.jtk-droppable) .ef-node-right-ico:not(:has([class*="el-node-state"]))',
+    'display: none !important'
+  );
+});
+
+test('设置栏「结构定义」按钮与「测试」拉开间距', () => {
+  const hooks = loadScriptHooks();
+  const styles = hooks.getStyles();
+
+  // 应用 inline 写死 margin-left: 10px，须 !important 才能盖过；纯间距微调。
+  // 「测试」按钮外包两层 span、在自己父级里也是 last-of-type，> 限定 content 直接子级；
+  // 它还在自己盒内 margin-left 10px 溢出右侧，会吃掉间距，22px 才比左缝（10px）宽
+  assertDeclaration(
+    styles,
+    '.el-form-item.form-btn-bar .el-form-item__content > button.el-button:last-of-type',
+    'margin-left: 22px !important'
+  );
+});
+
+test('新版节点统一精修：中性灰实线描边、圆角、投影，隔离到新版', () => {
+  const hooks = loadScriptHooks();
+  const styles = hooks.getStyles();
+
+  // 原生是 2px 白色占位边框（看不见），换成 1px 可见的中性灰实线；常驻实线
+  // 顺带压掉应用原生 hover 的虚线边框
+  assertDeclaration(
+    styles,
+    '.jvs-rule-node.ef-node-container:not(.jtk-droppable)',
+    'border: 1px solid #c0c4cc !important'
+  );
+  assertDeclaration(
+    styles,
+    '.jvs-rule-node.ef-node-container:not(.jtk-droppable)',
+    'border-radius: 8px !important'
+  );
+  assertDeclaration(
+    styles,
+    '.jvs-rule-node.ef-node-container:not(.jtk-droppable)',
+    'box-shadow: 0 1px 3px rgba(31, 45, 61, 0.12) !important'
+  );
+});
+
+test('ze-typed 节点换同色深一阶描边，隔离到新版', () => {
+  const hooks = loadScriptHooks();
+  const styles = hooks.getStyles();
+
+  // 描边色从 paint 端写入的 --ze-type-color 派生（原色板不动，只换轮廓颜色），
+  // 其余精修（实线/圆角/投影）走上方基础块
+  assertDeclaration(
+    styles,
+    '.jvs-rule-node.ef-node-container.ze-typed:not(.jtk-droppable)',
+    'border-color: color-mix(in srgb, var(--ze-type-color), #303133 30%) !important'
+  );
+});
+
 test('应用中心星标：悬停浮现空心星，悬停星标变金放大，已标记实心金星常驻', () => {
   const hooks = loadScriptHooks();
   const styles = hooks.getStyles();

@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.30
-// @description 2026-08-29 应用中心新增侧边栏展开/收起开关（仿应用内样式，状态记忆）；新版应用中心不改 hash、地址栏统一替换成 #/wel/index
+// @version     0.7.31
+// @description 2026-08-29 逻辑设计新版节点框高不变，名称折行完整显示不省略（文字溢出画到框外），命中类型节点加同色深一阶描边、圆角与轻投影；静止灰线虚线改实线（状态线不碰）、空结果图标槽收起、设置栏按钮拉开间距
 // ==/UserScript==
 
 (function () {
@@ -1171,6 +1171,8 @@
         if (typeToColor.types.some((t) => text.includes(t))) {
           component.style.backgroundColor = typeToColor.color;
           component.style.borderColor = typeToColor.color;
+          component.classList.add('ze-typed');
+          component.style.setProperty('--ze-type-color', typeToColor.color);
           break;
         }
       }
@@ -2325,6 +2327,56 @@ const JVS_STYLES = `
     }
   }
 
+  /* 新版 JVS，逻辑设计，框与 .top 维持原生固定高（连线坐标走原生逻辑），只放开文本层溢出——
+     折行名称完整画到框外，不占布局、不推锚点；:not 隔离旧版节点。
+     节点本体严禁加定位：原生 static，inline 里的 top/left 是应用写的画布坐标冗余，一激活就飞 */
+  .jvs-rule-node.ef-node-container:not(.jtk-droppable) .ef-node-text {
+    overflow: visible !important;
+  }
+
+  /* 新版 JVS，逻辑设计，隐藏节点左侧图标（类名带 flow-node-drag 但实测非拖拽把手，
+     拖拽走整个节点），文字左移占满 */
+  .jvs-rule-node.ef-node-container:not(.jtk-droppable) .ef-node-left-ico {
+    display: none !important;
+  }
+
+  /* 新版 JVS，逻辑设计，右侧执行结果图标槽空置时收起（有结果时应用给槽内 reference
+     图标挂 el-node-state-success/el-node-state-error 字体图标类，空置时没有——
+     图标是字体不是 svg，:empty 也不可用）；文字层 width:100% 自动占满，
+     有执行结果图标时恢复原生占位不压字 */
+  .jvs-rule-node.ef-node-container:not(.jtk-droppable) .ef-node-right-ico:not(:has([class*="el-node-state"])) {
+    display: none !important;
+  }
+
+  /* 新版 JVS，逻辑设计，所有节点统一精修：可见的中性灰实线描边（原生是 2px 白色占位边框）、
+     8px 圆角、轻投影；常驻实线顺带压掉应用原生 hover 的虚线边框 */
+  .jvs-rule-node.ef-node-container:not(.jtk-droppable) {
+    border: 1px solid #c0c4cc !important;
+    border-radius: 8px !important;
+    box-shadow: 0 1px 3px rgba(31, 45, 61, 0.12) !important;
+  }
+
+  /* 新版 JVS，逻辑设计，命中类型的节点（paint 端加 ze-typed 类与颜色变量）换同色深一阶描边 */
+  .jvs-rule-node.ef-node-container.ze-typed:not(.jtk-droppable) {
+    border-color: color-mix(in srgb, var(--ze-type-color), #303133 30%) !important;
+  }
+
+  /* 新版 JVS，逻辑设计，只把静止灰线的虚线改实线（粗细、颜色都保持原生）、端点显形为
+     白底圆点（原生透明不可见）；:not 排除的是应用状态类词表快照（success 绿虚线是日志
+     回放动画，error/async/abnormal/active 同为状态线）——应用加新状态类须回来补，
+     否则新状态线会被压平成实线；不写 stroke/stroke-width——线色线宽都由应用控制；
+     Butterfly 特有类名，旧版 jsPlumber 天然不冲突 */
+  .butterfly-svg path.butterflies-link:not(.active, .success, .error, .abnormal, .async) {
+    stroke-dasharray: none !important;
+  }
+
+  .butterfly-wrapper .butterflie-circle-endpoint {
+    border-radius: 50% !important;
+    background: #fff !important;
+    border: 1px solid #909399 !important;
+    box-sizing: border-box !important;
+  }
+
   /* 逻辑设计，调整页面设置和已使用逻辑的宽度 */
   .content-box:has(.page-setting),
   .content-box:has(.used-logic),
@@ -2349,6 +2401,13 @@ const JVS_STYLES = `
   #app > div > div > div.design-header-box > div.header-left > span > svg {
     width: 22px !important;
     height: 22px !important;
+  }
+
+  /* 逻辑设计，设置栏「结构定义」按钮与「测试」拉开间距（应用 inline 写死 10px，挨得太近，
+     须 !important 才能盖过 inline）；「测试」按钮外包两层 span 且在自己盒内 margin-left 10px、
+     溢出 span 盒子右侧，会吃掉本规则的间距——实测需 22px 才比左缝（10px）宽 */
+  .el-form-item.form-btn-bar .el-form-item__content > button.el-button:last-of-type {
+    margin-left: 22px !important;
   }
 
   /* 自己加的组件 */
