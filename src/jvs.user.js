@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.31
-// @description 2026-08-29 逻辑设计新版节点框高不变，名称折行完整显示不省略（文字溢出画到框外），命中类型节点加同色深一阶描边、圆角与轻投影；静止灰线虚线改实线（状态线不碰）、空结果图标槽收起、设置栏按钮拉开间距
+// @version     0.7.32
+// @description 2026-08-29 逻辑设计入边箭头加大加深为 14×12 深灰三角（#909399）、尖点钉在节点顶边（选择器隔离旧版）；正式站 IP 前缀更新为 gdae.
 // ==/UserScript==
 
 (function () {
@@ -29,7 +29,7 @@
     ENV_LIST: [
       { ip: 'dev.', env: '开发站' },
       { ip: 'test.', env: '测试站' },
-      { ip: '47.107.', env: '正式站' },
+      { ip: 'gdae.', env: '正式站' },
     ],
   };
 
@@ -2379,6 +2379,17 @@ const JVS_STYLES = `
     background: #fff !important;
     border: 1px solid #909399 !important;
     box-sizing: border-box !important;
+  }
+
+  /* 新版 JVS，逻辑设计，入边箭头加大加深（原生 8宽×8高浅灰实心小三角不起眼）；
+     left 补偿值 = 加大后左右 border 的一半，保持水平居中；尖角钉在节点顶边
+     （尖角 = 盒顶 + 三角高，top 取负的三角高；原生扎进节点 4px 的位置被用户
+     否决）；:not(.jtk-droppable) 隔离旧版（旧版节点同带这些类，见上方节点规则） */
+  .jvs-rule-node.ef-node-container:not(.jtk-droppable) .top-endpoint {
+    top: -12px !important;
+    left: calc(50% - 7px) !important;
+    border-width: 12px 7px 4px !important;
+    border-top-color: #909399 !important;
   }
 
   /* 逻辑设计，调整页面设置和已使用逻辑的宽度 */

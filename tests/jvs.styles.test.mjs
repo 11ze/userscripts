@@ -205,6 +205,27 @@ test('新版只把静止灰线虚线改实线（状态线不碰、粗细颜色�
     '.butterfly-wrapper .butterflie-circle-endpoint',
     'border: 1px solid #909399 !important'
   );
+
+  // 入边箭头：原生 8×8 浅灰小三角加大加深为 14×12、尖角钉节点顶边（几何推导
+  // 与用户否决记录见源码注释）；:not(.jtk-droppable) 隔离旧版
+  const arrowSelector =
+    '.jvs-rule-node.ef-node-container:not(.jtk-droppable) .top-endpoint';
+  assertDeclaration(styles, arrowSelector, 'top: -12px !important');
+  assertDeclaration(
+    styles,
+    arrowSelector,
+    'left: calc(50% - 7px) !important'
+  );
+  assertDeclaration(
+    styles,
+    arrowSelector,
+    'border-width: 12px 7px 4px !important'
+  );
+  assertDeclaration(
+    styles,
+    arrowSelector,
+    'border-top-color: #909399 !important'
+  );
 });
 
 test('新版节点隐藏左侧图标，文字左移占满，规则隔离到新版', () => {
