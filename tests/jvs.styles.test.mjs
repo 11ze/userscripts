@@ -84,7 +84,7 @@ function assertDeclaration(styles, selector, declaration) {
   assert.notEqual(block, null, `缺少规则块：${selector}`);
   assert.match(
     block,
-    new RegExp(declaration.replace(/([{}:])/g, '\\$1').replace(/\s+/g, '\\s+')),
+    new RegExp(declaration.replace(/([{}:()])/g, '\\$1').replace(/\s+/g, '\\s+')),
     `${selector} 块内缺少声明：${declaration}`
   );
 }
@@ -142,4 +142,39 @@ test('旧版节点展开名称的规则不波及既有「展开组件名称」�
     '.canvas-tool-item',
     'white-space: normal !important'
   );
+});
+
+test('应用中心星标：悬停浮现空心星，已标记实心金星常驻', () => {
+  const hooks = loadScriptHooks();
+  const styles = hooks.getStyles();
+
+  // 边框与定位由 :has() 驱动——只有注入了星标的卡片命中，视觉全归 CSS
+  assertDeclaration(
+    styles,
+    '.application:has(.ze-star-btn)',
+    'position: relative !important'
+  );
+  assertDeclaration(
+    styles,
+    '.application:has(.ze-star-btn)',
+    'border: 1.5px solid transparent !important'
+  );
+  assertDeclaration(
+    styles,
+    '.application:has(.ze-star-btn.ze-marked)',
+    'border-color: #FAAD14 !important'
+  );
+
+  // 星标按钮钉在卡片右上角，平时隐藏，200ms 过渡浮现（缓动曲线是调参，不锁）
+  assertDeclaration(styles, '.ze-star-btn', 'position: absolute');
+  assertDeclaration(styles, '.ze-star-btn', 'opacity: 0');
+  assertDeclaration(styles, '.ze-star-btn', 'transition: opacity 0.2s');
+
+  // 悬停卡片时星标浮现
+  assertDeclaration(styles, '.application:hover .ze-star-btn', 'opacity: 1');
+
+  // 已标记卡片星标常驻，实心星标金（CSS 覆盖 SVG 的 fill="none" 属性，
+  // fill 与 stroke 都走 currentColor 跟随按钮 color）
+  assertDeclaration(styles, '.ze-star-btn.ze-marked', 'opacity: 1');
+  assertDeclaration(styles, '.ze-star-btn.ze-marked svg', 'fill: currentColor');
 });

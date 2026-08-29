@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.25
-// @description 2026-08-17 修复旧版 JVS 逻辑设计展开组件名称后折行文字被裁：行高压至 20px 在原文字框内显示两行，节点框不变
+// @version     0.7.26
+// @description 2026-08-29 应用中心星标重设计：悬停浮现星标按钮、金色边框实心星，点击现读存储避免多标签页互相覆盖
 // ==/UserScript==
 
 (function () {
@@ -424,6 +424,7 @@
       saveLog: saveLog,
       getLogs: getLogs,
       getTabType: getTabType,
+      highlightApps: highlightApps,
       getStyles: () => JVS_STYLES,
     };
   }
@@ -1673,29 +1674,31 @@
    * 高亮应用中心的应用
    */
   function highlightApps() {
-    const labelClass = 'ze-highlight-label';
-    const appList = jvsStorage.get(STORAGE_KEYS.HIGHLIGHT_APPS, []);
+    const starClass = 'ze-star-btn';
+    const markedClass = 'ze-marked';
+
+    const STAR_SVG =
+      '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>';
 
     function getContentSelector() {
       return 'div > div > div > p';
     }
 
-    function handle(nodes, appList) {
-      // 如果在 appList 中，就高亮
+    // 每次现读存储：点击闭包不持有列表快照，多标签页同开不会互相覆盖
+    function getMarkedApps() {
+      return jvsStorage.get(STORAGE_KEYS.HIGHLIGHT_APPS, []);
+    }
+
+    function handle(nodes) {
+      const markedApps = getMarkedApps();
+      // 如果在标记列表中，就点亮星标
       nodes.forEach((n) => {
-        const text = getNodeText(n);
-        const label = n.querySelector(`.${labelClass}`);
-        if (!label) {
+        const star = n.querySelector(`.${starClass}`);
+        if (!star) {
           return;
         }
 
-        if (appList.includes(text)) {
-          n.style.border = '2px solid blue';
-          label.style.backgroundColor = 'white';
-        } else {
-          n.style.border = '2px solid transparent';
-          label.style.backgroundColor = 'white';
-        }
+        star.classList.toggle(markedClass, markedApps.includes(getNodeText(n)));
       });
     }
 
@@ -1705,52 +1708,44 @@
 
     function handleClickNode(node) {
       const text = getNodeText(node);
+      const markedApps = getMarkedApps();
 
-      if (appList.includes(text)) {
-        appList.splice(appList.indexOf(text), 1);
+      if (markedApps.includes(text)) {
+        markedApps.splice(markedApps.indexOf(text), 1);
       } else {
-        appList.push(text);
+        markedApps.push(text);
       }
-      jvsStorage.set(STORAGE_KEYS.HIGHLIGHT_APPS, appList);
+      jvsStorage.set(STORAGE_KEYS.HIGHLIGHT_APPS, markedApps);
     }
 
     function main() {
       const containerSelector = '.application';
 
-      // 找到相关容器，不存在就结束
-      const application = document.querySelector(containerSelector);
-      if (!application) return;
-
       // 找到相关数据项，不存在就结束
       const nodes = [...document.querySelectorAll(containerSelector)];
-      if (!nodes) return;
+      if (!nodes.length) return;
 
-      // 设置点击事件
+      // 注入星标按钮：平时隐藏，悬停卡片浮现，点击切换标记
       nodes.forEach((n) => {
-        if (n.querySelector(`.${labelClass}`)) {
+        if (n.querySelector(`.${starClass}`)) {
           return;
         }
 
-        // 加一个按钮，点击后高亮
-        const button = createButton({
-          className: labelClass,
-          onClick: (event) => {
-            event.stopPropagation();
-            handleClickNode(n);
-          },
+        const star = document.createElement('button');
+        star.className = starClass;
+        star.title = '星标应用';
+        star.innerHTML = STAR_SVG;
+        star.addEventListener('click', (event) => {
+          event.stopPropagation();
+          handleClickNode(n);
+          // 立即刷新当前卡片，不等 400ms 轮询
+          handle([n]);
         });
-        button.innerHTML = '&nbsp;&nbsp;&nbsp;&nbsp;';
-        button.style.borderColor = '#c8f0c7';
-        button.style.borderRadius = '5px';
-        button.style.borderWidth = '1px';
-        button.style.borderStyle = 'solid';
-        button.style.marginLeft = '0';
-
-        n.querySelector('div > div > div').appendChild(button);
+        n.appendChild(star);
       });
 
       // 渲染
-      handle(nodes, appList);
+      handle(nodes);
     }
 
     main();
@@ -2355,6 +2350,48 @@ const JVS_STYLES = `
   /* 应用中心， 移除每个分类末尾的透明方块（影响点击） */
   #app > div > div > div.jvs-layout.jvs-layout-tempOpen > div.template-content-box > div > div > div > div > div > div > img {
     display: none !important;
+  }
+
+  /* 应用中心星标：平时隐藏，悬停卡片浮现，已标记实心金星常驻；
+     边框与定位由 :has() 驱动，只有注入了星标的卡片命中 */
+  .application:has(.ze-star-btn) {
+    position: relative !important;
+    border: 1.5px solid transparent !important;
+  }
+
+  /* 特异性高于透明占位规则，只覆盖颜色，宽度样式继承上一条 */
+  .application:has(.ze-star-btn.ze-marked) {
+    border-color: #FAAD14 !important;
+  }
+
+  .ze-star-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    line-height: 0;
+    cursor: pointer;
+    opacity: 0;
+    color: #C0C4CC;
+    transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .application:hover .ze-star-btn {
+    opacity: 1;
+  }
+
+  .ze-star-btn.ze-marked {
+    opacity: 1;
+    color: #FAAD14;
+  }
+
+  /* fill 覆盖 svg 属性 fill="none" 实心化；fill 与 stroke 都走 currentColor 跟随 color */
+  .ze-star-btn.ze-marked svg {
+    fill: currentColor;
   }
 
 `;
