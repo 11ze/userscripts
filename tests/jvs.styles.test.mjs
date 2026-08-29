@@ -220,6 +220,95 @@ test('只看星标开关 pill：未激活灰描边，激活金色由 body class 
   assertDeclaration(styles, '.filter-bar .ze-star-filter-btn', 'margin: 0');
 });
 
+test('全局按钮：仿应用内 plain 蓝，去重阴影，hover 只动底色与边框', () => {
+  const hooks = loadScriptHooks();
+  const styles = hooks.getStyles();
+
+  // 共享块两组选择器共用，锚在末选择器上——helper 按字面匹配「选择器 {」，
+  // 首行 .button-11ze 因组内逗号结尾匹配不上（返回 null 而非误命中）
+  assertDeclaration(styles, '.drag-handle-11ze', 'color: #409EFF !important');
+  assertDeclaration(styles, '.drag-handle-11ze', 'border: 1px solid #B3D8FF !important');
+  assert.doesNotMatch(
+    getBlock(styles, '.drag-handle-11ze'),
+    /box-shadow/,
+    '按钮不带常驻阴影'
+  );
+  assert.doesNotMatch(
+    getBlock(styles, '.drag-handle-11ze'),
+    /transition:\s*all/,
+    '不得用 transition: all'
+  );
+  assert.doesNotMatch(
+    getBlock(styles, '.drag-handle-11ze'),
+    /rgba\(64, 158, 255/,
+    '旧半透明蓝边残留'
+  );
+
+  // hover 只动底色与边框，不再放大阴影
+  assertDeclaration(
+    styles,
+    '.drag-handle-11ze:hover',
+    'background-color: #ECF5FF !important'
+  );
+  assertDeclaration(
+    styles,
+    '.drag-handle-11ze:hover',
+    'border-color: #409EFF !important'
+  );
+  assert.doesNotMatch(
+    getBlock(styles, '.drag-handle-11ze:hover'),
+    /box-shadow/,
+    'hover 不加阴影'
+  );
+});
+
+test('日志按钮整钮随模式换色：测试=绿 plain、正式=红 plain，色板取自 Element', () => {
+  const hooks = loadScriptHooks();
+  const styles = hooks.getStyles();
+
+  assertDeclaration(
+    styles,
+    '.button-11ze[data-mode="测试模式"]',
+    'color: #67C23A !important'
+  );
+  assertDeclaration(
+    styles,
+    '.button-11ze[data-mode="测试模式"]',
+    'border-color: #B3E19D !important'
+  );
+  assertDeclaration(
+    styles,
+    '.button-11ze[data-mode="测试模式"]:hover',
+    'background-color: #F0F9EB !important'
+  );
+  assertDeclaration(
+    styles,
+    '.button-11ze[data-mode="测试模式"]:hover',
+    'border-color: #67C23A !important'
+  );
+
+  assertDeclaration(
+    styles,
+    '.button-11ze[data-mode="正式模式"]',
+    'color: #F56C6C !important'
+  );
+  assertDeclaration(
+    styles,
+    '.button-11ze[data-mode="正式模式"]',
+    'border-color: #FAB6B6 !important'
+  );
+  assertDeclaration(
+    styles,
+    '.button-11ze[data-mode="正式模式"]:hover',
+    'background-color: #FEF0F0 !important'
+  );
+  assertDeclaration(
+    styles,
+    '.button-11ze[data-mode="正式模式"]:hover',
+    'border-color: #F56C6C !important'
+  );
+});
+
 test('应用中心侧边栏收起：body class 驱动分类列隐藏与卡片列拉满，开关按钮骑边定位', () => {
   const hooks = loadScriptHooks();
   const styles = hooks.getStyles();

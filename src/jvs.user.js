@@ -430,6 +430,7 @@
       filterStarredApps: filterStarredApps,
       toggleAppCenterSidebar: toggleAppCenterSidebar,
       syncAppCenterUrl: syncAppCenterUrl,
+      getLogButtonName: getLogButtonName,
       getStyles: () => JVS_STYLES,
     };
   }
@@ -765,8 +766,16 @@
   }
 
   /**
-   * 更新日志按钮
+   * 日志按钮文案：模式前缀与「日志」同字号同色（整钮颜色由
+   * JVS_STYLES 按 data-mode 换色），间距替代全角「｜」
+   * @param {string} mode 当前模式名，空串表示未识别到模式
    */
+  function getLogButtonName(mode) {
+    return mode
+      ? `<span style="margin-right: 6px">${mode}</span>日志`
+      : '日志';
+  }
+
   function updateLogButton() {
     const mode = getModeFromHistory() || getMode();
     const existContainer = document.getElementById('ze-jvs-log-container');
@@ -778,9 +787,7 @@
       existContainer.remove();
     }
 
-    const buttonName = mode
-      ? `<span style="color: ${getModeColor(mode)}">${mode}</span>｜日志`
-      : '日志';
+    const buttonName = getLogButtonName(mode);
 
     const button = createButton({
       text: buttonName,
@@ -2421,25 +2428,46 @@ const JVS_STYLES = `
     cursor: pointer;
   }
 
-  /* 日志栏共享样式 */
+  /* 日志栏共享样式：仿应用内 Element plain 蓝 */
   .button-11ze,
   .drag-handle-11ze {
     background-color: white !important;
-    border-color: #409EFF !important;
-    color: black !important;
-    border: 1px solid rgba(64, 158, 255, 0.5) !important;
+    color: #409EFF !important;
+    border: 1px solid #B3D8FF !important;
     border-radius: 8px !important;
     padding: 6px 10px !important;
     margin: 2px 4px !important;
     font-size: 13px !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
-    transition: all 0.2s ease !important;
+    transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+      border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
   }
 
   .button-11ze:hover,
   .drag-handle-11ze:hover {
-    background-color: #E8F4FF !important;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15) !important;
+    background-color: #ECF5FF !important;
+    border-color: #409EFF !important;
+  }
+
+  /* 日志按钮整钮随模式换色：色板取自 Element plain 绿/红，开发模式用默认蓝。
+     日志表格行色仍走 getModeColor 的关键字色板，两处并存待统一 */
+  .button-11ze[data-mode="测试模式"] {
+    color: #67C23A !important;
+    border-color: #B3E19D !important;
+  }
+
+  .button-11ze[data-mode="测试模式"]:hover {
+    background-color: #F0F9EB !important;
+    border-color: #67C23A !important;
+  }
+
+  .button-11ze[data-mode="正式模式"] {
+    color: #F56C6C !important;
+    border-color: #FAB6B6 !important;
+  }
+
+  .button-11ze[data-mode="正式模式"]:hover {
+    background-color: #FEF0F0 !important;
+    border-color: #F56C6C !important;
   }
 
   .button-11ze:hover {

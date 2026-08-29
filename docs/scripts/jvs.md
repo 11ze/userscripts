@@ -12,6 +12,7 @@
 - **只看星标过滤**：`filterStarredApps()` 注入「★ 只看星标」pill 开关（`.ze-star-filter-btn`）与空态提示元素——新版钉 `.app-page` 顶部，旧版按钮插进 `.filter-bar` 筛选行（全部分类 + 搜索框）搜索框右侧、对齐与间距交给该行 flex 的 `align-items/gap`（CSS 清掉钉顶 margin）；按钮与提示分别判重注入——旧版筛选行是静态标记挂载即渲染，卡片列表由异步数据 v-for 晚于筛选行出现，提示须等第一张卡出现后插进其父级（卡片流开头），卡片没出来就等下一个 tick（往容器 prepend 会把提示顶到筛选行上方，曾致此 bug）；JS 只产出 `body.ze-star-filter-on` 这一个事实——非星标卡片隐藏、无星标部门组整组隐藏（连标题，仅新版有分组）、空态提示全由 CSS `:has()` 驱动，按钮激活金色也由 body class 派生（无第二事实源）；开关状态存 localStorage `STARRED_FILTER`（布尔，现读同步，多标签页自动一致），点击立即生效不等轮询；离开应用中心（`.app-page` 与旧版 `.jvs-layout-tempOpen > .template-content-box` 都查不到）时清理 body class，开关按钮随 SPA DOM 销毁
 - **应用中心地址栏同步**：新版应用中心不写 hash、地址栏停留在进站前路由，`syncAppCenterUrl()` 在 `.app-page` 显示且 hash 非 `#/wel/index` 时用 `history.replaceState` 统一替换——不触发 hashchange/vue-router、页面不动，刷新后 `enterAppCenter()` 的 `wel/index` 自动点击得以衔接；轮询幂等（条件不满足即 return），点进具体应用后 `.app-page` 随路由销毁、不再误覆盖；旧版容器不是 `.app-page`，天然不处理
 - **应用中心侧边栏收起**：`toggleAppCenterSidebar()` 往 `.sidebar-col`（分类侧边栏，办公室/教务处/…）父级容器注入 «/» 浮动开关（`.ze-side-toggle-btn`，fixed 白色圆角方块，仿应用内样式）——展开态 left 由 JS 按 `sidebar.getBoundingClientRect().right - 16` 每 tick 校准（骑在侧边栏右缘、距底 48px），收起态侧边栏 `display:none` 后 rect 归零不可读，left 直接取 6px 贴左缘；与 filterStarredApps 同一范式：JS 只产出 `body.ze-appcenter-side-collapsed`，分类列与其右侧空白间隔列隐藏、卡片区（`.sidebar-col + .el-col + .el-col`）拉满、`.app-page` 归位（站点自带 `margin-left: -128px` 跨列偏移，侧边栏没了会推出屏幕外）全由 CSS 驱动；状态存 localStorage `APPCENTER_SIDEBAR`（刷新保持），按钮随宿主容器在 SPA 路由切换时销毁，离开时清 body class；选择器通用化——Formal mode 等同带 `.sidebar-col` 的列表页自动生效，旧版（jyy-dev）是否有此类名未实测
+- **日志按钮模式换色**：日志按钮与拖拽把手共享仿应用内 Element plain 蓝样式（白底、蓝字 `#409EFF`、边 `#B3D8FF`，hover 只动底色与边框，无常驻阴影）；带模式时整钮按 `data-mode` 纯 CSS 换色（测试=绿 plain、正式=红 plain，开发/无模式用默认蓝），文案由 `getLogButtonName()` 产出——模式前缀与「日志」同字号同色、6px 间距替代全角「｜」（前缀缩字号、黑色前缀两个方案已被用户否决，勿改回）；模式变化走容器 remove+重建（`updateLogButtonOperation` 键对比），不播 transition；日志表格行色仍走 `getModeColor` 关键字色板，与按钮 CSS 色板并存待统一
 
 ## 柔和色彩方案
 
@@ -25,4 +26,4 @@ const colorScheme = {
 };
 ```
 
-测试：`node --test tests/jvs.runner.test.mjs tests/jvs.storage.test.mjs tests/jvs.paint.test.mjs tests/jvs.tabtype.test.mjs tests/jvs.styles.test.mjs tests/jvs.highlight.test.mjs tests/jvs.appcenter-url.test.mjs tests/jvs.sidebar-toggle.test.mjs` 覆盖调度器契约、存储域规则（过期剪切、去重、目录幂等写入）、组件上色机制、设计器类型判定、旧版节点展开名称样式、星标与只看星标过滤的存储联动、应用中心地址栏同步的新旧版边界、应用中心侧边栏收起的存储联动。
+测试：`node --test tests/jvs.runner.test.mjs tests/jvs.storage.test.mjs tests/jvs.paint.test.mjs tests/jvs.tabtype.test.mjs tests/jvs.styles.test.mjs tests/jvs.log-button.test.mjs tests/jvs.highlight.test.mjs tests/jvs.appcenter-url.test.mjs tests/jvs.sidebar-toggle.test.mjs` 覆盖调度器契约、存储域规则（过期剪切、去重、目录幂等写入）、组件上色机制、设计器类型判定、旧版节点展开名称样式、星标与只看星标过滤的存储联动、应用中心地址栏同步的新旧版边界、应用中心侧边栏收起的存储联动、全局按钮 plain 蓝与模式换色色板、日志按钮文案契约。
