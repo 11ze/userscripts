@@ -178,3 +178,44 @@ test('应用中心星标：悬停浮现空心星，已标记实心金星常驻',
   assertDeclaration(styles, '.ze-star-btn.ze-marked', 'opacity: 1');
   assertDeclaration(styles, '.ze-star-btn.ze-marked svg', 'fill: currentColor');
 });
+
+test('只看星标过滤：body class 驱动卡片与空组隐藏，纯 CSS 无 JS 参与', () => {
+  const hooks = loadScriptHooks();
+  const styles = hooks.getStyles();
+
+  // 非星标卡片隐藏、无星标部门组整组隐藏（连标题一起，不留孤零零的组名）。
+  // 卡片类名 .application 新旧版应用中心一致；.wrapper-content 仅新版有，旧版无分组自然不命中
+  assertDeclaration(
+    styles,
+    'body.ze-star-filter-on :is(.application, .wrapper-content):not(:has(.ze-star-btn.ze-marked))',
+    'display: none !important'
+  );
+
+  // 空态：开了过滤但一个星标都没有时给提示行，让用户知道过滤是开着的。
+  // 新版容器 .app-page，旧版 .template-content-box
+  assertDeclaration(
+    styles,
+    'body.ze-star-filter-on :is(.app-page, .template-content-box):not(:has(.ze-star-btn.ze-marked)) .ze-star-empty-tip',
+    'display: block'
+  );
+});
+
+test('只看星标开关 pill：未激活灰描边，激活金色由 body class 派生', () => {
+  const hooks = loadScriptHooks();
+  const styles = hooks.getStyles();
+
+  assertDeclaration(styles, '.ze-star-filter-btn', 'border: 1px solid #C0C4CC');
+  assertDeclaration(
+    styles,
+    'body.ze-star-filter-on .ze-star-filter-btn',
+    'border-color: #FAAD14'
+  );
+  assertDeclaration(
+    styles,
+    'body.ze-star-filter-on .ze-star-filter-btn',
+    'color: #FAAD14'
+  );
+
+  // 旧版筛选行内（搜索框右侧）：对齐与间距交给 flex 的 align-items/gap，清掉钉顶 margin
+  assertDeclaration(styles, '.filter-bar .ze-star-filter-btn', 'margin: 0');
+});

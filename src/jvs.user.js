@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.26
-// @description 2026-08-29 应用中心星标重设计：悬停浮现星标按钮、金色边框实心星，点击现读存储避免多标签页互相覆盖
+// @version     0.7.27
+// @description 2026-08-29 应用中心新增「只看星标」过滤开关：新版钉部门组上方、旧版贴搜索框右侧，开启后只留星标卡片并记忆状态，无星标时给空态提示
 // ==/UserScript==
 
 (function () {
@@ -98,6 +98,7 @@
     APP_MODE_MAP: '__11ze_JVS_APP_MODE_MAP__',
     APP_NAME_MAP: '__11ze_JVS_APP_NAME_MAP__',
     HIGHLIGHT_APPS: '__11ze_HIGHLIGHT_APPS__',
+    STARRED_FILTER: '__11ze_JVS_STARRED_FILTER__',
     REFRESH_PAGE_LAST_TIME: '__11ze_JVS_REFRESH_PAGE_LAST_TIME__',
   };
 
@@ -425,6 +426,7 @@
       getLogs: getLogs,
       getTabType: getTabType,
       highlightApps: highlightApps,
+      filterStarredApps: filterStarredApps,
       getStyles: () => JVS_STYLES,
     };
   }
@@ -492,6 +494,7 @@
     addButtonToClearAllFields,
     addButtonToOpenNewFormOrListDesign,
     highlightApps,
+    filterStarredApps,
     expandFormDesignAllComponentSettings,
     autoExpandComponentLibraryCategory,
     applicationSetClick,
@@ -1752,6 +1755,70 @@
   }
 
   /**
+   * 应用中心「只看星标」过滤开关
+   * JS 只产出 body class 这一个事实，卡片/空组隐藏与空态提示全由 CSS :has() 驱动；
+   * 状态现读存储（多标签页同开自动一致），离开应用中心时清理 body class。
+   * 新版应用中心容器是 .app-page，旧版是 .jvs-layout-tempOpen 下的 .template-content-box，
+   * 按钮优先注入旧版筛选行（.filter-bar）搜索框右侧，无筛选行才钉容器顶部
+   */
+  function filterStarredApps() {
+    const btnClass = 'ze-star-filter-btn';
+    const bodyClass = 'ze-star-filter-on';
+
+    function isFilterOn() {
+      return jvsStorage.get(STORAGE_KEYS.STARRED_FILTER, false);
+    }
+
+    function syncFilterState() {
+      const on = isFilterOn();
+      document.body.classList.toggle(bodyClass, on);
+      const btn = document.querySelector('.' + btnClass);
+      if (btn) {
+        btn.setAttribute('aria-pressed', on);
+      }
+    }
+
+    const appPage =
+      document.querySelector('.app-page') ??
+      document.querySelector('.jvs-layout-tempOpen > .template-content-box');
+    if (!appPage) {
+      // 开关按钮是页面容器子节点，随 SPA 路由切换销毁；body class 要手动清
+      document.body.classList.remove(bodyClass);
+      return;
+    }
+
+    if (!document.querySelector('.' + btnClass)) {
+      const tip = document.createElement('div');
+      tip.className = 'ze-star-empty-tip';
+      tip.innerText = '暂无星标应用（悬停应用卡片点亮 ★）';
+
+      const btn = document.createElement('button');
+      btn.className = btnClass;
+      btn.type = 'button';
+      btn.innerText = '★ 只看星标';
+      btn.addEventListener('click', () => {
+        jvsStorage.set(STORAGE_KEYS.STARRED_FILTER, !isFilterOn());
+        syncFilterState();
+      });
+      // 旧版筛选行（全部分类 + 搜索框）存在时按钮贴搜索框右侧。
+      // 空态提示插到卡片流开头（第一张卡的父级）——filter-bar 实际嵌在卡片区容器内部，
+      // prepend 容器会把提示顶到筛选行上方；空态时卡片全隐藏，提示正好落进空白卡片区
+      const filterBar = appPage.querySelector('.filter-bar');
+      if (filterBar) {
+        const firstCard = appPage.querySelector('.application');
+        firstCard
+          ? firstCard.parentElement.prepend(tip)
+          : appPage.prepend(tip);
+        filterBar.append(btn);
+      } else {
+        appPage.prepend(btn, tip);
+      }
+    }
+
+    syncFilterState();
+  }
+
+  /**
    * 窗口聚焦时自动松开一次左 Ctrl 键
    * 场景：按快捷键切换软件时，如果包含 Ctrl，回到逻辑设计时，Ctrl 会一直按住，导致鼠标拖拽变成画框
    * 不用了，控制台有错误：Uncaught TypeError: Cannot read properties of undefined (reading 'removeEventListener')
@@ -2392,6 +2459,51 @@ const JVS_STYLES = `
   /* fill 覆盖 svg 属性 fill="none" 实心化；fill 与 stroke 都走 currentColor 跟随 color */
   .ze-star-btn.ze-marked svg {
     fill: currentColor;
+  }
+
+  /* 只看星标过滤：开关状态挂在 body 上，隐藏非星标卡片与无星标部门组，
+     同样由 :has() 驱动，JS 只产出 body class 这一个事实 */
+  body.ze-star-filter-on :is(.application, .wrapper-content):not(:has(.ze-star-btn.ze-marked)) {
+    display: none !important;
+  }
+
+  /* 开了过滤但一个星标都没有：提示行可见，其余规则把卡片全藏了。
+     新版应用中心容器是 .app-page，旧版是 .template-content-box */
+  body.ze-star-filter-on :is(.app-page, .template-content-box):not(:has(.ze-star-btn.ze-marked)) .ze-star-empty-tip {
+    display: block;
+  }
+
+  /* 只看星标开关 pill：钉在应用列表上方，未激活灰描边、激活金色 */
+  .ze-star-filter-btn {
+    margin: 0 0 12px 12px;
+    padding: 4px 12px;
+    border: 1px solid #C0C4CC;
+    border-radius: 12px;
+    background: transparent;
+    color: #909399;
+    font-size: 12px;
+    line-height: 20px;
+    cursor: pointer;
+    transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  body.ze-star-filter-on .ze-star-filter-btn {
+    border-color: #FAAD14;
+    color: #FAAD14;
+  }
+
+  /* 旧版筛选行内（搜索框右侧）：对齐与间距交给 flex 的 align-items/gap，清掉钉顶 margin */
+  .filter-bar .ze-star-filter-btn {
+    margin: 0;
+  }
+
+  /* 空态提示行：默认隐藏，仅空态规则放行 */
+  .ze-star-empty-tip {
+    display: none;
+    margin: 24px 0;
+    color: #909399;
+    font-size: 14px;
+    text-align: center;
   }
 
 `;
