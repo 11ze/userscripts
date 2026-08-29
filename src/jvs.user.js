@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.32
-// @description 2026-08-29 逻辑设计入边箭头加大加深为 14×12 深灰三角（#909399）、尖点钉在节点顶边（选择器隔离旧版）；正式站 IP 前缀更新为 gdae.
+// @version     0.8.0
+// @description 2026-08-30 逻辑设计画布滚轮平移（wheel 走 canvas.move，小地图原生双向联动，shift+滚轮横移；连线等重建自动带回平移、切换主/循环画布归零不重放；修复快速连续切换后滚动失效——待挂键带实例序号防调度死锁）+ 入边箭头微缩为 12×10；昨日：入边箭头加大加深、正式站 IP 前缀 gdae.
 // ==/UserScript==
 
 (function () {
@@ -431,6 +431,10 @@
       toggleAppCenterSidebar: toggleAppCenterSidebar,
       syncAppCenterUrl: syncAppCenterUrl,
       getLogButtonName: getLogButtonName,
+      setCanvasScroll: setCanvasScroll,
+      get canvasScrollOperation() {
+        return canvasScrollOperation;
+      },
       getStyles: () => JVS_STYLES,
     };
   }
@@ -485,6 +489,37 @@
     apply: updateLogButton,
   };
 
+  /**
+   * 滚轮平移挂载（画布容器就绪且未挂时挂载，由调度器的键对比控制）
+   * 键：mount（需挂）/ restore（同一画布重建且销毁前有非零平移，挂载并带回平移）/
+   * mounted（已挂）——主/循环画布切换、连线等操作会整体重建容器与画布实例，
+   * 闩锁随 DOM 销毁，键回 mount/restore 触发重挂；切换画布身份变了，不重放旧画布平移
+   */
+  const canvasScrollOperation = {
+    name: 'canvasScroll',
+    probe() {
+      const stage = getButterflyCanvas();
+      if (!stage) {
+        return null;
+      }
+      const identity = getCanvasIdentity();
+      if (stage.canvas !== canvasScrollSeen) {
+        if (canvasScrollIdentity !== identity) {
+          // 切换画布：旧画布的平移记录作废
+          canvasScrollOffset = null;
+        }
+        const pending = canvasScrollRestoreOf(stage.canvas) ? 'restore' : 'mount';
+        // 待挂键带递增序号：两次重建之间没有 tick 时（快速连续切换），
+        // 相同的裸 'mount' 会让调度器误判状态没变而永远跳过挂载（监听丢失死锁）
+        return pending + '@' + (++canvasScrollSeq);
+      }
+      canvasScrollIdentity = identity;
+      canvasScrollOffset = stage.canvas.getOffset();
+      return stage.container.getAttribute('data-11ze-canvas-scroll') ? 'mounted' : 'mount';
+    },
+    apply: setCanvasScroll,
+  };
+
   const operations = [
     // 设计器模块
     changeTitle,
@@ -505,7 +540,7 @@
     autoExpandComponentLibraryCategory,
     applicationSetClick,
     showNodeExecTime,
-    // setCanvasScroll,
+    canvasScrollOperation,
     // autoRefreshPage,
     // 日志模块
     updateLogButtonOperation,
@@ -2110,57 +2145,64 @@
     }
   }
 
+  /** 上次轮询见到的画布实例 / 画布身份 / 画布销毁前最后已知平移（连线等操作会让应用整体重建画布，平移归零） */
+  let canvasScrollSeen = null;
+  let canvasScrollIdentity = null;
+  let canvasScrollOffset = null;
+  let canvasScrollSeq = 0;
+
+  /** 读当前画布身份：主/循环画布切换器的高亮项（主画布/循环容器），取不到给空串 */
+  function getCanvasIdentity() {
+    return document.querySelector('.canvas-tool-item.active')?.textContent?.trim() || '';
+  }
+
+  /** 取画布（container 就绪且 canvas 带 move/getOffset 能力），否则 null */
+  function getButterflyCanvas() {
+    const container = document.querySelector('.butterfly-vue-container');
+    const canvas = container?.parentElement?.__vue__?.canvas;
+    if (!canvas || typeof canvas.move !== 'function' || typeof canvas.getOffset !== 'function') {
+      return null;
+    }
+    return { container, canvas };
+  }
+
+  /** 实例已更换且记录了非零平移时返回待恢复的平移，否则 null */
+  function canvasScrollRestoreOf(canvas) {
+    if (canvas === canvasScrollSeen) {
+      return null;
+    }
+    const [offsetX, offsetY] = canvasScrollOffset || [0, 0];
+    return offsetX === 0 && offsetY === 0 ? null : canvasScrollOffset;
+  }
+
   /**
-   * 给逻辑设计的画布添加滚动功能
-   * 跟鼠标左键拖动画布冲突，待修复
+   * 给逻辑设计的画布挂滚轮平移（wheel → Butterfly canvas.move）
+   * 全走画布 API：坐标系服务同步（不与左键拖拽冲突），小地图视口框由站点原生联动；
+   * 主/循环画布切换时容器整体重建，闩锁随 DOM 销毁，由轮询调度自动重挂；
+   * 同一画布内重建（连线等）把销毁前的平移带回来，切换画布时平移记录直接作废
    */
   function setCanvasScroll() {
-    // 1. 获取元素
-    const container = document.querySelector('.butterfly-vue-container');
-    const wrapper = document.querySelector('.butterfly-wrapper');
-    const minimap = document.querySelector('div.butterfly-minimap-container > div:nth-child(2)');
-    const guideCanvasWrapper = document.querySelector('.butterfly-guide-canvas-wrapper');
-
-    if (!container || !wrapper || !minimap || !guideCanvasWrapper) {
+    const { container, canvas } = getButterflyCanvas();
+    const restore = canvasScrollRestoreOf(canvas);
+    if (restore) {
+      canvas.move(restore);
+    }
+    canvasScrollSeen = canvas;
+    if (container.getAttribute('data-11ze-canvas-scroll')) {
       return;
     }
-
-    if (wrapper.getAttribute('data-11ze-canvas-scroll')) {
-      return;
-    }
-
-    // 优化性能，告诉浏览器该元素的 transform 属性将会变化，让浏览器提前做好准备
-    wrapper.style.willChange = 'transform';
-
-    // 2. 初始化位置
-    let pos = {
-      x: parseInt(wrapper.style.left) || 0,
-      y: parseInt(wrapper.style.top) || 0,
-    };
-    let minimapPos = {
-      x: parseInt(wrapper.style.left) || 0,
-      y: parseInt(wrapper.style.top) || 0,
-    };
-
-    // 3. 滚轮事件
-    container.addEventListener('wheel', (e) => {
-      e.preventDefault();
-
-      // 更新位置
-      pos.x -= e.deltaX || 0;
-      pos.y -= e.deltaY || 0;
-      minimapPos.x += e.deltaX * (100 / 11 / 100) || 0;
-      minimapPos.y += e.deltaY * (100 / 11 / 100) || 0;
-
-      wrapper.style.left = `${pos.x}px`;
-      wrapper.style.top = `${pos.y}px`;
-      minimap.style.left = `${minimapPos.x}px`;
-      minimap.style.top = `${minimapPos.y}px`;
-      guideCanvasWrapper.style.left = `${pos.x}px`;
-      guideCanvasWrapper.style.top = `${pos.y}px`;
-    });
-
-    wrapper.setAttribute('data-11ze-canvas-scroll', 'true');
+    container.addEventListener(
+      'wheel',
+      (e) => {
+        e.preventDefault();
+        const offset = canvas.getOffset();
+        const deltaX = e.deltaX || (e.shiftKey ? e.deltaY : 0);
+        const deltaY = deltaX ? 0 : e.deltaY;
+        canvas.move([offset[0] - deltaX, offset[1] - deltaY]);
+      },
+      { passive: false }
+    );
+    container.setAttribute('data-11ze-canvas-scroll', 'true');
   }
 
   function resetRefreshPageLastTime() {
@@ -2381,14 +2423,14 @@ const JVS_STYLES = `
     box-sizing: border-box !important;
   }
 
-  /* 新版 JVS，逻辑设计，入边箭头加大加深（原生 8宽×8高浅灰实心小三角不起眼）；
-     left 补偿值 = 加大后左右 border 的一半，保持水平居中；尖角钉在节点顶边
-     （尖角 = 盒顶 + 三角高，top 取负的三角高；原生扎进节点 4px 的位置被用户
-     否决）；:not(.jtk-droppable) 隔离旧版（旧版节点同带这些类，见上方节点规则） */
+  /* 新版 JVS，逻辑设计，入边箭头加大加深后微缩（原生 8宽×8高浅灰实心小三角
+     不起眼）；left 补偿值 = 左右 border 的一半，保持水平居中；尖角钉在节点
+     顶边（尖角 = 盒顶 + 三角高，top 取负的三角高；原生扎进节点 4px 的位置
+     被用户否决）；:not(.jtk-droppable) 隔离旧版（旧版节点同带这些类，见上方节点规则） */
   .jvs-rule-node.ef-node-container:not(.jtk-droppable) .top-endpoint {
-    top: -12px !important;
-    left: calc(50% - 7px) !important;
-    border-width: 12px 7px 4px !important;
+    top: -10px !important;
+    left: calc(50% - 6px) !important;
+    border-width: 10px 6px 4px !important;
     border-top-color: #909399 !important;
   }
 
