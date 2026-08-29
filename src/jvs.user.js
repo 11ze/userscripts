@@ -776,6 +776,10 @@
       : '日志';
   }
 
+  // 拖拽把手十字箭头，stroke 走 currentColor 跟随按钮字色
+  const MOVE_SVG =
+    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>';
+
   function updateLogButton() {
     const mode = getModeFromHistory() || getMode();
     const existContainer = document.getElementById('ze-jvs-log-container');
@@ -808,7 +812,7 @@
 
     const handle = document.createElement('div');
     handle.className = 'drag-handle-11ze';
-    handle.textContent = '⋮';
+    handle.innerHTML = MOVE_SVG;
 
     const container = document.createElement('div');
     container.id = 'ze-jvs-log-container';
@@ -2540,7 +2544,6 @@ const JVS_STYLES = `
 
   .drag-handle-11ze {
     margin: 2px 0 !important;
-    font-size: 14px !important;
     display: flex;
     align-items: center;
     justify-content: center;
