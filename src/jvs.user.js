@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.27
-// @description 2026-08-29 应用中心新增「只看星标」过滤开关：新版钉部门组上方、旧版贴搜索框右侧，开启后只留星标卡片并记忆状态，无星标时给空态提示
+// @version     0.7.28
+// @description 2026-08-29 修复旧版应用中心空态提示插早了顶到筛选行上方：卡片异步渲染，提示改为等第一张卡出现后落进卡片列表区
 // ==/UserScript==
 
 (function () {
@@ -1769,10 +1769,9 @@
       return jvsStorage.get(STORAGE_KEYS.STARRED_FILTER, false);
     }
 
-    function syncFilterState() {
+    function syncFilterState(btn = document.querySelector('.' + btnClass)) {
       const on = isFilterOn();
       document.body.classList.toggle(bodyClass, on);
-      const btn = document.querySelector('.' + btnClass);
       if (btn) {
         btn.setAttribute('aria-pressed', on);
       }
@@ -1787,12 +1786,24 @@
       return;
     }
 
-    if (!document.querySelector('.' + btnClass)) {
-      const tip = document.createElement('div');
-      tip.className = 'ze-star-empty-tip';
-      tip.innerText = '暂无星标应用（悬停应用卡片点亮 ★）';
-
-      const btn = document.createElement('button');
+    // 旧版筛选行（全部分类 + 搜索框）是静态标记、挂载即渲染；卡片列表由异步数据 v-for、
+    // 晚于筛选行出现。按钮与提示分别判重：提示只在第一张卡出现后插进其父级（卡片流开头），
+    // 卡片没出来就等下一个 tick——往容器 prepend 会把提示顶到筛选行上方
+    const filterBar = appPage.querySelector('.filter-bar');
+    if (!document.querySelector('.ze-star-empty-tip')) {
+      // 旧版等第一张卡出现才有落点；新版无筛选行，钉容器顶部
+      const firstCard = appPage.querySelector('.application');
+      const host = filterBar ? firstCard?.parentElement : appPage;
+      if (host) {
+        const tip = document.createElement('div');
+        tip.className = 'ze-star-empty-tip';
+        tip.innerText = '暂无星标应用（悬停应用卡片点亮 ★）';
+        host.prepend(tip);
+      }
+    }
+    let btn = document.querySelector('.' + btnClass);
+    if (!btn) {
+      btn = document.createElement('button');
       btn.className = btnClass;
       btn.type = 'button';
       btn.innerText = '★ 只看星标';
@@ -1800,22 +1811,10 @@
         jvsStorage.set(STORAGE_KEYS.STARRED_FILTER, !isFilterOn());
         syncFilterState();
       });
-      // 旧版筛选行（全部分类 + 搜索框）存在时按钮贴搜索框右侧。
-      // 空态提示插到卡片流开头（第一张卡的父级）——filter-bar 实际嵌在卡片区容器内部，
-      // prepend 容器会把提示顶到筛选行上方；空态时卡片全隐藏，提示正好落进空白卡片区
-      const filterBar = appPage.querySelector('.filter-bar');
-      if (filterBar) {
-        const firstCard = appPage.querySelector('.application');
-        firstCard
-          ? firstCard.parentElement.prepend(tip)
-          : appPage.prepend(tip);
-        filterBar.append(btn);
-      } else {
-        appPage.prepend(btn, tip);
-      }
+      filterBar ? filterBar.append(btn) : appPage.prepend(btn);
     }
 
-    syncFilterState();
+    syncFilterState(btn);
   }
 
   /**

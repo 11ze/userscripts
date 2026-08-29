@@ -61,12 +61,11 @@ function makeContainer(className = null) {
     className,
     children: [],
     querySelector(selector) {
-      // 支持复合类选择器（如 .container.el-row）：className 按空格分段后须包含全部段
-      const wanted = selector.slice(1).split('.');
+      const wanted = selector.slice(1);
       const direct = container.children.find(
         (child) =>
           typeof child.className === 'string' &&
-          wanted.every((cls) => child.className.split(' ').includes(cls))
+          child.className.split(' ').includes(wanted)
       );
       if (direct) return direct;
       for (const child of container.children) {
@@ -146,7 +145,7 @@ function loadScriptHooks(cards, mode = 'new') {
         if (selector === '.jvs-layout-tempOpen > .template-content-box') {
           return mode === 'old' ? templateBox : null;
         }
-        if (selector === '.ze-star-filter-btn') {
+        if (selector === '.ze-star-filter-btn' || selector === '.ze-star-empty-tip') {
           const host = mode === 'new' ? appPage : mode === 'old' ? templateBox : null;
           return host ? host.querySelector(selector) : null;
         }
@@ -175,6 +174,12 @@ function loadScriptHooks(cards, mode = 'new') {
     /** 模拟 SPA 路由切换：进出应用中心、切新旧版容器 */
     setMode: (next) => {
       mode = next;
+    },
+    /** 模拟旧版异步数据到位：卡片列表 v-for 晚于筛选行渲染 */
+    addCard: (card) => {
+      cards.push(card);
+      card.parentElement = cardArea;
+      cardArea.append(card);
     },
     readMarked: () => JSON.parse(store.get(HIGHLIGHT_KEY)),
     writeMarked: (names) => store.set(HIGHLIGHT_KEY, JSON.stringify(names)),
@@ -277,6 +282,35 @@ test('旧版应用中心：开关注入筛选行内搜索框右侧，与原生�
 
   btn.click();
   assert.equal(body.classList.contains('ze-star-filter-on'), false, '点击应立即关闭');
+});
+
+test('旧版卡片未渲染时：先插按钮不插提示，卡片出现后提示落进卡片列表区', () => {
+  const card = makeCard('应用C');
+  const { hooks, filterBar, templateBox, cardArea, addCard } = loadScriptHooks([], 'old');
+
+  // 首轮 tick：筛选行静态渲染已就位，卡片列表还在等异步数据
+  hooks.filterStarredApps();
+  assert.notEqual(
+    filterBar.querySelector('.ze-star-filter-btn'),
+    null,
+    '按钮首轮就应注入筛选行（静态标记，无需等卡片）'
+  );
+  assert.equal(
+    templateBox.querySelector('.ze-star-empty-tip'),
+    null,
+    '卡片未渲染时不得插入提示——旧实现此刻走兜底塞进容器最前，顶到筛选行上方'
+  );
+
+  // 异步数据到位（Vuex menuAll）→ 卡片 v-for 渲染 → 下一个 400ms tick
+  addCard(card);
+  hooks.filterStarredApps();
+  const tip = cardArea.querySelector('.ze-star-empty-tip');
+  assert.notEqual(tip, null, '卡片出现后提示应插进卡片列表区（第一张卡的父级）');
+  assert.equal(
+    templateBox.children[0],
+    filterBar,
+    '筛选行必须仍是容器第一个子节点（提示不得顶到它上方）'
+  );
 });
 
 test('只看星标开关：点击切换存储并立即同步，不等轮询', () => {
