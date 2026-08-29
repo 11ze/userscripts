@@ -144,7 +144,7 @@ test('旧版节点展开名称的规则不波及既有「展开组件名称」�
   );
 });
 
-test('应用中心星标：悬停浮现空心星，已标记实心金星常驻', () => {
+test('应用中心星标：悬停浮现空心星，悬停星标变金放大，已标记实心金星常驻', () => {
   const hooks = loadScriptHooks();
   const styles = hooks.getStyles();
 
@@ -170,8 +170,19 @@ test('应用中心星标：悬停浮现空心星，已标记实心金星常驻',
   assertDeclaration(styles, '.ze-star-btn', 'opacity: 0');
   assertDeclaration(styles, '.ze-star-btn', 'transition: opacity 0.2s');
 
+  // 28px 热区 + 18px 中灰星（CSS 覆盖 SVG 的 16px 属性尺寸），替换旧 16px 浅灰细星
+  assertDeclaration(styles, '.ze-star-btn', 'width: 28px');
+  assertDeclaration(styles, '.ze-star-btn', 'height: 28px');
+  assertDeclaration(styles, '.ze-star-btn', 'color: #909399');
+  assertDeclaration(styles, '.ze-star-btn svg', 'width: 18px');
+
   // 悬停卡片时星标浮现
   assertDeclaration(styles, '.application:hover .ze-star-btn', 'opacity: 1');
+
+  // 悬停星标本体：变金放大给出可点反馈；:active 与 :hover 同特异性、靠后生效，按下回缩
+  assertDeclaration(styles, '.ze-star-btn:hover', 'color: #FAAD14');
+  assertDeclaration(styles, '.ze-star-btn:hover', 'transform: scale(1.2)');
+  assertDeclaration(styles, '.ze-star-btn:active', 'transform: scale(0.85)');
 
   // 已标记卡片星标常驻，实心星标金（CSS 覆盖 SVG 的 fill="none" 属性，
   // fill 与 stroke 都走 currentColor 跟随按钮 color）

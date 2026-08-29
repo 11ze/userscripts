@@ -2525,22 +2525,38 @@ const JVS_STYLES = `
 
   .ze-star-btn {
     position: absolute;
-    top: 6px;
-    right: 6px;
-    width: 24px;
-    height: 24px;
+    top: 2px;
+    right: 2px;
+    width: 28px;
+    height: 28px;
     padding: 0;
     border: none;
     background: transparent;
     line-height: 0;
     cursor: pointer;
     opacity: 0;
-    color: #C0C4CC;
-    transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    color: #909399;
+    transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.15s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* 覆盖 SVG 的 width/height 属性，按钮加大的同时星形同步加大 */
+  .ze-star-btn svg {
+    width: 18px;
+    height: 18px;
   }
 
   .application:hover .ze-star-btn {
     opacity: 1;
+  }
+
+  /* 悬停星标本体：变金放大给出可点反馈；:active 同特异性靠后，按下回缩胜出 */
+  .ze-star-btn:hover {
+    color: #FAAD14;
+    transform: scale(1.2);
+  }
+
+  .ze-star-btn:active {
+    transform: scale(0.85);
   }
 
   .ze-star-btn.ze-marked {
