@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.28
-// @description 2026-08-29 修复旧版应用中心空态提示插早了顶到筛选行上方：卡片异步渲染，提示改为等第一张卡出现后落进卡片列表区
+// @version     0.7.29
+// @description 2026-08-29 新版应用中心不改 hash、地址栏停留在进站前路由，显示应用中心时统一替换成 #/wel/index，刷新后自动点击逻辑可衔接
 // ==/UserScript==
 
 (function () {
@@ -427,6 +427,7 @@
       getTabType: getTabType,
       highlightApps: highlightApps,
       filterStarredApps: filterStarredApps,
+      syncAppCenterUrl: syncAppCenterUrl,
       getStyles: () => JVS_STYLES,
     };
   }
@@ -485,6 +486,7 @@
     // 设计器模块
     changeTitle,
     enterAppCenter,
+    syncAppCenterUrl,
     enterTabDesign,
     adjustInterfaceAndComponentStyle,
     addButtonToOpenNewLogicDesign,
@@ -1062,6 +1064,9 @@
     }
   }
 
+  /** 平台首页路由：enterAppCenter 靠它判定首页，syncAppCenterUrl 靠它回写地址栏 */
+  const HOME_ROUTE = '#/wel/index';
+
   /**
    * 首次进入平台首页时自动进入应用中心
    */
@@ -1073,12 +1078,23 @@
     if (element) {
       if (
         element.innerText === '应用中心' &&
-        url.includes('wel/index') &&
+        url.includes(HOME_ROUTE) &&
         !element.hasAttribute('app-center-clicked-11ze')
       ) {
         element.click();
         element.setAttribute('app-center-clicked-11ze', 'true');
       }
+    }
+  }
+
+  /**
+   * 新版应用中心不写 hash，地址栏停留在进站前路由；
+   * 显示应用中心时统一替换成首页路由，刷新后 enterAppCenter 自动点击才能衔接上。
+   * replaceState 不触发 hashchange，页面不动；旧版容器不同，天然不处理
+   */
+  function syncAppCenterUrl() {
+    if (!location.hash.includes(HOME_ROUTE) && document.querySelector('.app-page')) {
+      history.replaceState(null, '', HOME_ROUTE);
     }
   }
 

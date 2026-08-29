@@ -10,6 +10,7 @@
 - **旧版节点展开名称**：旧版 JVS 逻辑设计节点源自 easy-flow（jsPlumber，`.jtk-droppable`），按单行排版（`.ef-node-text` line-height 46px 撑起 ~48px 文字框，节点高 ~97px 固定）；`white-space: normal` 折行后第二行被 `overflow: hidden` 裁掉，且折行时 `text-overflow: ellipsis` 失效——只压缩 `.ef-node-text` 行高（20px，两行共 40px 装进原文字框）并框内垂直居中（min-height 48px 维持占位），节点框/`.top`/连线锚点零改动（`height: auto` 会让节点形态重算、锚点错位，已被用户截图否决）
 - **应用中心星标**：`highlightApps()` 往 `.application` 卡片右上角注入星标按钮（`.ze-star-btn`，不走 `createButton`——其皮肤类与星标透明形态冲突）并切换 `.ze-marked` 类，视觉全由 JVS_STYLES 承担——`.application:has(.ze-star-btn)` 提供卡片定位与透明占位边框（防抖动）、`:has(.ze-star-btn.ze-marked)` 特异性更高只覆盖 `border-color` 为金色（`#FAAD14`）；按钮平时 `opacity: 0`、悬停卡片浮现、点击切换标记并立即刷新该卡片（不等 400ms 轮询）；标记按应用名存 localStorage `HIGHLIGHT_APPS`，渲染与点击均现读存储（多标签页同开不互相覆盖），实心星由 CSS 覆盖 SVG 的 `fill="none"` 属性实现（fill 与 stroke 都走 `currentColor` 跟随按钮 color）
 - **只看星标过滤**：`filterStarredApps()` 注入「★ 只看星标」pill 开关（`.ze-star-filter-btn`）与空态提示元素——新版钉 `.app-page` 顶部，旧版按钮插进 `.filter-bar` 筛选行（全部分类 + 搜索框）搜索框右侧、对齐与间距交给该行 flex 的 `align-items/gap`（CSS 清掉钉顶 margin）；按钮与提示分别判重注入——旧版筛选行是静态标记挂载即渲染，卡片列表由异步数据 v-for 晚于筛选行出现，提示须等第一张卡出现后插进其父级（卡片流开头），卡片没出来就等下一个 tick（往容器 prepend 会把提示顶到筛选行上方，曾致此 bug）；JS 只产出 `body.ze-star-filter-on` 这一个事实——非星标卡片隐藏、无星标部门组整组隐藏（连标题，仅新版有分组）、空态提示全由 CSS `:has()` 驱动，按钮激活金色也由 body class 派生（无第二事实源）；开关状态存 localStorage `STARRED_FILTER`（布尔，现读同步，多标签页自动一致），点击立即生效不等轮询；离开应用中心（`.app-page` 与旧版 `.jvs-layout-tempOpen > .template-content-box` 都查不到）时清理 body class，开关按钮随 SPA DOM 销毁
+- **应用中心地址栏同步**：新版应用中心不写 hash、地址栏停留在进站前路由，`syncAppCenterUrl()` 在 `.app-page` 显示且 hash 非 `#/wel/index` 时用 `history.replaceState` 统一替换——不触发 hashchange/vue-router、页面不动，刷新后 `enterAppCenter()` 的 `wel/index` 自动点击得以衔接；轮询幂等（条件不满足即 return），点进具体应用后 `.app-page` 随路由销毁、不再误覆盖；旧版容器不是 `.app-page`，天然不处理
 
 ## 柔和色彩方案
 
@@ -23,4 +24,4 @@ const colorScheme = {
 };
 ```
 
-测试：`node --test tests/jvs.runner.test.mjs tests/jvs.storage.test.mjs tests/jvs.paint.test.mjs tests/jvs.tabtype.test.mjs tests/jvs.styles.test.mjs tests/jvs.highlight.test.mjs` 覆盖调度器契约、存储域规则（过期剪切、去重、目录幂等写入）、组件上色机制、设计器类型判定、旧版节点展开名称样式、星标与只看星标过滤的存储联动。
+测试：`node --test tests/jvs.runner.test.mjs tests/jvs.storage.test.mjs tests/jvs.paint.test.mjs tests/jvs.tabtype.test.mjs tests/jvs.styles.test.mjs tests/jvs.highlight.test.mjs tests/jvs.appcenter-url.test.mjs` 覆盖调度器契约、存储域规则（过期剪切、去重、目录幂等写入）、组件上色机制、设计器类型判定、旧版节点展开名称样式、星标与只看星标过滤的存储联动、应用中心地址栏同步的新旧版边界。
