@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.7.29
-// @description 2026-08-29 新版应用中心不改 hash、地址栏停留在进站前路由，显示应用中心时统一替换成 #/wel/index，刷新后自动点击逻辑可衔接
+// @version     0.7.30
+// @description 2026-08-29 应用中心新增侧边栏展开/收起开关（仿应用内样式，状态记忆）；新版应用中心不改 hash、地址栏统一替换成 #/wel/index
 // ==/UserScript==
 
 (function () {
@@ -99,6 +99,7 @@
     APP_NAME_MAP: '__11ze_JVS_APP_NAME_MAP__',
     HIGHLIGHT_APPS: '__11ze_HIGHLIGHT_APPS__',
     STARRED_FILTER: '__11ze_JVS_STARRED_FILTER__',
+    APPCENTER_SIDEBAR: '__11ze_JVS_APPCENTER_SIDEBAR_COLLAPSED__',
     REFRESH_PAGE_LAST_TIME: '__11ze_JVS_REFRESH_PAGE_LAST_TIME__',
   };
 
@@ -427,6 +428,7 @@
       getTabType: getTabType,
       highlightApps: highlightApps,
       filterStarredApps: filterStarredApps,
+      toggleAppCenterSidebar: toggleAppCenterSidebar,
       syncAppCenterUrl: syncAppCenterUrl,
       getStyles: () => JVS_STYLES,
     };
@@ -497,6 +499,7 @@
     addButtonToOpenNewFormOrListDesign,
     highlightApps,
     filterStarredApps,
+    toggleAppCenterSidebar,
     expandFormDesignAllComponentSettings,
     autoExpandComponentLibraryCategory,
     applicationSetClick,
@@ -1834,6 +1837,52 @@
   }
 
   /**
+   * 应用中心侧边栏展开/收起开关
+   * 与 filterStarredApps 同一范式：JS 只产出 body class，侧边栏隐藏与卡片列
+   * 拉满全由 CSS 驱动；状态现读存储（刷新保持、多标签页同开自动一致）。
+   * 按钮挂在 .sidebar-col 父级容器内，SPA 路由切换随容器销毁；
+   * 侧边栏收起后 rect 归零不可读，按钮 left 直接按状态取值
+   */
+  function toggleAppCenterSidebar() {
+    const btnClass = 'ze-side-toggle-btn';
+    const bodyClass = 'ze-appcenter-side-collapsed';
+
+    function isCollapsed() {
+      return jvsStorage.get(STORAGE_KEYS.APPCENTER_SIDEBAR, false);
+    }
+
+    function sync() {
+      const collapsed = isCollapsed();
+      document.body.classList.toggle(bodyClass, collapsed);
+      btn.innerText = collapsed ? '»' : '«';
+      btn.setAttribute('aria-pressed', collapsed);
+      btn.style.left = (collapsed ? 6 : sidebar.getBoundingClientRect().right - 16) + 'px';
+    }
+
+    const sidebar = document.querySelector('.sidebar-col');
+    if (!sidebar) {
+      // 开关按钮随宿主容器销毁；body class 要手动清
+      document.body.classList.remove(bodyClass);
+      return;
+    }
+
+    let btn = document.querySelector('.' + btnClass);
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.className = btnClass;
+      btn.type = 'button';
+      btn.title = '展开/收起侧边栏';
+      btn.addEventListener('click', () => {
+        jvsStorage.set(STORAGE_KEYS.APPCENTER_SIDEBAR, !isCollapsed());
+        sync();
+      });
+      sidebar.parentElement.appendChild(btn);
+    }
+
+    sync();
+  }
+
+  /**
    * 窗口聚焦时自动松开一次左 Ctrl 键
    * 场景：按快捷键切换软件时，如果包含 Ctrl，回到逻辑设计时，Ctrl 会一直按住，导致鼠标拖拽变成画框
    * 不用了，控制台有错误：Uncaught TypeError: Cannot read properties of undefined (reading 'removeEventListener')
@@ -2519,6 +2568,41 @@ const JVS_STYLES = `
     color: #909399;
     font-size: 14px;
     text-align: center;
+  }
+
+  /* 应用中心侧边栏收起：分类列与其右侧空白间隔列一起隐藏，卡片区拉满整行
+     （el-col 为 float 布局、宽度全靠 class，覆盖需 !important） */
+  body.ze-appcenter-side-collapsed :is(.sidebar-col, .sidebar-col + .el-col) {
+    display: none !important;
+  }
+
+  body.ze-appcenter-side-collapsed .sidebar-col + .el-col + .el-col {
+    width: 100% !important;
+  }
+
+  /* .app-page 自带 margin-left: -128px 的跨列偏移，侧边栏没了会推出屏幕外，一并归位 */
+  body.ze-appcenter-side-collapsed .app-page {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+
+  /* 侧边栏收起开关：仿应用内样式，白色圆角方块骑在侧边栏右缘，left 由 JS 校准 */
+  .ze-side-toggle-btn {
+    position: fixed;
+    bottom: 48px;
+    z-index: 999;
+    width: 32px;
+    height: 36px;
+    padding: 0;
+    border: none;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    color: #606266;
+    font-size: 16px;
+    line-height: 36px;
+    cursor: pointer;
+    user-select: none;
   }
 
 `;

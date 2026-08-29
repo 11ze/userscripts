@@ -219,3 +219,31 @@ test('只看星标开关 pill：未激活灰描边，激活金色由 body class 
   // 旧版筛选行内（搜索框右侧）：对齐与间距交给 flex 的 align-items/gap，清掉钉顶 margin
   assertDeclaration(styles, '.filter-bar .ze-star-filter-btn', 'margin: 0');
 });
+
+test('应用中心侧边栏收起：body class 驱动分类列隐藏与卡片列拉满，开关按钮骑边定位', () => {
+  const hooks = loadScriptHooks();
+  const styles = hooks.getStyles();
+
+  // 分类列与其右侧空白间隔列一起隐藏（el-col 为 float 布局、宽度全靠 class，覆盖需 !important）
+  assertDeclaration(
+    styles,
+    'body.ze-appcenter-side-collapsed :is(.sidebar-col, .sidebar-col + .el-col)',
+    'display: none !important'
+  );
+
+  // 卡片区拉满整行；.app-page 自带的 -128px 跨列偏移一并归位（侧边栏没了会推出屏幕外）
+  assertDeclaration(
+    styles,
+    'body.ze-appcenter-side-collapsed .sidebar-col + .el-col + .el-col',
+    'width: 100% !important'
+  );
+  assertDeclaration(
+    styles,
+    'body.ze-appcenter-side-collapsed .app-page',
+    'margin-left: 0 !important'
+  );
+
+  // 开关按钮仿应用内样式：fixed 浮动，left 由 JS 按侧边栏右缘校准
+  assertDeclaration(styles, '.ze-side-toggle-btn', 'position: fixed');
+  assertDeclaration(styles, '.ze-side-toggle-btn', 'z-index: 999');
+});
