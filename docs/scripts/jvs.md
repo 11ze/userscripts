@@ -3,6 +3,7 @@
 采用模块化操作函数架构：
 
 - **环境检测**：`isJVS()` 检测 JVS UI 相关 link 标签，非 JVS 站点早退
+- **新旧双版**：站点有新版（qicong-edf）与旧版（jyy-dev）两套环境，DOM 结构不同（如应用中心容器新版 `.app-page`、旧版 `.jvs-layout-tempOpen > .template-content-box`）；改动时若注释或本文档提到旧版，必须兼顾旧版场景并在两版实测
 - **操作队列**：`operations` 混合数组由 `createOperationRunner` 调度，每 400ms 执行一次。普通函数每 tick 执行；`{ name, probe, apply }` 对象由 probe 返回的键控制——返回 null/undefined 表示本 tick 不适用，键不变时跳过 apply
 - **状态管理**：`STATE` 对象管理页面级闩锁状态；配置常量（`CONFIG`、`COLORS`、`DESIGN_CONFIG`、`APP_NAME_SELECTORS`）均在 IIFE 闭包内
 - **设计器类型**：支持逻辑、列表、表单、流程设计；`getTabType()` 判定当前设计器类型——须同时满足 `.design-header-box`（设计器头部）存在且 `#tab-design > span` 文本是 `DESIGN_CONFIG` 已知类型，旧版 JVS 非设计页面残留的「逻辑设计」页签因此被排除，favicon 不再误显「逻」图标

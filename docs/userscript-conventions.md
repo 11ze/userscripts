@@ -23,6 +23,11 @@
 - **工具函数必须使用 `addEventListener`**：避免覆盖已有事件处理器
 - **一次性处理器可用事件属性**：`.onclick`、`.onmouseover` 等（创建元素时设置）
 
+## 线上验证（browser use）
+
+- **in-app browser 无油猴，脚本须手动注入**：先垫 `window.GM_addStyle`，再 `eval` 本地 `src/*.user.js` 全文（大段源码在 Node 侧拼成内联表达式传入）
+- **注入是临时的**：页面刷新即失效；实际浏览器由 Tampermonkey 注入——两端效果不一致时先确认版本是否同步（实际浏览器可能粘的是旧快照，或还没更新到已发版的新版）
+
 ## 编码规范
 
 - **样式常量（COLORS / STYLES）**：统一管理颜色、动画配置，避免硬编码
