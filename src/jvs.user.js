@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.3
-// @description 2026-08-30 模式读写分离（collectAppMode 采集落库、currentMode 历史优先）、模式色板单一事实源 MODE_COLORS 生成按钮换色 CSS、getAppNameForLog 更名 collectAppName 显式化藏写
+// @version     0.8.4
+// @description 2026-08-30 摘 createButton 隐藏 margin 默认值（要间距的 5 个调用点显式 10px、3 处反向补丁撤除），makeDraggable 边界不再默认耦合 LOG_BAR（唯一调用点显式传参）——视觉零变化
 // ==/UserScript==
 
 (function () {
@@ -296,10 +296,10 @@
    * 使容器可通过把手拖拽移动
    * @param {HTMLElement} handle - 拖拽把手元素
    * @param {HTMLElement} container - 被拖拽的容器元素
-   * @param {{ minTop?: number, maxRight?: number, onMove?: (newTop: number, newRight: number) => void }} [options] - 拖拽配置
+   * @param {{ minTop: number, maxRight: number, onMove?: (newTop: number, newRight: number) => void }} options - 拖拽配置（边界由调用方给定）
    */
   function makeDraggable(handle, container, options = {}) {
-    const { minTop = CONFIG.LOG_BAR.top, maxRight = CONFIG.LOG_BAR.right, onMove } = options;
+    const { minTop, maxRight, onMove } = options;
 
     handle.addEventListener('mousedown', (e) => {
       e.preventDefault();
@@ -383,7 +383,6 @@
     if (id) button.id = id;
     Object.entries(dataset).forEach(([key, value]) => button.setAttribute(key, value));
     if (onClick) button.addEventListener('click', onClick);
-    button.style.marginLeft = '10px';
 
     return button;
   }
@@ -851,7 +850,6 @@
 
     Utils.setStyles(button, {
       fontSize: '14px',
-      margin: '0',
     });
 
     button.addEventListener('click', (event) => {
@@ -878,6 +876,8 @@
     container.appendChild(handle);
 
     makeDraggable(handle, container, {
+      minTop: CONFIG.LOG_BAR.top,
+      maxRight: CONFIG.LOG_BAR.right,
       onMove(newTop, newRight, containerHeight) {
         const popup = document.getElementById('11ze-jvs-log-popup');
         if (popup) {
@@ -1350,6 +1350,7 @@
         dataset: { 'target-key': logicKey },
         onClick: () => window.open(newUrl, '_blank'),
       });
+      newButton.style.marginLeft = '10px';
       // 将按钮直接添加到 label 元素中
       label.appendChild(newButton);
       // 同步创建或更新复制按钮
@@ -1397,6 +1398,7 @@
       dataset: { 'target-key': logicName },
       onClick,
     });
+    newButton.style.marginLeft = '10px';
     target.appendChild(newButton);
     // 同步创建或更新复制按钮
     _createCopyNameButton(target, logicName);
@@ -1485,6 +1487,7 @@
         Utils.copyToClipboard(logicName, copyButton, '已复制');
       },
     });
+    copyButton.style.marginLeft = '10px';
     target.appendChild(copyButton);
     return copyButton;
   }
@@ -1606,6 +1609,7 @@
         dataset: { 'design-name-11ze': designNameText },
         onClick: () => Utils.copyToClipboard(designNameText, copyButton, '已复制'),
       });
+      copyButton.style.marginLeft = '10px';
       designName.parentNode.insertBefore(copyButton, designName.nextSibling);
     }
   }
@@ -1649,6 +1653,7 @@
       dataset: { 'component-name-11ze': componentNameText },
       onClick: () => Utils.copyToClipboard(componentNameText, copyButton, '已复制'),
     });
+    copyButton.style.marginLeft = '10px';
     componentName.parentNode.insertBefore(copyButton, componentName.nextSibling);
   }
 
@@ -1681,7 +1686,6 @@
           }
         },
       });
-      button.style.marginLeft = '0';
 
       box.insertBefore(button, box.firstChild);
     }
@@ -1723,7 +1727,6 @@
         id: 'open-new-form-or-list-design-button-11ze',
         onClick: () => window.open(targetUrl, '_blank'),
       });
-      copyButton.style.marginLeft = '0';
       const targetElement =
         element.parentElement.parentElement.parentElement.parentElement.parentElement.querySelector(
           'td:nth-child(5) > div > div',
