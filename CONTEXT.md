@@ -29,3 +29,4 @@
 - **地址栏同步（syncAppCenterUrl）**：应用中心用 `replaceState` 把地址栏统一到 `#/wel/index`。
 - **侧边栏收起（toggleAppCenterSidebar）**：body class 驱动分类侧边栏隐藏、卡片区拉满。
 - **画布滚轮平移（canvasScrollOperation）**：wheel 走 Butterfly `canvas.move`，画布重建带回平移、切换画布清记录不重放。
+- **表单组件名常显（active-formitem2）**：借站点原生激活类让名字条常显，hover 时站点藏名字的规则被 `!important` 盖回。

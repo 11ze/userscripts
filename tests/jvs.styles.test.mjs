@@ -467,3 +467,17 @@ test('应用中心侧边栏收起：body class 驱动分类列隐藏与卡片列
   assertDeclaration(styles, '.ze-side-toggle-btn', 'position: fixed');
   assertDeclaration(styles, '.ze-side-toggle-btn', 'z-index: 999');
 });
+
+test('表单设计组件名悬停不消失：盖掉站点 hover 藏名字的规则', () => {
+  const hooks = loadScriptHooks();
+  const styles = hooks.getStyles();
+
+  // 站点原生 .formitem:not(.clicked):hover .handle-btn .type-name { display: none }
+  // 在悬停时把名字藏掉（只留复制/删除图标），组件名常显功能须用 !important 盖回；
+  // .active-formitem2 是脚本批量加的常显类，覆盖范围不波及未加类的组件
+  assertDeclaration(
+    styles,
+    '.active-formitem2 .handle-btn .type-name',
+    'display: block !important'
+  );
+});

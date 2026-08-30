@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.10
-// @description 2026-08-30 日志查询统一——latestLogWhere(matcher) 倒序首命中内核，getUrlFromLogs/getUrlFromLogsAndUrl 收敛为单行包装，新增 findDesignNameById 替换查看逻辑按钮的内联扫描
+// @version     0.8.11
+// @description 2026-08-30 修复表单设计组件名悬停消失——站点 hover 规则（.formitem:not(.clicked):hover 藏 .type-name）被 !important 覆盖，常显组件名悬停不丢
 // ==/UserScript==
 
 (function () {
@@ -2332,6 +2332,12 @@ const JVS_STYLES = `
 
   /* 表单设计，展开按钮设置 */
   .item-body {
+    display: block !important;
+  }
+
+  /* 表单设计，悬停时组件名不消失：站点 hover 规则 .formitem:not(.clicked):hover
+     会把 .type-name 藏掉（只留复制/删除图标），常显功能须盖回 */
+  .active-formitem2 .handle-btn .type-name {
     display: block !important;
   }
 
