@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.7
-// @description 2026-08-30 设计器逻辑按钮集群迁 ensureInjected——逻辑名展示/复制名属性键重建、查看逻辑按钮键名分离（target-key 承载 id 或名）、消灭远程调用内联判重分叉、列表查看按钮 host 守卫、节点耗时文本键；新增特征 22 用例
+// @version     0.8.8
+// @description 2026-08-30 应用中心三函数判重迁 ensureInjected（星标逐卡片、只看星标开关/空态提示、侧边栏开关）；enterTabDesign 双闩锁与 skipCopyComponentButton 单向闩锁补语义注释
 // ==/UserScript==
 
 (function () {
@@ -1223,6 +1223,8 @@
       return;
     }
 
+    // 双闩锁是序列两击计数器，缺一不可：属性闩锁 = 第一击（元素级，SPA 换页随 DOM 销毁），
+    // STATE.tabDesignClicked = 第二击（会话级）——「会话内首个设计页点两次、后续设计页点一次」是有意行为
     if (element.getAttribute('second-tab-design-clicked-11ze')) {
       if (STATE.tabDesignClicked) {
         return;
@@ -1635,6 +1637,7 @@
       return;
     }
 
+    // 单向闩锁有意不复位：旧版站点图标消失后也不再注入（会话内判定一次即定）
     if (STATE.skipCopyComponentButton) {
       return;
     }
@@ -1841,21 +1844,24 @@
 
       // 注入星标按钮：平时隐藏，悬停卡片浮现，点击切换标记
       nodes.forEach((n) => {
-        if (n.querySelector(`.${starClass}`)) {
-          return;
-        }
-
-        const star = document.createElement('button');
-        star.className = starClass;
-        star.title = '星标应用';
-        star.innerHTML = STAR_SVG;
-        star.addEventListener('click', (event) => {
-          event.stopPropagation();
-          handleClickNode(n);
-          // 立即刷新当前卡片，不等自动轮询
-          handle([n]);
+        ensureInjected({
+          host: n,
+          find: '.' + starClass,
+          mount() {
+            const star = document.createElement('button');
+            star.className = starClass;
+            star.title = '星标应用';
+            star.innerHTML = STAR_SVG;
+            star.addEventListener('click', (event) => {
+              event.stopPropagation();
+              handleClickNode(n);
+              // 立即刷新当前卡片，不等自动轮询
+              handle([n]);
+            });
+            n.appendChild(star);
+            return star;
+          },
         });
-        n.appendChild(star);
       });
 
       // 渲染
@@ -1899,31 +1905,37 @@
 
     // 旧版筛选行（全部分类 + 搜索框）是静态标记、挂载即渲染；卡片列表由异步数据 v-for、
     // 晚于筛选行出现。按钮与提示分别判重：提示只在第一张卡出现后插进其父级（卡片流开头），
-    // 卡片没出来就等下一个 tick——往容器 prepend 会把提示顶到筛选行上方
+    // 卡片没出来就等下一个 tick（host 缺失守卫）——往容器 prepend 会把提示顶到筛选行上方
     const filterBar = appPage.querySelector('.filter-bar');
-    if (!document.querySelector('.ze-star-empty-tip')) {
-      // 旧版等第一张卡出现才有落点；新版无筛选行，钉容器顶部
-      const firstCard = appPage.querySelector('.application');
-      const host = filterBar ? firstCard?.parentElement : appPage;
-      if (host) {
+    const firstCard = appPage.querySelector('.application');
+    const tipHost = filterBar ? firstCard?.parentElement : appPage;
+    ensureInjected({
+      host: tipHost,
+      find: '.ze-star-empty-tip',
+      mount() {
         const tip = document.createElement('div');
         tip.className = 'ze-star-empty-tip';
         tip.innerText = '暂无星标应用（悬停应用卡片点亮 ★）';
-        host.prepend(tip);
-      }
-    }
-    let btn = document.querySelector('.' + btnClass);
-    if (!btn) {
-      btn = document.createElement('button');
-      btn.className = btnClass;
-      btn.type = 'button';
-      btn.innerText = '★ 只看星标';
-      btn.addEventListener('click', () => {
-        jvsStorage.set(STORAGE_KEYS.STARRED_FILTER, !isFilterOn());
-        syncFilterState();
-      });
-      filterBar ? filterBar.append(btn) : appPage.prepend(btn);
-    }
+        tipHost.prepend(tip);
+        return tip;
+      },
+    });
+    const btn = ensureInjected({
+      host: filterBar ?? appPage,
+      find: '.' + btnClass,
+      mount() {
+        const created = document.createElement('button');
+        created.className = btnClass;
+        created.type = 'button';
+        created.innerText = '★ 只看星标';
+        created.addEventListener('click', () => {
+          jvsStorage.set(STORAGE_KEYS.STARRED_FILTER, !isFilterOn());
+          syncFilterState();
+        });
+        filterBar ? filterBar.append(created) : appPage.prepend(created);
+        return created;
+      },
+    });
 
     syncFilterState(btn);
   }
@@ -1958,18 +1970,22 @@
       return;
     }
 
-    let btn = document.querySelector('.' + btnClass);
-    if (!btn) {
-      btn = document.createElement('button');
-      btn.className = btnClass;
-      btn.type = 'button';
-      btn.title = '展开/收起侧边栏';
-      btn.addEventListener('click', () => {
-        jvsStorage.set(STORAGE_KEYS.APPCENTER_SIDEBAR, !isCollapsed());
-        sync();
-      });
-      sidebar.parentElement.appendChild(btn);
-    }
+    const btn = ensureInjected({
+      host: sidebar.parentElement,
+      find: '.' + btnClass,
+      mount() {
+        const created = document.createElement('button');
+        created.className = btnClass;
+        created.type = 'button';
+        created.title = '展开/收起侧边栏';
+        created.addEventListener('click', () => {
+          jvsStorage.set(STORAGE_KEYS.APPCENTER_SIDEBAR, !isCollapsed());
+          sync();
+        });
+        sidebar.parentElement.appendChild(created);
+        return created;
+      },
+    });
 
     sync();
   }
