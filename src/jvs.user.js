@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.4
-// @description 2026-08-30 摘 createButton 隐藏 margin 默认值（要间距的 5 个调用点显式 10px、3 处反向补丁撤除），makeDraggable 边界不再默认耦合 LOG_BAR（唯一调用点显式传参）——视觉零变化
+// @version     0.8.5
+// @description 2026-08-30 ensureInjected 幂等注入深模块（键同跳过/键异重建/恒等键/mount 可拒绝），复制设计名、复制组件名、清空全部字段三处同构判重收拢；新增契约+特征 15 用例
 // ==/UserScript==
 
 (function () {
@@ -387,6 +387,32 @@
     return button;
   }
 
+  /**
+   * 幂等注入：在 host 内按 find 定位已注入元素，身份键相同则跳过，
+   * 键异则移除重建；省略 keyAttr 为恒等键（存在即命中）
+   * @param {Object} spec
+   * @param {Element | Document | null} spec.host - 宿主（find 在其内查找）
+   * @param {string} spec.find - 已注入元素的 selector（复用现有类名/id）
+   * @param {string} [spec.keyAttr] - 身份属性名（挂在已注入元素上）
+   * @param {string} [spec.key] - 期望身份值
+   * @param {() => (Element | null)} spec.mount - 造并挂载新元素；返回 null 拒绝注入
+   *   （键异时旧元素已移除，保持「移除后可不建」语义）
+   * @returns {Element | null} 当前元素（host 缺失或 mount 拒绝时为 null）
+   */
+  function ensureInjected({ host, find, keyAttr, key, mount }) {
+    if (!host) {
+      return null;
+    }
+    const existing = host.querySelector(find);
+    if (existing) {
+      if (!keyAttr || existing.getAttribute(keyAttr) === key) {
+        return existing;
+      }
+      existing.remove();
+    }
+    return mount() || null;
+  }
+
   // ==================== 主逻辑 ====================
 
   /**
@@ -444,6 +470,10 @@
       toggleAppCenterSidebar: toggleAppCenterSidebar,
       syncAppCenterUrl: syncAppCenterUrl,
       getLogButtonName: getLogButtonName,
+      ensureInjected: ensureInjected,
+      addButtonToCopyDesignName: addButtonToCopyDesignName,
+      addButtonToCopyComponentName: addButtonToCopyComponentName,
+      addButtonToClearAllFields: addButtonToClearAllFields,
       setCanvasScroll: setCanvasScroll,
       get canvasScrollOperation() {
         return canvasScrollOperation;
@@ -1590,27 +1620,28 @@
     if (designName) {
       const designNameText = designName.innerText.trim();
 
-      const existedButton = document.querySelector('#copy-design-name-button-11ze');
-      if (existedButton) {
-        if (existedButton.getAttribute('design-name-11ze') === designNameText) {
-          return;
-        }
+      ensureInjected({
+        host: document,
+        find: '#copy-design-name-button-11ze',
+        keyAttr: 'design-name-11ze',
+        key: designNameText,
+        mount() {
+          // 名称旁无 use 图标（编辑态图标）时不注入；键异时旧按钮已在上文移除
+          if (!designName.querySelector('use')) {
+            return null;
+          }
 
-        existedButton.remove();
-      }
-
-      if (!designName.querySelector('use')) {
-        return;
-      }
-
-      const copyButton = createButton({
-        text: '复制',
-        id: 'copy-design-name-button-11ze',
-        dataset: { 'design-name-11ze': designNameText },
-        onClick: () => Utils.copyToClipboard(designNameText, copyButton, '已复制'),
+          const copyButton = createButton({
+            text: '复制',
+            id: 'copy-design-name-button-11ze',
+            dataset: { 'design-name-11ze': designNameText },
+            onClick: () => Utils.copyToClipboard(designNameText, copyButton, '已复制'),
+          });
+          copyButton.style.marginLeft = '10px';
+          designName.parentNode.insertBefore(copyButton, designName.nextSibling);
+          return copyButton;
+        },
       });
-      copyButton.style.marginLeft = '10px';
-      designName.parentNode.insertBefore(copyButton, designName.nextSibling);
     }
   }
 
@@ -1637,24 +1668,24 @@
 
     const componentNameText = componentName.innerText.trim();
 
-    const existedButton = document.querySelector('#copy-component-name-button-11ze');
-    if (existedButton) {
-      if (existedButton.getAttribute('component-name-11ze') === componentNameText) {
-        return;
-      }
-
-      existedButton.remove();
-    }
-
-    const copyButton = createButton({
-      text: '复制',
-      id: 'copy-component-name-button-11ze',
-      className: buttonClass,
-      dataset: { 'component-name-11ze': componentNameText },
-      onClick: () => Utils.copyToClipboard(componentNameText, copyButton, '已复制'),
+    ensureInjected({
+      host: document,
+      find: '#copy-component-name-button-11ze',
+      keyAttr: 'component-name-11ze',
+      key: componentNameText,
+      mount() {
+        const copyButton = createButton({
+          text: '复制',
+          id: 'copy-component-name-button-11ze',
+          className: buttonClass,
+          dataset: { 'component-name-11ze': componentNameText },
+          onClick: () => Utils.copyToClipboard(componentNameText, copyButton, '已复制'),
+        });
+        copyButton.style.marginLeft = '10px';
+        componentName.parentNode.insertBefore(copyButton, componentName.nextSibling);
+        return copyButton;
+      },
     });
-    copyButton.style.marginLeft = '10px';
-    componentName.parentNode.insertBefore(copyButton, componentName.nextSibling);
   }
 
   /**
@@ -1665,29 +1696,31 @@
 
     for (let i = 0; i < boxes.length; i++) {
       const box = boxes[i];
-      if (box.querySelector('#clear-all-fields-button-11ze' + i)) {
-        continue;
-      }
+      ensureInjected({
+        host: box,
+        find: '#clear-all-fields-button-11ze' + i,
+        mount() {
+          const button = createButton({
+            text: '清空',
+            id: 'clear-all-fields-button-11ze' + i,
+            onClick: () => {
+              const ps = box.querySelectorAll('p');
+              for (let i = ps.length - 1; i >= 0; i--) {
+                const el = ps[i];
+                if (el.querySelector('.delete-icon-button')) {
+                  el.querySelector('.delete-icon-button > span').click();
+                }
 
-      const button = createButton({
-        text: '清空',
-        id: 'clear-all-fields-button-11ze' + i,
-        onClick: () => {
-          const ps = box.querySelectorAll('p');
-          for (let i = ps.length - 1; i >= 0; i--) {
-            const el = ps[i];
-            if (el.querySelector('.delete-icon-button')) {
-              el.querySelector('.delete-icon-button > span').click();
-            }
-
-            if (el.querySelector('.el-icon-delete')) {
-              el.querySelector('.el-icon-delete').click();
-            }
-          }
+                if (el.querySelector('.el-icon-delete')) {
+                  el.querySelector('.el-icon-delete').click();
+                }
+              }
+            },
+          });
+          box.insertBefore(button, box.firstChild);
+          return button;
         },
       });
-
-      box.insertBefore(button, box.firstChild);
     }
   }
 
