@@ -18,7 +18,7 @@
 
 - **环境检测（isJVS）**：按页面 link 标签判定是否 JVS 站点，非 JVS 早退。
 - **新旧双版**：新版（qicong-edf）与旧版（jyy-dev）两套 DOM 并存，改动须两版兼顾。
-- **操作队列（operations）**：`createOperationRunner` 每 400ms 调度的混合数组，probe 键控跳过无变化 tick。
+- **操作队列（operations）**：`createOperationRunner` 按固定间隔轮询调度的混合数组，probe 键控跳过无变化 tick。
 - **设计器类型（getTabType）**：逻辑/列表/表单/流程四类，须设计器头部与页签文本同时满足。
 - **星标（highlightApps）**：应用卡片右上角星标按钮，标记按应用名存 localStorage。
 - **只看星标过滤（filterStarredApps）**：JS 只产出 body class，卡片显隐全由 CSS `:has()` 驱动的 pill 开关。

@@ -342,7 +342,7 @@ test('连续重建无间隔 tick：两次重建的待挂键不同，都触发挂
   runner(); // 挂上循环画布（键 mount）
   assert.equal(stage.container.listeners.wheel.length, 1);
 
-  ctx.rebuildCanvas('主画布'); // 400ms 内再切：两次重建之间没有轮询 tick
+  ctx.rebuildCanvas('主画布'); // 一个 tick 内再切：两次重建之间没有轮询 tick
   runner();
   assert.equal(stage.container.listeners.wheel.length, 1, '第二次重建也必须挂上（键不能与上一次相同）');
 });
@@ -357,7 +357,7 @@ test('快速双切回原画布：轮询只见身份未变，带回原平移（�
   runner(); // tick：记录平移与身份「主画布」
 
   ctx.rebuildCanvas('循环容器'); // 切走——无 tick
-  ctx.rebuildCanvas('主画布'); // 400ms 内切回——循环画布从未被轮询见过
+  ctx.rebuildCanvas('主画布'); // 一个 tick 内切回——循环画布从未被轮询见过
   runner();
   assert.deepEqual(stage.canvas.calls[0], [0, -100], '身份没变，视作同画布重建，恢复原平移');
   assert.equal(stage.container.listeners.wheel.length, 1, '监听照常重挂');

@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.1
-// @description 2026-08-30 清理死代码与失真注释（autoClickLeftCtrlKey、autoRefreshPage、changeFavicon 不可达分支等），无行为变化
+// @version     0.8.2
+// @description 2026-08-30 轮询间隔 400ms→200ms（文档与测试注释去数值化，间隔唯一事实源收敛到 CONFIG 常量），getMode 同值不再重写存储
 // ==/UserScript==
 
 (function () {
@@ -22,7 +22,7 @@
    */
 
   const CONFIG = {
-    TIMER_INTERVAL: 400,
+    TIMER_INTERVAL: 200,
     LOG_SAVE_DAYS: 365,
     LOG_BAR: { top: 14, right: 310, popupGap: 6 },
     ENV_LIST: [
@@ -961,8 +961,10 @@
         const jvsAppId = getJvsAppId();
         if (jvsAppId) {
           const appModeMap = getAppModelMap();
-          appModeMap[jvsAppId] = mode;
-          jvsStorage.set(STORAGE_KEYS.APP_MODE_MAP, appModeMap);
+          if (appModeMap[jvsAppId] !== mode) {
+            appModeMap[jvsAppId] = mode;
+            jvsStorage.set(STORAGE_KEYS.APP_MODE_MAP, appModeMap);
+          }
         }
 
         return mode;

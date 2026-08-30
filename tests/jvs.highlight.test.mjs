@@ -225,7 +225,7 @@ test('再次执行（轮询）时渲染跟随最新存储', () => {
   assert.equal(card.star.classList.contains('ze-marked'), false);
 
   writeMarked(['应用C']);
-  hooks.highlightApps(); // 400ms 轮询的下一次
+  hooks.highlightApps(); // 下一个 tick
   assert.equal(card.star.classList.contains('ze-marked'), true);
 });
 
@@ -301,7 +301,7 @@ test('旧版卡片未渲染时：先插按钮不插提示，卡片出现后提�
     '卡片未渲染时不得插入提示——旧实现此刻走兜底塞进容器最前，顶到筛选行上方'
   );
 
-  // 异步数据到位（Vuex menuAll）→ 卡片 v-for 渲染 → 下一个 400ms tick
+  // 异步数据到位（Vuex menuAll）→ 卡片 v-for 渲染 → 下一个 tick
   addCard(card);
   hooks.filterStarredApps();
   const tip = cardArea.querySelector('.ze-star-empty-tip');
