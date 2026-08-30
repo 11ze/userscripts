@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.6
-// @description 2026-08-30 修复真机 TDZ 崩溃：probe/updateLogButton 局部 currentMode 遮蔽同名全局函数，改名 buttonMode；补 probe→apply 全路径回归用例
+// @version     0.8.7
+// @description 2026-08-30 设计器逻辑按钮集群迁 ensureInjected——逻辑名展示/复制名属性键重建、查看逻辑按钮键名分离（target-key 承载 id 或名）、消灭远程调用内联判重分叉、列表查看按钮 host 守卫、节点耗时文本键；新增特征 22 用例
 // ==/UserScript==
 
 (function () {
@@ -474,6 +474,12 @@
       addButtonToCopyDesignName: addButtonToCopyDesignName,
       addButtonToCopyComponentName: addButtonToCopyComponentName,
       addButtonToClearAllFields: addButtonToClearAllFields,
+      addButtonToOpenNewLogicDesign: addButtonToOpenNewLogicDesign,
+      addButtonToOpenNewFormOrListDesign: addButtonToOpenNewFormOrListDesign,
+      showNodeExecTime: showNodeExecTime,
+      _createCopyNameButton: _createCopyNameButton,
+      _createLogicNameDisplay: _createLogicNameDisplay,
+      _createOpenLogicButton: _createOpenLogicButton,
       setCanvasScroll: setCanvasScroll,
       get canvasScrollOperation() {
         return canvasScrollOperation;
@@ -1336,11 +1342,7 @@
    * 逻辑设计，检查到【逻辑调用】组件时，自动添加一个按钮用于查看对应的逻辑设计
    */
   function addButtonToOpenNewLogicDesign() {
-    const buttonClass = 'ze-look-logic-button';
-
-    const selector = '.el-form-item__label';
-
-    const labels = document.querySelectorAll(selector);
+    const labels = document.querySelectorAll('.el-form-item__label');
     for (const label of labels) {
       if (!label.innerText.includes('逻辑引擎远程调用')) {
         continue;
@@ -1354,7 +1356,7 @@
         continue;
       }
 
-      // 获取逻辑名称
+      // 按日志反查逻辑名（展示与复制名用），键用逻辑 id
       let logicName = '';
       const logs = getLogs();
       for (let i = logs.length - 1; i >= 0; i--) {
@@ -1364,30 +1366,7 @@
         }
       }
 
-      const existedButton = label.querySelector('.' + buttonClass);
-      if (existedButton) {
-        if (existedButton.getAttribute('target-key') === logicKey) {
-          _createLogicNameDisplay(label, logicName);
-          continue;
-        }
-
-        existedButton.remove();
-        _createCopyNameButton(label, null);
-      }
-
-      _createLogicNameDisplay(label, logicName);
-
-      const newButton = createButton({
-        text: '查看',
-        className: buttonClass,
-        dataset: { 'target-key': logicKey },
-        onClick: () => window.open(newUrl, '_blank'),
-      });
-      newButton.style.marginLeft = '10px';
-      // 将按钮直接添加到 label 元素中
-      label.appendChild(newButton);
-      // 同步创建或更新复制按钮
-      _createCopyNameButton(label, logicName);
+      _createOpenLogicButton(label, logicKey, logicName, () => window.open(newUrl, '_blank'));
     }
   }
 
@@ -1409,33 +1388,36 @@
     return logicName;
   }
 
-  // 创建查看按钮（工厂函数）
-  function _createOpenLogicButton(target, logicName, onClick) {
-    const buttonClass = 'ze-look-logic-button';
-    const existedButton = target.querySelector('.' + buttonClass);
-    if (existedButton) {
-      if (existedButton.getAttribute('target-key') === logicName) {
-        // 即使查看按钮没变，也需要同步更新复制按钮和名称展示
-        _createLogicNameDisplay(target, logicName);
-        _createCopyNameButton(target, logicName);
-        return null;
-      }
-      existedButton.remove();
-    }
+  /**
+   * 创建查看按钮（工厂函数）
+   * @param {Element} target - 宿主 label
+   * @param {string} key - 按钮身份键（target-key，可为逻辑 id 或逻辑名）
+   * @param {string} name - 展示与复制名跟随的逻辑名
+   * @param {Function} onClick
+   */
+  function _createOpenLogicButton(target, key, name, onClick) {
+    _createLogicNameDisplay(target, name);
 
-    _createLogicNameDisplay(target, logicName);
-
-    const newButton = createButton({
-      text: '查看',
-      className: buttonClass,
-      dataset: { 'target-key': logicName },
-      onClick,
+    const button = ensureInjected({
+      host: target,
+      find: '.ze-look-logic-button',
+      keyAttr: 'target-key',
+      key,
+      mount() {
+        const newButton = createButton({
+          text: '查看',
+          className: 'ze-look-logic-button',
+          dataset: { 'target-key': key },
+          onClick,
+        });
+        newButton.style.marginLeft = '10px';
+        target.appendChild(newButton);
+        return newButton;
+      },
     });
-    newButton.style.marginLeft = '10px';
-    target.appendChild(newButton);
-    // 同步创建或更新复制按钮
-    _createCopyNameButton(target, logicName);
-    return newButton;
+
+    _createCopyNameButton(target, name);
+    return button;
   }
 
   // 移除查看逻辑按钮
@@ -1468,61 +1450,49 @@
   // 创建逻辑名称展示（只读，工厂函数）
   function _createLogicNameDisplay(target, logicName) {
     const displayClass = 'ze-logic-name-display';
-    const existed = target.querySelector('.' + displayClass);
-
-    if (!logicName) {
-      if (existed) existed.remove();
-      return null;
-    }
-
-    if (existed) {
-      if (existed.textContent === logicName) return null;
-      existed.remove();
-    }
-
-    const span = document.createElement('span');
-    span.className = displayClass;
-    span.textContent = logicName;
-    target.appendChild(span);
-    return span;
+    return ensureInjected({
+      host: target,
+      find: '.' + displayClass,
+      keyAttr: 'logic-name-11ze',
+      key: logicName,
+      mount() {
+        if (!logicName) return null;
+        const span = document.createElement('span');
+        span.className = displayClass;
+        span.textContent = logicName;
+        span.setAttribute('logic-name-11ze', logicName);
+        target.appendChild(span);
+        return span;
+      },
+    });
   }
 
   // 创建复制按钮（工厂函数）
   function _createCopyNameButton(target, logicName) {
     const buttonClass = 'ze-copy-logic-name-button';
-    const existedButton = target.querySelector('.' + buttonClass);
-
-    // 如果没有逻辑名称，移除已存在的复制按钮
-    if (!logicName) {
-      if (existedButton) {
-        existedButton.remove();
-      }
-      return null;
-    }
-
-    if (existedButton) {
-      // 如果逻辑名称变化了，删除旧按钮，重新创建
-      if (existedButton.getAttribute('target-logic-name') !== logicName) {
-        existedButton.remove();
-      } else {
-        return null;
-      }
-    }
-
-    const copyButton = createButton({
-      text: '复制',
-      className: buttonClass,
-      dataset: { 'target-logic-name': logicName },
-      type: 'default',
-      onClick: (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        Utils.copyToClipboard(logicName, copyButton, '已复制');
+    return ensureInjected({
+      host: target,
+      find: '.' + buttonClass,
+      keyAttr: 'target-logic-name',
+      key: logicName,
+      mount() {
+        if (!logicName) return null;
+        const copyButton = createButton({
+          text: '复制',
+          className: buttonClass,
+          dataset: { 'target-logic-name': logicName },
+          type: 'default',
+          onClick: (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            Utils.copyToClipboard(logicName, copyButton, '已复制');
+          },
+        });
+        copyButton.style.marginLeft = '10px';
+        target.appendChild(copyButton);
+        return copyButton;
       },
     });
-    copyButton.style.marginLeft = '10px';
-    target.appendChild(copyButton);
-    return copyButton;
   }
 
   /**
@@ -1548,7 +1518,7 @@
         return;
       }
 
-      _createOpenLogicButton(label, logicName, () => window.open(newUrl, '_blank'));
+      _createOpenLogicButton(label, logicName, logicName, () => window.open(newUrl, '_blank'));
       return;
     }
   }
@@ -1591,7 +1561,7 @@
         }
 
         if (otherRuleText === logicName) {
-          _createOpenLogicButton(label, logicName, () => {
+          _createOpenLogicButton(label, logicName, logicName, () => {
             // 第一个按钮是「设计」，第二个「引用」
             // 点击引用会引用设计覆盖当前逻辑设计，自动保存，不可逆
             const desginButtons = otherRule
@@ -1749,6 +1719,7 @@
 
       element.style.whiteSpace = 'normal';
 
+      // 行级标记是性能闩锁：未标记的行才扫日志，避免每 tick 全表重查
       if (Utils.isMarked(element, 'form-added-button-11ze')) {
         continue;
       }
@@ -1758,17 +1729,24 @@
         continue;
       }
 
-      const copyButton = createButton({
-        text: '查看',
-        id: 'open-new-form-or-list-design-button-11ze',
-        onClick: () => window.open(targetUrl, '_blank'),
-      });
       const targetElement =
         element.parentElement.parentElement.parentElement.parentElement.parentElement.querySelector(
           'td:nth-child(5) > div > div',
         );
-      if (targetElement) {
-        targetElement.appendChild(copyButton);
+      const mounted = ensureInjected({
+        host: targetElement,
+        find: '#open-new-form-or-list-design-button-11ze',
+        mount() {
+          const copyButton = createButton({
+            text: '查看',
+            id: 'open-new-form-or-list-design-button-11ze',
+            onClick: () => window.open(targetUrl, '_blank'),
+          });
+          targetElement.appendChild(copyButton);
+          return copyButton;
+        },
+      });
+      if (mounted) {
         Utils.mark(element, 'form-added-button-11ze');
       }
     }
@@ -2168,21 +2146,24 @@
         continue;
       }
 
-      const timeDom = document.getElementById(timeDomId);
-
-      if (timeDom && timeDom.textContent.trim() === resultTextContent) {
-        continue;
-      }
-
-      document.getElementById(timeDomId)?.remove();
-
-      const span = document.createElement('span');
-      span.id = timeDomId;
-      span.textContent = resultTextContent;
-      span.style.position = 'absolute';
-      span.style.right = '-40px';
-      span.style.color = 'red';
-      node.parentNode.appendChild(span);
+      // 键=结果文本：耗时变化时移除旧标注重建
+      ensureInjected({
+        host: node.parentNode,
+        find: '#' + timeDomId,
+        keyAttr: 'exec-time-11ze',
+        key: resultTextContent,
+        mount() {
+          const span = document.createElement('span');
+          span.id = timeDomId;
+          span.setAttribute('exec-time-11ze', resultTextContent);
+          span.textContent = resultTextContent;
+          span.style.position = 'absolute';
+          span.style.right = '-40px';
+          span.style.color = 'red';
+          node.parentNode.appendChild(span);
+          return span;
+        },
+      });
     }
   }
 

@@ -21,7 +21,7 @@
 - **模式色板（MODE_COLORS）**：模式→颜色的单一事实源，text 投影日志表格行色，buttonPlain 投影按钮换色 CSS（buildModeColorCss 生成）。
 - **新旧双版**：新版（qicong-edf）与旧版（jyy-dev）两套 DOM 并存，改动须两版兼顾。
 - **操作队列（operations）**：`createOperationRunner` 按固定间隔轮询调度的混合数组，probe 键控跳过无变化 tick。
-- **幂等注入（ensureInjected）**：宿主内键控判重注入——键同跳过、键异移除重建、省略键为恒等键，mount 可返回 null 拒绝注入。
+- **幂等注入（ensureInjected）**：宿主内键控判重注入——键同跳过、键异移除重建、省略键为恒等键，mount 可返回 null 拒绝注入；设计器按钮集群统一走此出口。
 - **设计器类型（getTabType）**：逻辑/列表/表单/流程四类，须设计器头部与页签文本同时满足。
 - **星标（highlightApps）**：应用卡片右上角星标按钮，标记按应用名存 localStorage。
 - **只看星标过滤（filterStarredApps）**：JS 只产出 body class，卡片显隐全由 CSS `:has()` 驱动的 pill 开关。
