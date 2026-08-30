@@ -158,3 +158,94 @@ test('saveLog 连续保存后 getLogs 按保存顺序返回', () => {
   );
   assert.equal(logs[0].appName, '应用一');
 });
+
+test('latestLogWhere 倒序遍历：首个 matcher 命中返回该条，无命中返回 null', () => {
+  const { hooks } = loadJvsHooks();
+
+  hooks.saveLog(createLogEntry({ id: 'design-1', designName: '第一条' }), '打开');
+  hooks.saveLog(createLogEntry({ id: 'design-2', designName: '第二条' }), '打开');
+  hooks.saveLog(createLogEntry({ id: 'design-3', designName: '第三条' }), '打开');
+
+  const hit = hooks.latestLogWhere((log) => log.id !== 'design-3');
+  assert.equal(hit.designName, '第二条', '倒序应先命中第三条之后的第二条');
+
+  assert.equal(hooks.latestLogWhere(() => false), null);
+});
+
+test('getUrlFromLogs 同 id 多条时倒序命中最新一条（保存后于打开）', () => {
+  const { hooks } = loadJvsHooks();
+
+  // 去重键是 url 的 id 参数 + type：同 id 两种 type 都保留，构成倒序扫描的真实多候选场景
+  hooks.saveLog(
+    createLogEntry({ id: 'design-1', url: 'https://jvs.example.com/#/logic?id=design-1&v=1' }),
+    '打开',
+  );
+  hooks.saveLog(
+    createLogEntry({ id: 'design-1', url: 'https://jvs.example.com/#/logic?id=design-1&v=2' }),
+    '保存',
+  );
+
+  assert.equal(hooks.getUrlFromLogs('design-1', false), 'https://jvs.example.com/#/logic?id=design-1&v=2');
+});
+
+test('getUrlFromLogs 未命中时 isFromUrl 兜底替换 location.href 的 id 参数', () => {
+  const { hooks } = loadJvsHooks({
+    location: { href: 'https://jvs.example.com/page-design-ui/#/form?id=old-id&x=1' },
+  });
+
+  assert.equal(
+    hooks.getUrlFromLogs('new-id', true),
+    'https://jvs.example.com/page-design-ui/#/form?id=new-id&x=1',
+  );
+  assert.equal(hooks.getUrlFromLogs('new-id', false), null, 'isFromUrl=false 未命中即 null');
+  assert.equal(hooks.getUrlFromLogs('', true), null, 'id 空直接 null');
+});
+
+test('getUrlFromLogsAndUrl 命中 jvsAppId+designName 返回最新 url，跨应用同名不误中', () => {
+  const { hooks } = loadJvsHooks();
+
+  hooks.saveLog(
+    createLogEntry({
+      id: 'a1',
+      jvsAppId: 'app-1',
+      designName: '同名逻辑',
+      url: 'https://jvs.example.com/#/logic?id=a1&v=old',
+    }),
+    '打开',
+  );
+  hooks.saveLog(
+    createLogEntry({
+      id: 'b1',
+      jvsAppId: 'app-2',
+      designName: '同名逻辑',
+      url: 'https://jvs.example.com/#/logic?id=b1',
+    }),
+    '打开',
+  );
+  hooks.saveLog(
+    createLogEntry({
+      id: 'a1',
+      jvsAppId: 'app-1',
+      designName: '同名逻辑',
+      url: 'https://jvs.example.com/#/logic?id=a1&v=new',
+    }),
+    '保存',
+  );
+
+  assert.equal(
+    hooks.getUrlFromLogsAndUrl('同名逻辑', 'app-1'),
+    'https://jvs.example.com/#/logic?id=a1&v=new',
+  );
+  assert.equal(hooks.getUrlFromLogsAndUrl('同名逻辑', 'app-2'), 'https://jvs.example.com/#/logic?id=b1');
+  assert.equal(hooks.getUrlFromLogsAndUrl('不存在的逻辑', 'app-1'), null);
+  assert.equal(hooks.getUrlFromLogsAndUrl('', 'app-1'), null, 'logicName 空直接 null');
+});
+
+test('findDesignNameById 按 id 反查逻辑名，未命中返回 null', () => {
+  const { hooks } = loadJvsHooks();
+
+  hooks.saveLog(createLogEntry({ id: 'design-1', designName: '订单查询逻辑' }), '打开');
+
+  assert.equal(hooks.findDesignNameById('design-1'), '订单查询逻辑');
+  assert.equal(hooks.findDesignNameById('unknown'), null);
+});

@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.9
-// @description 2026-08-30 操作队列 runner 支持 probe 返回 { key, payload }——键对比走 key、载荷直达 apply（probe 纯读 apply 消费，不再二次读取）；saveCurrentLog/updateLogButton 两 operation 迁移；canvasScroll 四散变量收进 canvasScrollState（canvasScrollSeq 显式化为 rebuildCount）
+// @version     0.8.10
+// @description 2026-08-30 日志查询统一——latestLogWhere(matcher) 倒序首命中内核，getUrlFromLogs/getUrlFromLogsAndUrl 收敛为单行包装，新增 findDesignNameById 替换查看逻辑按钮的内联扫描
 // ==/UserScript==
 
 (function () {
@@ -461,6 +461,10 @@
       getAppIdName: getAppIdName,
       saveLog: saveLog,
       getLogs: getLogs,
+      latestLogWhere: latestLogWhere,
+      getUrlFromLogs: getUrlFromLogs,
+      getUrlFromLogsAndUrl: getUrlFromLogsAndUrl,
+      findDesignNameById: findDesignNameById,
       getTabType: getTabType,
       getModeColor: getModeColor,
       collectAppMode: collectAppMode,
@@ -1293,6 +1297,21 @@
   }
 
   /**
+   * 倒序取首条命中 matcher 的日志（同 id 可能因 type 不同多条并存，倒序即最新优先）
+   * @param {(log: object) => boolean} matcher
+   * @returns {object | null}
+   */
+  function latestLogWhere(matcher) {
+    const logs = getLogs();
+    for (let i = logs.length - 1; i >= 0; i--) {
+      if (matcher(logs[i])) {
+        return logs[i];
+      }
+    }
+    return null;
+  }
+
+  /**
    * 从日志或 url 生成跳转链接
    * @param {string} id - 设计 id
    * @param {boolean} isFromUrl - 是否是从 url 中获取
@@ -1303,12 +1322,9 @@
       return null;
     }
 
-    const logs = getLogs();
-    for (let i = logs.length - 1; i >= 0; i--) {
-      const log = logs[i];
-      if (log.id === id) {
-        return log.url;
-      }
+    const log = latestLogWhere((item) => item.id === id);
+    if (log) {
+      return log.url;
     }
 
     if (!isFromUrl) {
@@ -1331,20 +1347,20 @@
       return null;
     }
 
-    const logs = getLogs();
-    for (let i = logs.length - 1; i >= 0; i--) {
-      const log = logs[i];
+    const log = latestLogWhere(
+      (item) => item.jvsAppId === jvsAppId && item.designName === logicName
+    );
+    return log ? log.url : null;
+  }
 
-      if (log.jvsAppId !== jvsAppId) {
-        continue;
-      }
-
-      if (log.designName === logicName) {
-        return log.url;
-      }
-    }
-
-    return null;
+  /**
+   * 按设计 id 反查设计名（查看逻辑按钮的展示与复制名用）
+   * @param {string} id - 设计 id
+   * @returns {string | null}
+   */
+  function findDesignNameById(id) {
+    const log = latestLogWhere((item) => item.id === id);
+    return log ? log.designName : null;
   }
 
   /**
@@ -1366,14 +1382,7 @@
       }
 
       // 按日志反查逻辑名（展示与复制名用），键用逻辑 id
-      let logicName = '';
-      const logs = getLogs();
-      for (let i = logs.length - 1; i >= 0; i--) {
-        if (logs[i].id === logicKey) {
-          logicName = logs[i].designName;
-          break;
-        }
-      }
+      const logicName = findDesignNameById(logicKey) ?? '';
 
       _createOpenLogicButton(label, logicKey, logicName, () => window.open(newUrl, '_blank'));
     }
