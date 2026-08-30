@@ -41,10 +41,10 @@ test('日志按钮 operation：无容器 probe 返回 missing，apply 全路径�
   });
 
   const probeResult = hooks.updateLogButtonOperation.probe();
-  assert.equal(probeResult, 'missing');
+  assert.equal(probeResult?.key, 'missing');
 
   // apply 走 updateLogButton 全路径：历史锁 updateLogButtonOperation 与其内部
   // 局部变量曾遮蔽全局 currentMode() 触发 TDZ（真机每 tick 报错、单测盲区）
-  hooks.updateLogButtonOperation.apply();
+  hooks.updateLogButtonOperation.apply(probeResult.payload);
   assert.equal(body.children.length, 1);
 });

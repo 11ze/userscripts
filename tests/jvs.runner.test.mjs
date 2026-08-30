@@ -69,6 +69,43 @@ test('probe 键不变时 apply 只执行一次，键变化后重新执行', () =
   assert.deepEqual(calls, ['k1', 'k2']);
 });
 
+test('probe 返回 { key, payload } → 键对比走 key，payload 直达 apply', () => {
+  const calls = [];
+  let payloadValue = 'p1';
+  const { tick } = createTestRunner([
+    {
+      name: 'watched',
+      probe: () => ({ key: 'k', payload: payloadValue }),
+      apply(payload) {
+        calls.push(payload);
+      },
+    },
+  ]);
+
+  tick();
+  payloadValue = 'p2';
+  tick(); // 键不变：apply 跳过，payload 不再消费
+
+  assert.deepEqual(calls, ['p1']);
+});
+
+test('probe 返回字符串仍兼容：整体即键，apply 收到 undefined payload', () => {
+  const calls = [];
+  const { tick } = createTestRunner([
+    {
+      name: 'watched',
+      probe: () => 'k',
+      apply(payload) {
+        calls.push(payload);
+      },
+    },
+  ]);
+
+  tick();
+
+  assert.deepEqual(calls, [undefined]);
+});
+
 test('probe 返回 null 不覆盖上次记录的键', () => {
   let probeKey = 'k1';
   const calls = [];

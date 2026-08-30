@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.8
-// @description 2026-08-30 应用中心三函数判重迁 ensureInjected（星标逐卡片、只看星标开关/空态提示、侧边栏开关）；enterTabDesign 双闩锁与 skipCopyComponentButton 单向闩锁补语义注释
+// @version     0.8.9
+// @description 2026-08-30 操作队列 runner 支持 probe 返回 { key, payload }——键对比走 key、载荷直达 apply（probe 纯读 apply 消费，不再二次读取）；saveCurrentLog/updateLogButton 两 operation 迁移；canvasScroll 四散变量收进 canvasScrollState（canvasScrollSeq 显式化为 rebuildCount）
 // ==/UserScript==
 
 (function () {
@@ -418,7 +418,9 @@
   /**
    * 创建轮询调度器，统一处理 operations 混合数组
    * 普通函数每 tick 执行；{ name, probe, apply } 对象由 probe 返回的键控制：
-   * probe 返回 null/undefined 表示本 tick 不适用；键不变时跳过 apply
+   * probe 返回 null/undefined 表示本 tick 不适用；键不变时跳过 apply。
+   * probe 也可返回 { key, payload } 对象——键对比走 key，payload 直达
+   * apply(payload)（probe 纯读，apply 消费 probe 采到的数据，不二次读取）
    * @param {Array<Function | {name: string, probe: Function, apply: Function}>} operations
    * @param {(name: string, error: unknown) => void} onError - 单个操作出错时的回调
    * @returns {() => void} tick 函数
@@ -434,11 +436,12 @@
             continue;
           }
 
-          const key = operation.probe();
-          if (key === null || key === undefined) continue;
+          const result = operation.probe();
+          if (result === null || result === undefined) continue;
+          const key = result.key ?? result;
           if (lastKeys.get(operation) === key) continue;
           lastKeys.set(operation, key);
-          operation.apply();
+          operation.apply(result.payload);
         } catch (error) {
           onError(operation.name, error);
         }
@@ -508,16 +511,18 @@
 
   /**
    * 保存当前页面日志（designName 或 appName 变化时落库，由调度器的键对比控制）
+   * payload 携带 probe 构建好的日志条目，apply 直存不再二次构建
    */
   const saveCurrentLogOperation = {
     name: 'saveCurrentLog',
     probe() {
       const newLog = buildLogForSave();
       // \u0000 不会出现在页面名称里，用作组合键分隔符
-      return newLog ? newLog.designName + '\u0000' + newLog.appName : null;
+      return newLog
+        ? { key: newLog.designName + '\u0000' + newLog.appName, payload: newLog }
+        : null;
     },
-    apply() {
-      const newLog = buildLogForSave();
+    apply(newLog) {
       if (newLog) {
         saveLog(newLog, '打开');
       }
@@ -526,6 +531,7 @@
 
   /**
    * 更新日志按钮（容器缺失或按钮模式与当前不符时重建，由调度器的键对比控制）
+   * payload 携带 probe 读到的模式，apply 不再重取
    */
   const updateLogButtonOperation = {
     name: 'updateLogButton',
@@ -533,10 +539,12 @@
       const mode = currentMode();
       const existContainer = document.getElementById('ze-jvs-log-container');
       if (!existContainer) {
-        return 'missing';
+        return { key: 'missing', payload: mode };
       }
       const buttonMode = existContainer.querySelector('#ze-jvs-log-button')?.dataset.mode || '';
-      return buttonMode === mode ? 'stable:' + mode : 'stale:' + buttonMode + '->' + mode;
+      return buttonMode === mode
+        ? { key: 'stable:' + mode, payload: mode }
+        : { key: 'stale:' + buttonMode + '->' + mode, payload: mode };
     },
     apply: updateLogButton,
   };
@@ -555,18 +563,18 @@
         return null;
       }
       const identity = getCanvasIdentity();
-      if (stage.canvas !== canvasScrollSeen) {
-        if (canvasScrollIdentity !== identity) {
+      if (stage.canvas !== canvasScrollState.seen) {
+        if (canvasScrollState.identity !== identity) {
           // 切换画布：旧画布的平移记录作废
-          canvasScrollOffset = null;
+          canvasScrollState.offset = null;
         }
         const pending = canvasScrollRestoreOf(stage.canvas) ? 'restore' : 'mount';
-        // 待挂键带递增序号：两次重建之间没有 tick 时（快速连续切换），
+        // 待挂键带递增代数：两次重建之间没有 tick 时（快速连续切换），
         // 相同的裸 'mount' 会让调度器误判状态没变而永远跳过挂载（监听丢失死锁）
-        return pending + '@' + (++canvasScrollSeq);
+        return pending + '@' + (++canvasScrollState.rebuildCount);
       }
-      canvasScrollIdentity = identity;
-      canvasScrollOffset = stage.canvas.getOffset();
+      canvasScrollState.identity = identity;
+      canvasScrollState.offset = stage.canvas.getOffset();
       return stage.container.getAttribute('data-11ze-canvas-scroll') ? 'mounted' : 'mount';
     },
     apply: setCanvasScroll,
@@ -867,8 +875,7 @@
   const MOVE_SVG =
     '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>';
 
-  function updateLogButton() {
-    const mode = currentMode();
+  function updateLogButton(mode) {
     const existContainer = document.getElementById('ze-jvs-log-container');
 
     if (existContainer) {
@@ -2183,11 +2190,13 @@
     }
   }
 
-  /** 上次轮询见到的画布实例 / 画布身份 / 画布销毁前最后已知平移（连线等操作会让应用整体重建画布，平移归零） */
-  let canvasScrollSeen = null;
-  let canvasScrollIdentity = null;
-  let canvasScrollOffset = null;
-  let canvasScrollSeq = 0;
+  /** 画布滚轮平移的探测状态：上次见到的画布实例 / 画布身份 / 销毁前最后已知平移（连线等操作会让应用整体重建画布，平移归零）/ 重建代数 */
+  const canvasScrollState = {
+    seen: null,
+    identity: null,
+    offset: null,
+    rebuildCount: 0,
+  };
 
   /** 读当前画布身份：主/循环画布切换器的高亮项（主画布/循环容器），取不到给空串 */
   function getCanvasIdentity() {
@@ -2206,11 +2215,11 @@
 
   /** 实例已更换且记录了非零平移时返回待恢复的平移，否则 null */
   function canvasScrollRestoreOf(canvas) {
-    if (canvas === canvasScrollSeen) {
+    if (canvas === canvasScrollState.seen) {
       return null;
     }
-    const [offsetX, offsetY] = canvasScrollOffset || [0, 0];
-    return offsetX === 0 && offsetY === 0 ? null : canvasScrollOffset;
+    const [offsetX, offsetY] = canvasScrollState.offset || [0, 0];
+    return offsetX === 0 && offsetY === 0 ? null : canvasScrollState.offset;
   }
 
   /**
@@ -2225,7 +2234,7 @@
     if (restore) {
       canvas.move(restore);
     }
-    canvasScrollSeen = canvas;
+    canvasScrollState.seen = canvas;
     if (container.getAttribute('data-11ze-canvas-scroll')) {
       return;
     }
