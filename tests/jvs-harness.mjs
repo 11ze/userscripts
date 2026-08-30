@@ -55,8 +55,13 @@ export function makeFakeEl() {
     getAttribute: (key) => attrs[key],
     getBoundingClientRect: () => ({ right: 0 }),
     listeners: {},
+    children: [],
     addEventListener(type, handler) {
       this.listeners[type] = handler;
+    },
+    appendChild(child) {
+      this.children.push(child);
+      return child;
     },
     click() {
       this.listeners.click({ stopPropagation() {} });

@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.5
-// @description 2026-08-30 ensureInjected 幂等注入深模块（键同跳过/键异重建/恒等键/mount 可拒绝），复制设计名、复制组件名、清空全部字段三处同构判重收拢；新增契约+特征 15 用例
+// @version     0.8.6
+// @description 2026-08-30 修复真机 TDZ 崩溃：probe/updateLogButton 局部 currentMode 遮蔽同名全局函数，改名 buttonMode；补 probe→apply 全路径回归用例
 // ==/UserScript==
 
 (function () {
@@ -478,6 +478,9 @@
       get canvasScrollOperation() {
         return canvasScrollOperation;
       },
+      get updateLogButtonOperation() {
+        return updateLogButtonOperation;
+      },
       getStyles: () => JVS_STYLES + buildModeColorCss(),
     };
   }
@@ -526,8 +529,8 @@
       if (!existContainer) {
         return 'missing';
       }
-      const currentMode = existContainer.querySelector('#ze-jvs-log-button')?.dataset.mode || '';
-      return currentMode === mode ? 'stable:' + mode : 'stale:' + currentMode + '->' + mode;
+      const buttonMode = existContainer.querySelector('#ze-jvs-log-button')?.dataset.mode || '';
+      return buttonMode === mode ? 'stable:' + mode : 'stale:' + buttonMode + '->' + mode;
     },
     apply: updateLogButton,
   };
@@ -864,8 +867,8 @@
 
     if (existContainer) {
       const existButton = existContainer.querySelector('#ze-jvs-log-button');
-      const currentMode = existButton?.dataset.mode || '';
-      if (currentMode === mode) return;
+      const buttonMode = existButton?.dataset.mode || '';
+      if (buttonMode === mode) return;
       existContainer.remove();
     }
 

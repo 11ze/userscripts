@@ -14,7 +14,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { loadJvsHooks } from './jvs-harness.mjs';
+import { loadJvsHooks, makeFakeEl, makeContainer } from './jvs-harness.mjs';
 
 test('日志按钮：模式前缀与「日志」同字号同色，间距替代「｜」，无模式只显示「日志」', () => {
   const { hooks } = loadJvsHooks();
@@ -24,4 +24,27 @@ test('日志按钮：模式前缀与「日志」同字号同色，间距替代�
     hooks.getLogButtonName('开发模式'),
     '<span style="margin-right: 6px">开发模式</span>日志'
   );
+});
+
+test('日志按钮 operation：无容器 probe 返回 missing，apply 全路径创建容器不炸', () => {
+  const body = makeContainer();
+  const { hooks } = loadJvsHooks({
+    document: {
+      getElementsByTagName: () => [{ href: 'data:text/css,/*jvs-ui*/' }],
+      querySelector: () => null,
+      querySelectorAll: () => [],
+      getElementById: () => null,
+      createElement: () => makeFakeEl(),
+      addEventListener() {},
+      body,
+    },
+  });
+
+  const probeResult = hooks.updateLogButtonOperation.probe();
+  assert.equal(probeResult, 'missing');
+
+  // apply 走 updateLogButton 全路径：历史锁 updateLogButtonOperation 与其内部
+  // 局部变量曾遮蔽全局 currentMode() 触发 TDZ（真机每 tick 报错、单测盲区）
+  hooks.updateLogButtonOperation.apply();
+  assert.equal(body.children.length, 1);
 });
