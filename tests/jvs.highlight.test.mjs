@@ -3,7 +3,7 @@
 /**
  * highlightApps 星标注入与 filterStarredApps 只看星标过滤测试
  *
- * 通过 vm 桩环境执行 jvs.user.js 全文:Map 桩 localStorage、最小 DOM 桩
+ * 通过共享 harness 的 vm 桩环境执行 jvs.user.js 全文:Map 桩 localStorage、最小 DOM 桩
  * （.application 卡片 + 新旧版应用中心容器 + document.body），从 window.__JVS_TEST__
  * 条件钩子取出内部函数。核心锁定「localStorage 是唯一事实来源」：点击时现读
  * 最新状态再切换，多标签页同开不会用旧快照覆盖掉别人写入的。
@@ -11,80 +11,10 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
-import vm from 'node:vm';
-import { fileURLToPath } from 'node:url';
-
-const currentDir = path.dirname(fileURLToPath(import.meta.url));
-const sourcePath = path.join(currentDir, '../src/jvs.user.js');
+import { loadJvsHooks, makeFakeEl, makeContainer } from './jvs-harness.mjs';
 
 const HIGHLIGHT_KEY = '__11ze_HIGHLIGHT_APPS__';
 const FILTER_KEY = '__11ze_JVS_STARRED_FILTER__';
-
-/** 通用元素桩：className/classList/attribute/listener 最小闭环 */
-function fakeEl() {
-  const classes = new Set();
-  const attrs = {};
-  return {
-    className: '',
-    title: '',
-    type: '',
-    innerHTML: '',
-    innerText: '',
-    classList: {
-      toggle(name, force) {
-        if (force) classes.add(name);
-        else classes.delete(name);
-      },
-      contains: (name) => classes.has(name),
-      remove: (name) => classes.delete(name),
-    },
-    setAttribute(key, value) {
-      attrs[key] = String(value);
-    },
-    getAttribute: (key) => attrs[key],
-    listeners: {},
-    addEventListener(type, handler) {
-      this.listeners[type] = handler;
-    },
-    click() {
-      this.listeners.click({ stopPropagation() {} });
-    },
-  };
-}
-
-/** 页面容器桩（新版 .app-page / 旧版 .template-content-box / 旧版筛选行 .filter-bar）：
-    children + 按 class 递归查找 + prepend/append */
-function makeContainer(className = null) {
-  const container = {
-    className,
-    children: [],
-    querySelector(selector) {
-      const wanted = selector.slice(1);
-      const direct = container.children.find(
-        (child) =>
-          typeof child.className === 'string' &&
-          child.className.split(' ').includes(wanted)
-      );
-      if (direct) return direct;
-      for (const child of container.children) {
-        if (typeof child.querySelector === 'function') {
-          const found = child.querySelector(selector);
-          if (found) return found;
-        }
-      }
-      return null;
-    },
-    prepend(...nodes) {
-      container.children.unshift(...nodes);
-    },
-    append(...nodes) {
-      container.children.push(...nodes);
-    },
-  };
-  return container;
-}
 
 function makeCard(name) {
   const card = {
@@ -105,9 +35,6 @@ function makeCard(name) {
 
 /** mode：new = 新版应用中心（.app-page 在），old = 旧版（.template-content-box 在），none = 已离开 */
 function loadScriptHooks(cards, mode = 'new') {
-  const source = fs.readFileSync(sourcePath, 'utf8');
-
-  const store = new Map();
   const appPage = makeContainer();
   const templateBox = makeContainer();
   const filterBar = makeContainer('filter-bar');
@@ -118,25 +45,9 @@ function loadScriptHooks(cards, mode = 'new') {
     card.parentElement = cardArea; // 卡片流所在层 = 第一张卡的父级
     cardArea.append(card);
   }
-  const body = fakeEl();
-  const sandbox = {
-    console: {
-      log() {},
-      error() {},
-      warn() {},
-    },
-    setInterval() {
-      return 1;
-    },
-    clearInterval() {},
-    localStorage: {
-      getItem: (key) => (store.has(key) ? store.get(key) : null),
-      setItem: (key, value) => store.set(key, String(value)),
-      removeItem: (key) => store.delete(key),
-    },
-    GM_addStyle() {},
-    location: { href: 'https://jvs.example.com/#/wel/index' },
-    addEventListener() {},
+  const body = makeFakeEl();
+
+  const { hooks, store } = loadJvsHooks({
     document: {
       getElementsByTagName: () => [{ href: 'data:text/css,/*jvs-ui*/' }],
       querySelector: (selector) => {
@@ -152,20 +63,15 @@ function loadScriptHooks(cards, mode = 'new') {
         return null;
       },
       querySelectorAll: (selector) => (selector === '.application' ? cards : []),
-      createElement: () => fakeEl(),
+      createElement: () => makeFakeEl(),
       getElementById: () => null,
       addEventListener() {},
       body,
     },
-    __JVS_TEST__: {},
-  };
-  sandbox.window = sandbox;
-
-  vm.createContext(sandbox);
-  vm.runInContext(source, sandbox, { filename: 'jvs.user.js' });
+  });
 
   return {
-    hooks: sandbox.__JVS_TEST__.hooks,
+    hooks,
     appPage,
     templateBox,
     filterBar,

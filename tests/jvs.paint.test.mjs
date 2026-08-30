@@ -3,20 +3,14 @@
 /**
  * paintComponents 组件上色机制测试
  *
- * 通过 vm 桩环境执行 jvs.user.js 全文，querySelectorAll 返回假元素
+ * 通过共享 harness 的 vm 桩环境执行 jvs.user.js 全文，querySelectorAll 返回假元素
  * （带 innerText / textContent / style），从 window.__JVS_TEST__ 条件钩子
  * 取出 paintComponents。见 plans/2026-08-14-candidate-7-component-colors.md。
  */
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
-import vm from 'node:vm';
-import { fileURLToPath } from 'node:url';
-
-const currentDir = path.dirname(fileURLToPath(import.meta.url));
-const sourcePath = path.join(currentDir, '../src/jvs.user.js');
+import { loadJvsHooks } from './jvs-harness.mjs';
 
 // 颜色值钉住源码 COLORS.component 字面量
 const EXPECTED_COLORS = {
@@ -41,26 +35,7 @@ function fakeComponent({ innerText = '', textContent = '' } = {}) {
 }
 
 function loadScriptHooks(fakeDom) {
-  const source = fs.readFileSync(sourcePath, 'utf8');
-
-  const sandbox = {
-    console: {
-      log() {},
-      error() {},
-      warn() {},
-    },
-    setInterval() {
-      return 1;
-    },
-    clearInterval() {},
-    localStorage: {
-      getItem: () => null,
-      setItem() {},
-      removeItem() {},
-    },
-    GM_addStyle() {},
-    location: { href: 'https://jvs.example.com/#/wel/index' },
-    addEventListener() {},
+  return loadJvsHooks({
     document: {
       getElementsByTagName: () => [{ href: 'data:text/css,/*jvs-ui*/' }],
       querySelector: () => null,
@@ -68,14 +43,7 @@ function loadScriptHooks(fakeDom) {
       getElementById: () => null,
       addEventListener() {},
     },
-    __JVS_TEST__: {},
-  };
-  sandbox.window = sandbox;
-
-  vm.createContext(sandbox);
-  vm.runInContext(source, sandbox, { filename: 'jvs.user.js' });
-
-  return sandbox.__JVS_TEST__.hooks;
+  }).hooks;
 }
 
 test('脚本暴露 paintComponents 测试钩子', () => {

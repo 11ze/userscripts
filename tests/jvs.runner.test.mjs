@@ -3,61 +3,17 @@
 /**
  * createOperationRunner 契约测试
  *
- * 通过 vm 桩环境执行 jvs.user.js 全文（isJVS 走 JVS 分支完成初始化），
+ * 通过共享 harness 的 vm 桩环境执行 jvs.user.js 全文（isJVS 走 JVS 分支完成初始化），
  * 从 window.__JVS_TEST__ 条件钩子取出 IIFE 内部的 createOperationRunner。
  * 浏览器中该钩子永不激活，见 plans/2026-08-14-candidate-2-poll-runner.md 决策 Q5。
  */
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
-import vm from 'node:vm';
-import { fileURLToPath } from 'node:url';
-
-const currentDir = path.dirname(fileURLToPath(import.meta.url));
-const sourcePath = path.join(currentDir, '../src/jvs.user.js');
-
-function loadScriptHooks() {
-  const source = fs.readFileSync(sourcePath, 'utf8');
-
-  const sandbox = {
-    console: {
-      log() {},
-      error() {},
-      warn() {},
-    },
-    setInterval() {
-      return 1;
-    },
-    clearInterval() {},
-    localStorage: {
-      getItem: () => null,
-      setItem() {},
-      removeItem() {},
-    },
-    GM_addStyle() {},
-    location: { href: 'https://jvs.example.com/#/wel/index' },
-    addEventListener() {},
-    document: {
-      getElementsByTagName: () => [{ href: 'data:text/css,/*jvs-ui*/' }],
-      querySelector: () => null,
-      querySelectorAll: () => [],
-      getElementById: () => null,
-      addEventListener() {},
-    },
-    __JVS_TEST__: {},
-  };
-  sandbox.window = sandbox;
-
-  vm.createContext(sandbox);
-  vm.runInContext(source, sandbox, { filename: 'jvs.user.js' });
-
-  return sandbox.__JVS_TEST__.hooks;
-}
+import { loadJvsHooks } from './jvs-harness.mjs';
 
 function createTestRunner(operations) {
-  const hooks = loadScriptHooks();
+  const { hooks } = loadJvsHooks();
   const errors = [];
   const tick = hooks.createOperationRunner(operations, (name, error) => {
     errors.push({ name, error });
@@ -66,7 +22,7 @@ function createTestRunner(operations) {
 }
 
 test('脚本在桩环境完成初始化并暴露 createOperationRunner', () => {
-  const hooks = loadScriptHooks();
+  const { hooks } = loadJvsHooks();
   assert.equal(typeof hooks.createOperationRunner, 'function');
 });
 

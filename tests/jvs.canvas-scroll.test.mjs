@@ -3,8 +3,8 @@
 /**
  * setCanvasScroll 画布滚轮平移测试
  *
- * 通过 vm 桩环境执行 jvs.user.js 全文：Map 桩 localStorage、最小 DOM 桩
- * （.butterfly-vue-container + 其 .butterfly-vue 宿主 + __vue__.canvas 桩），
+ * 通过共享 harness 的 vm 桩环境执行 jvs.user.js 全文：Map 桩 localStorage、
+ * 最小 DOM 桩（.butterfly-vue-container + 其 .butterfly-vue 宿主 + __vue__.canvas 桩），
  * 从 window.__JVS_TEST__ 条件钩子取出内部函数。核心锁定「wheel 全走
  * canvas.move API」：坐标计算在 Butterfly 内闭环，小地图由站点原生联动；
  * 主/循环画布切换容器重建后由轮询调度自动重挂。
@@ -12,13 +12,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
-import vm from 'node:vm';
-import { fileURLToPath } from 'node:url';
-
-const currentDir = path.dirname(fileURLToPath(import.meta.url));
-const sourcePath = path.join(currentDir, '../src/jvs.user.js');
+import { loadJvsHooks } from './jvs-harness.mjs';
 
 /** Butterfly canvas 桩：getOffset 现读、move 记录调用并更新 offset */
 function makeCanvas() {
@@ -79,31 +73,12 @@ function makeCanvasStage() {
 }
 
 function loadScriptHooks() {
-  const source = fs.readFileSync(sourcePath, 'utf8');
-
-  const store = new Map();
   const stage = makeCanvasStage();
   const body = fakeEl();
   let inCanvas = true;
 
-  const sandbox = {
-    console: {
-      log() {},
-      error() {},
-      warn() {},
-    },
-    setInterval() {
-      return 1;
-    },
-    clearInterval() {},
-    localStorage: {
-      getItem: (key) => (store.has(key) ? store.get(key) : null),
-      setItem: (key, value) => store.set(key, String(value)),
-      removeItem: (key) => store.delete(key),
-    },
-    GM_addStyle() {},
+  const { hooks } = loadJvsHooks({
     location: { href: 'https://jvs.example.com/#/ruleDesign?id=1' },
-    addEventListener() {},
     document: {
       getElementsByTagName: () => [{ href: 'data:text/css,/*jvs-ui*/' }],
       querySelector: (selector) => {
@@ -119,14 +94,7 @@ function loadScriptHooks() {
       addEventListener() {},
       body,
     },
-    __JVS_TEST__: {},
-  };
-  sandbox.window = sandbox;
-
-  vm.createContext(sandbox);
-  vm.runInContext(source, sandbox, { filename: 'jvs.user.js' });
-
-  const hooks = sandbox.__JVS_TEST__.hooks;
+  });
   return {
     hooks,
     stage,

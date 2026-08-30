@@ -3,111 +3,30 @@
 /**
  * toggleAppCenterSidebar 应用中心侧边栏展开/收起测试
  *
- * 通过 vm 桩环境执行 jvs.user.js 全文：Map 桩 localStorage、最小 DOM 桩
- * （.sidebar-col 分类栏 + 其父容器 + document.body），从 window.__JVS_TEST__
- * 条件钩子取出内部函数。核心锁定「localStorage 是唯一事实来源」：JS 只产出
+ * 通过共享 harness 的 vm 桩环境执行 jvs.user.js 全文：Map 桩 localStorage、最小 DOM 桩
+ * （.sidebar-col 分类栏 + 其父容器 + document.body），从 window.__JVS_TEST__ 条件
+ * 钩子取出内部函数。核心锁定「localStorage 是唯一事实来源」：JS 只产出
  * body class，收起/展开的视觉全由 CSS 承担。
  */
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
-import vm from 'node:vm';
-import { fileURLToPath } from 'node:url';
-
-const currentDir = path.dirname(fileURLToPath(import.meta.url));
-const sourcePath = path.join(currentDir, '../src/jvs.user.js');
+import { loadJvsHooks, makeFakeEl, makeContainer } from './jvs-harness.mjs';
 
 const SIDEBAR_KEY = '__11ze_JVS_APPCENTER_SIDEBAR_COLLAPSED__';
 
-/** 通用元素桩：className/classList/attribute/listener/style/rect 最小闭环 */
-function fakeEl() {
-  const classes = new Set();
-  const attrs = {};
-  return {
-    className: '',
-    innerText: '',
-    style: {},
-    parentElement: null,
-    classList: {
-      toggle(name, force) {
-        if (force) classes.add(name);
-        else classes.delete(name);
-      },
-      contains: (name) => classes.has(name),
-      remove: (name) => classes.delete(name),
-    },
-    setAttribute(key, value) {
-      attrs[key] = String(value);
-    },
-    getAttribute: (key) => attrs[key],
-    getBoundingClientRect: () => ({ right: 213 }),
-    listeners: {},
-    addEventListener(type, handler) {
-      this.listeners[type] = handler;
-    },
-    click() {
-      this.listeners.click({});
-    },
-  };
-}
-
-/** 容器桩：children + 按 class 直接查找 + append/appendChild（按钮只挂直接子级） */
-function makeContainer(className = null) {
-  const container = {
-    className,
-    children: [],
-    querySelector(selector) {
-      const wanted = selector.slice(1);
-      const direct = container.children.find(
-        (child) =>
-          typeof child.className === 'string' &&
-          child.className.split(' ').includes(wanted)
-      );
-      return direct ?? null;
-    },
-    append(...nodes) {
-      container.children.push(...nodes);
-    },
-    appendChild(node) {
-      container.append(node);
-    },
-  };
-  return container;
-}
-
 /** center：应用中心在否（.sidebar-col 存在 = 按钮宿主容器在，SPA 离开 = 全没了） */
 function loadScriptHooks() {
-  const source = fs.readFileSync(sourcePath, 'utf8');
-
-  const store = new Map();
-  const sidebar = fakeEl();
+  const sidebar = makeFakeEl();
   sidebar.className = 'sidebar-col el-col el-col-8';
+  sidebar.getBoundingClientRect = () => ({ right: 213 }); // 展开态按钮 left 按侧边栏右缘校准
   const host = makeContainer('container el-row');
   host.append(sidebar);
   sidebar.parentElement = host;
-  const body = fakeEl();
+  const body = makeFakeEl();
   let center = true;
 
-  const sandbox = {
-    console: {
-      log() {},
-      error() {},
-      warn() {},
-    },
-    setInterval() {
-      return 1;
-    },
-    clearInterval() {},
-    localStorage: {
-      getItem: (key) => (store.has(key) ? store.get(key) : null),
-      setItem: (key, value) => store.set(key, String(value)),
-      removeItem: (key) => store.delete(key),
-    },
-    GM_addStyle() {},
-    location: { href: 'https://jvs.example.com/#/wel/index' },
-    addEventListener() {},
+  const { hooks, store } = loadJvsHooks({
     document: {
       getElementsByTagName: () => [{ href: 'data:text/css,/*jvs-ui*/' }],
       querySelector: (selector) => {
@@ -118,20 +37,15 @@ function loadScriptHooks() {
         return null;
       },
       querySelectorAll: () => [],
-      createElement: () => fakeEl(),
+      createElement: () => makeFakeEl(),
       getElementById: () => null,
       addEventListener() {},
       body,
     },
-    __JVS_TEST__: {},
-  };
-  sandbox.window = sandbox;
-
-  vm.createContext(sandbox);
-  vm.runInContext(source, sandbox, { filename: 'jvs.user.js' });
+  });
 
   return {
-    hooks: sandbox.__JVS_TEST__.hooks,
+    hooks,
     sidebar,
     host,
     body,

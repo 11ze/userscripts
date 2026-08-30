@@ -3,50 +3,26 @@
 /**
  * syncAppCenterUrl 新版应用中心地址栏同步测试
  *
- * 通过 vm 桩环境执行 jvs.user.js 全文，从 window.__JVS_TEST__ 条件钩子取出
- * 内部函数。核心锁定：只在新版应用中心容器（.app-page）显示且 hash 非首页
+ * 通过共享 harness 的 vm 桩环境执行 jvs.user.js 全文，从 window.__JVS_TEST__ 条件
+ * 钩子取出内部函数。核心锁定：只在新版应用中心容器（.app-page）显示且 hash 非首页
  * 路由时替换；replaceState 不触发路由响应属浏览器语义，桩只记录调用、不验证。
  * 函数只认 .app-page，旧版容器与离开应用中心走同一条不替换路径。
  */
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
-import vm from 'node:vm';
-import { fileURLToPath } from 'node:url';
-
-const currentDir = path.dirname(fileURLToPath(import.meta.url));
-const sourcePath = path.join(currentDir, '../src/jvs.user.js');
+import { loadJvsHooks } from './jvs-harness.mjs';
 
 /** hasAppPage：新版应用中心容器是否在（旧版容器或已离开时为 false——函数只认 .app-page） */
 function loadScriptHooks(hash, hasAppPage = true) {
-  const source = fs.readFileSync(sourcePath, 'utf8');
-
   const replaceStateCalls = [];
-  const sandbox = {
-    console: {
-      log() {},
-      error() {},
-      warn() {},
-    },
-    setInterval() {
-      return 1;
-    },
-    clearInterval() {},
-    localStorage: {
-      getItem: () => null,
-      setItem() {},
-      removeItem() {},
-    },
-    GM_addStyle() {},
+  const { hooks } = loadJvsHooks({
     location: { href: 'https://jvs.example.com/' + hash, hash },
     history: {
       replaceState(...args) {
         replaceStateCalls.push(args);
       },
     },
-    addEventListener() {},
     document: {
       getElementsByTagName: () => [{ href: 'data:text/css,/*jvs-ui*/' }],
       querySelector: (selector) => (selector === '.app-page' && hasAppPage ? {} : null),
@@ -54,14 +30,8 @@ function loadScriptHooks(hash, hasAppPage = true) {
       getElementById: () => null,
       addEventListener() {},
     },
-    __JVS_TEST__: {},
-  };
-  sandbox.window = sandbox;
-
-  vm.createContext(sandbox);
-  vm.runInContext(source, sandbox, { filename: 'jvs.user.js' });
-
-  return { hooks: sandbox.__JVS_TEST__.hooks, replaceStateCalls };
+  });
+  return { hooks, replaceStateCalls };
 }
 
 test('脚本暴露 syncAppCenterUrl 测试钩子', () => {

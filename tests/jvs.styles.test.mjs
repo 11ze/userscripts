@@ -3,8 +3,8 @@
 /**
  * JVS_STYLES 样式规则测试
  *
- * 通过 vm 桩环境执行 jvs.user.js 全文，从 window.__JVS_TEST__ 条件钩子取出 getStyles。
- * 浏览器中该钩子永不激活。
+ * 通过共享 harness 的 vm 桩环境执行 jvs.user.js 全文，从 window.__JVS_TEST__
+ * 条件钩子取出 getStyles。浏览器中该钩子永不激活。
  *
  * 背景：旧版 JVS 逻辑设计节点按单行排版（.ef-node-text line-height 46px
  * 撑起 ~48px 文字框，节点整体 ~97px 固定），脚本用 white-space: normal
@@ -17,50 +17,10 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
-import vm from 'node:vm';
-import { fileURLToPath } from 'node:url';
-
-const currentDir = path.dirname(fileURLToPath(import.meta.url));
-const sourcePath = path.join(currentDir, '../src/jvs.user.js');
+import { loadJvsHooks } from './jvs-harness.mjs';
 
 function loadScriptHooks() {
-  const source = fs.readFileSync(sourcePath, 'utf8');
-
-  const sandbox = {
-    console: {
-      log() {},
-      error() {},
-      warn() {},
-    },
-    setInterval() {
-      return 1;
-    },
-    clearInterval() {},
-    localStorage: {
-      getItem: () => null,
-      setItem() {},
-      removeItem() {},
-    },
-    GM_addStyle() {},
-    location: { href: 'https://jvs.example.com/#/wel/index' },
-    addEventListener() {},
-    document: {
-      getElementsByTagName: () => [{ href: 'data:text/css,/*jvs-ui*/' }],
-      querySelector: () => null,
-      querySelectorAll: () => [],
-      getElementById: () => null,
-      addEventListener() {},
-    },
-    __JVS_TEST__: {},
-  };
-  sandbox.window = sandbox;
-
-  vm.createContext(sandbox);
-  vm.runInContext(source, sandbox, { filename: 'jvs.user.js' });
-
-  return sandbox.__JVS_TEST__.hooks;
+  return loadJvsHooks().hooks;
 }
 
 /** 取 selector 的声明块（到平衡花括号），未找到时返回 null */

@@ -3,64 +3,19 @@
 /**
  * 存储域隐藏规则测试
  *
- * 通过 vm 桩环境执行 jvs.user.js 全文，从 window.__JVS_TEST__ 条件钩子取出
- * IIFE 内部的存储相关函数。localStorage 用 Map 桩实现，可断言存储字节。
+ * 通过共享 harness 的 vm 桩环境执行 jvs.user.js 全文，从 window.__JVS_TEST__ 条件钩子
+ * 取出 IIFE 内部的存储相关函数。localStorage 用 Map 桩实现，可断言存储字节。
  * 见 plans/2026-08-14-candidate-5-storage-read-path.md。
  */
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
-import vm from 'node:vm';
-import { fileURLToPath } from 'node:url';
-
-const currentDir = path.dirname(fileURLToPath(import.meta.url));
-const sourcePath = path.join(currentDir, '../src/jvs.user.js');
+import { loadJvsHooks } from './jvs-harness.mjs';
 
 const STORAGE_KEYS = {
   LOGS: '__11ze_JVS_LOG_LOGS_',
   APP_NAME_MAP: '__11ze_JVS_APP_NAME_MAP__',
 };
-
-function loadScriptHooks() {
-  const source = fs.readFileSync(sourcePath, 'utf8');
-
-  const store = new Map();
-  const sandbox = {
-    console: {
-      log() {},
-      error() {},
-      warn() {},
-    },
-    setInterval() {
-      return 1;
-    },
-    clearInterval() {},
-    localStorage: {
-      getItem: (key) => (store.has(key) ? store.get(key) : null),
-      setItem: (key, value) => store.set(key, String(value)),
-      removeItem: (key) => store.delete(key),
-    },
-    GM_addStyle() {},
-    location: { href: 'https://jvs.example.com/#/wel/index' },
-    addEventListener() {},
-    document: {
-      getElementsByTagName: () => [{ href: 'data:text/css,/*jvs-ui*/' }],
-      querySelector: () => null,
-      querySelectorAll: () => [],
-      getElementById: () => null,
-      addEventListener() {},
-    },
-    __JVS_TEST__: {},
-  };
-  sandbox.window = sandbox;
-
-  vm.createContext(sandbox);
-  vm.runInContext(source, sandbox, { filename: 'jvs.user.js' });
-
-  return { hooks: sandbox.__JVS_TEST__.hooks, store };
-}
 
 function readStoreJson(store, key) {
   return JSON.parse(store.get(key));
@@ -83,7 +38,7 @@ function createLogEntry(overrides = {}) {
 }
 
 test('脚本暴露存储域测试钩子', () => {
-  const { hooks } = loadScriptHooks();
+  const { hooks } = loadJvsHooks();
   for (const name of [
     'cutOverdueLogs',
     'uniqueLogs',
@@ -97,7 +52,7 @@ test('脚本暴露存储域测试钩子', () => {
 });
 
 test('cutOverdueLogs 剪掉过期与无 time 的日志，保留新近日志', () => {
-  const { hooks } = loadScriptHooks();
+  const { hooks } = loadJvsHooks();
   const now = Date.now();
   const logs = [
     createLogEntry({ id: 'expired', time: 0 }),
@@ -115,7 +70,7 @@ test('cutOverdueLogs 剪掉过期与无 time 的日志，保留新近日志', ()
 });
 
 test('uniqueLogs 按 id + type 去重，保留最新一条', () => {
-  const { hooks } = loadScriptHooks();
+  const { hooks } = loadJvsHooks();
   const now = Date.now();
   const logs = [
     createLogEntry({ id: 'same', time: now - 3000, designName: '旧记录' }),
@@ -133,7 +88,7 @@ test('uniqueLogs 按 id + type 去重，保留最新一条', () => {
 });
 
 test('saveAppIdName 双向写入且对已有 id 幂等', () => {
-  const { hooks, store } = loadScriptHooks();
+  const { hooks, store } = loadJvsHooks();
 
   hooks.saveAppIdName('app-1', '应用一');
 
@@ -148,7 +103,7 @@ test('saveAppIdName 双向写入且对已有 id 幂等', () => {
 });
 
 test('saveAppIdName 拒绝「复制」与空值', () => {
-  const { hooks, store } = loadScriptHooks();
+  const { hooks, store } = loadJvsHooks();
 
   hooks.saveAppIdName('app-1', '复制');
   hooks.saveAppIdName(null, '应用一');
@@ -158,12 +113,12 @@ test('saveAppIdName 拒绝「复制」与空值', () => {
 });
 
 test('getAppIdName 无映射时返回空串', () => {
-  const { hooks } = loadScriptHooks();
+  const { hooks } = loadJvsHooks();
   assert.equal(hooks.getAppIdName('unknown-app'), '');
 });
 
 test('enrichLogsWithAppName 用目录补全展示名，无映射条目保持原值', () => {
-  const { hooks, store } = loadScriptHooks();
+  const { hooks, store } = loadJvsHooks();
 
   hooks.saveAppIdName('app-1', '目录里的正式名');
   const logs = [
@@ -180,7 +135,7 @@ test('enrichLogsWithAppName 用目录补全展示名，无映射条目保持原�
 });
 
 test('saveLog 不把目录补全回写进存储（读路径无写效果）', () => {
-  const { hooks, store } = loadScriptHooks();
+  const { hooks, store } = loadJvsHooks();
 
   hooks.saveAppIdName('app-1', '目录里的正式名');
   hooks.saveLog(createLogEntry({ jvsAppId: 'app-1', appName: '存储里的旧名' }), '打开');
@@ -191,7 +146,7 @@ test('saveLog 不把目录补全回写进存储（读路径无写效果）', () 
 });
 
 test('saveLog 连续保存后 getLogs 按保存顺序返回', () => {
-  const { hooks } = loadScriptHooks();
+  const { hooks } = loadJvsHooks();
 
   hooks.saveLog(createLogEntry({ id: 'design-1', designName: '第一条' }), '打开');
   hooks.saveLog(createLogEntry({ id: 'design-2', designName: '第二条' }), '打开');

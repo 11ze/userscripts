@@ -3,8 +3,8 @@
 /**
  * getTabType 页面类型判定测试
  *
- * 通过 vm 桩环境执行 jvs.user.js 全文，querySelector 按选择器映射返回假元素，
- * 从 window.__JVS_TEST__ 条件钩子取出 getTabType。
+ * 通过共享 harness 的 vm 桩环境执行 jvs.user.js 全文，querySelector 按选择器映射
+ * 返回假元素，从 window.__JVS_TEST__ 条件钩子取出 getTabType。
  * 浏览器中该钩子永不激活。
  *
  * 背景：旧版 JVS 的非设计页面上 #tab-design 页签残留（span 文本「逻辑设计」），
@@ -13,35 +13,10 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
-import vm from 'node:vm';
-import { fileURLToPath } from 'node:url';
-
-const currentDir = path.dirname(fileURLToPath(import.meta.url));
-const sourcePath = path.join(currentDir, '../src/jvs.user.js');
+import { loadJvsHooks } from './jvs-harness.mjs';
 
 function loadScriptHooks(fakeDom) {
-  const source = fs.readFileSync(sourcePath, 'utf8');
-
-  const sandbox = {
-    console: {
-      log() {},
-      error() {},
-      warn() {},
-    },
-    setInterval() {
-      return 1;
-    },
-    clearInterval() {},
-    localStorage: {
-      getItem: () => null,
-      setItem() {},
-      removeItem() {},
-    },
-    GM_addStyle() {},
-    location: { href: 'https://jvs.example.com/#/wel/index' },
-    addEventListener() {},
+  return loadJvsHooks({
     document: {
       getElementsByTagName: () => [{ href: 'data:text/css,/*jvs-ui*/' }],
       querySelector: (selector) => fakeDom[selector] ?? null,
@@ -49,14 +24,7 @@ function loadScriptHooks(fakeDom) {
       getElementById: () => null,
       addEventListener() {},
     },
-    __JVS_TEST__: {},
-  };
-  sandbox.window = sandbox;
-
-  vm.createContext(sandbox);
-  vm.runInContext(source, sandbox, { filename: 'jvs.user.js' });
-
-  return sandbox.__JVS_TEST__.hooks;
+  }).hooks;
 }
 
 function fakeSpan(text) {
