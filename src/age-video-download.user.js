@@ -2,7 +2,7 @@
 // @name         AGE 新页面播放视频
 // @namespace    https://github.com/11ze
 // @version      0.2.5
-// @description  2026-01-27
+// @description  2026-01-27 在 AGE 播放页标题旁挂按钮：新标签页播放视频并自动下载（文件名经剪贴板跨页传递）
 // @author       11ze
 // @match        https://www.agedm.org/play/*
 // @match        https://age.tv/play/*
@@ -16,7 +16,8 @@
 # AGE 新页面播放并下载视频
 
 1. 自动在播放页面的动漫名称旁边新增一个按钮
-2. 点击按钮打开新标签页播放视频
+2. 点击按钮把视频名写入剪贴板并打开新标签页播放视频
+3. 新标签页找到 <video> 后按剪贴板内容命名并自动触发下载
 */
 
 (function () {

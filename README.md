@@ -2,7 +2,7 @@
 
 <img src="https://img.shields.io/badge/Firefox-Latest-brightgreen?style=flat-square" alt="Firefox version"> <img src="https://img.shields.io/badge/Edge-Latest-brightgreen?style=flat-square" alt="Firefox version"> <img src="https://img.shields.io/badge/Chrome-Latest-brightgreen?style=flat-square" alt="Chrome version">
 
-仅在最新版上通过，如果使用其它浏览器**必须要保证 Chromium 版本 100 +**
+仅在最新版上通过，如果使用其它浏览器**必须要保证 Chromium 版本 120 +**
 
 ## 使用
 
@@ -18,7 +18,7 @@
 
 ### [Jump to Top or Bottom](https://openuserjs.org/scripts/11ze/Jump_to_Top_or_Bottom)
 
-### [AGE 新页面播放视频并自动复制视频链接](https://openuserjs.org/scripts/11ze/AGE_%E6%96%B0%E9%A1%B5%E9%9D%A2%E6%92%AD%E6%94%BE%E8%A7%86%E9%A2%91)
+### [AGE 新页面播放视频](https://openuserjs.org/scripts/11ze/AGE_%E6%96%B0%E9%A1%B5%E9%9D%A2%E6%92%AD%E6%94%BE%E8%A7%86%E9%A2%91)
 
 ### [亮暗色切换](https://openuserjs.org/scripts/11ze/%E4%BA%AE%E6%9A%97%E8%89%B2%E5%88%87%E6%8D%A2)
 

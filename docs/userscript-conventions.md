@@ -9,7 +9,7 @@
 // @name         脚本名称
 // @namespace    https://github.com/11ze
 // @version      x.y.z
-// @description  日期描述 (YYYY-MM-DD)
+// @description  YYYY-MM-DD 一句话（变更说明或功能描述），只留最新一条
 // @author       11ze
 // @license      MIT
 // @match        模式匹配规则

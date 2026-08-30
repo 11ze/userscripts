@@ -2,7 +2,7 @@
 // @name            Jump to Top or Bottom
 // @namespace       https://github.com/11ze
 // @author          11ze
-// @description     为所有网页增加可立即跳转至最大的可滚动区域顶部和底部的按钮
+// @description     2026-08-30 为所有网页增加可立即跳转至最大的可滚动区域顶部和底部的按钮
 // @version         0.0.15
 // @icon            data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgBAMAAACBVGfHAAAALVBMVEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD////BHg4sAAAADXRSTlMAK1RVW1x3f4CI+vv8UJ/ShgAAAAFiS0dEDm+9ME8AAABqSURBVCjPY2CgHuCYgCbQexNNwe29DagKjmijKOG448C0dwKKAgYGZCVABQwMyErYjoBIrQKEEgEQwchAb4BuLQfYYdpILoU4HcmluSDPXUcyg+1OADOyAqCSo9bX8QchQ+519GhooKK3APJHHdKCOOK5AAAAAElFTkSuQmCC
 // @match           *
@@ -11,7 +11,7 @@
 // @license         MIT
 // ==/UserScript==
 
-/* ************************ 页面效果 ************************ */
+// ==================== 页面效果 ====================
 
 const buttonColor = '247,220,111,0.667'; // 奶黄
 
@@ -69,6 +69,7 @@ function createButton(cssText, isTop) {
   button.addEventListener(
     'click',
     function () {
+      // 三段式滚动：window 直滚 → QQ 邮箱特例 → 常见滚动容器兜底
       if (window.scrollHeight) {
         window.scrollTo(0, isTop ? 0 : document.body.scrollHeight);
         return;

@@ -2,7 +2,7 @@
 // @name         哔哩哔哩移除直播遮挡区域
 // @namespace    https://github.com/11ze
 // @version      0.1.6
-// @description  2026-01-27
+// @description  2026-01-27 移除哔哩哔哩直播间播放器遮挡区域与电台品牌图标
 // @author       11ze
 // @match        https://live.bilibili.com/*
 // @icon         https://www.bilibili.com/favicon.ico

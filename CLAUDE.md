@@ -25,7 +25,7 @@ Tampermonkey 用户脚本集合：原生 JavaScript，无构建工具、无包�
 
 ### Triage labels
 
-五个分诊角色直接用默认标签名（needs-triage / needs-info / ready-for-agent / ready-for-human / wontfix）。见 [docs/agents/triage-labels.md](docs/agents/triage-labels.md)。
+五个分诊角色直接用默认标签名。见 [docs/agents/triage-labels.md](docs/agents/triage-labels.md)。
 
 ### Domain docs
 

@@ -593,6 +593,7 @@
     document.addEventListener('click', closePopup);
   }
 
+  // 测试钩子：浏览器中 __URL_VIEWER_TEST__ 不存在，此分支永不执行
   if (window.__URL_VIEWER_TEST__) {
     window.__URL_VIEWER_TEST__.hooks = {
       parseUrl: parseUrl,

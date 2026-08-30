@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         搜索动漫
 // @namespace    https://github.com/11ze
-// @version      0.6.14
-// @description  2026-08-14
+// @version      0.6.15
+// @description  2026-08-30 移除调试日志与注释残留，无行为变化
 // @author       11ze
 // @match        *://*/*
 // @icon         data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItc2VhcmNoIj48Y2lyY2xlIGN4PSIxMSIgY3k9IjExIiByPSI4Ij48L2NpcmNsZT48cGF0aCBkPSJtMjEgMjEtNC4zNS00LjM1Ij48L3BhdGg+PC9zdmc+
@@ -80,12 +80,10 @@
 
     const span = hDom.querySelector('span');
     if (span) {
-      console.log('span：' + span.textContent);
       text = span.textContent;
     }
 
     if (!text) {
-      console.log('h：' + hDom.textContent);
       text = hDom.textContent;
     }
 
@@ -123,7 +121,6 @@
     return el;
   }
 
-  // const targetWeb = 'http://localhost:9060/search?&type=video&url=box=';
   const targetWeb = 'https://so.wangze.tech?q=';
 
   const douban = 'https://www.douban.com/search?q=';
@@ -254,6 +251,7 @@
     GM_addStyle(css);
   }
 
+  // 测试钩子：浏览器中 __ANIME_SEARCH_TEST__ 不存在，此分支永不执行
   if (window.__ANIME_SEARCH_TEST__) {
     window.__ANIME_SEARCH_TEST__.hooks = {
       detectSite,

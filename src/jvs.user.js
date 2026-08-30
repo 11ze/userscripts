@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.0
-// @description 2026-08-30 逻辑设计画布滚轮平移（wheel 走 canvas.move，小地图原生双向联动，shift+滚轮横移；连线等重建自动带回平移、切换主/循环画布归零不重放；修复快速连续切换后滚动失效——待挂键带实例序号防调度死锁）+ 入边箭头微缩为 12×10；昨日：入边箭头加大加深、正式站 IP 前缀 gdae.
+// @version     0.8.1
+// @description 2026-08-30 清理死代码与失真注释（autoClickLeftCtrlKey、autoRefreshPage、changeFavicon 不可达分支等），无行为变化
 // ==/UserScript==
 
 (function () {
@@ -24,7 +24,6 @@
   const CONFIG = {
     TIMER_INTERVAL: 400,
     LOG_SAVE_DAYS: 365,
-    REFRESH_INTERVAL_SECOND: 15 * 60,
     LOG_BAR: { top: 14, right: 310, popupGap: 6 },
     ENV_LIST: [
       { ip: 'dev.', env: '开发站' },
@@ -100,7 +99,6 @@
     HIGHLIGHT_APPS: '__11ze_HIGHLIGHT_APPS__',
     STARRED_FILTER: '__11ze_JVS_STARRED_FILTER__',
     APPCENTER_SIDEBAR: '__11ze_JVS_APPCENTER_SIDEBAR_COLLAPSED__',
-    REFRESH_PAGE_LAST_TIME: '__11ze_JVS_REFRESH_PAGE_LAST_TIME__',
   };
 
   // ==================== 状态管理 ====================
@@ -112,7 +110,6 @@
     tabDesignClicked: false, // 替代 window.secondTabDesignClicked11ze
     skipCopyComponentButton: false, // 替代 window.currentPageNotAddCopyComponentNameButton
     componentLibraryExpanded: false, // 替代 window.autoExpandComponentLibraryCategory11ze
-    pageHandler: null, // 替代 resetRefreshPageHandler
   };
 
   /**
@@ -133,7 +130,7 @@
   // ==================== 环境检测 ====================
 
   /**
-   * 检查是否包含 jvs-ui 的 link 标签
+   * 检查是否包含 jvs-ui / edf-ui 的 link 标签
    * @param {boolean} isLogFunction - 是否为日志功能调用
    * @returns {boolean}
    */
@@ -378,8 +375,6 @@
     return button;
   }
 
-  // ==================== 模块封装 ====================
-
   // ==================== 主逻辑 ====================
 
   /**
@@ -541,7 +536,6 @@
     applicationSetClick,
     showNodeExecTime,
     canvasScrollOperation,
-    // autoRefreshPage,
     // 日志模块
     updateLogButtonOperation,
     saveCurrentLogOperation,
@@ -1007,8 +1001,7 @@
    * @returns {string}
    */
   function getNewTabTitle() {
-    // 逻辑设计
-    // 把 selector 放到 getAppName 获取不到，先保留下面的处理
+    // 逻辑设计的设计名称 selector，取值函数覆盖不到，单独查询
     const title = document.querySelector(
       '#app > div > div > div.design-header-box > div.header-left > span:nth-child(3)',
     );
@@ -1081,20 +1074,9 @@
     const tabType = getTabType();
 
     function changeFavicon(iconURL) {
-      const links = document.querySelectorAll("link[rel*='icon']"); // 获取现有的 favicon 元素
-
-      if (!links) {
-        // 如果不存在，则创建一个新的 link 元素
-        const link = document.createElement('link');
-        // 或 'icon'
-        link.rel = 'shortcut icon';
-        // 设置类型，虽然并非所有浏览器都强制要求
-        link.type = 'image/x-icon';
-        document.head.appendChild(link);
-      }
+      const links = document.querySelectorAll("link[rel*='icon']");
 
       links.forEach(function (link) {
-        // 设置新的图标 URL
         link.href = iconURL;
       });
     }
@@ -1220,10 +1202,9 @@
 
   /**
    * 从日志或 url 生成跳转链接
-   *
-   * @param {*} id 设计 id
-   * @param {*} isFromUrl 是否是从 url 中获取
-   * @returns string | null
+   * @param {string} id - 设计 id
+   * @param {boolean} isFromUrl - 是否是从 url 中获取
+   * @returns {string | null}
    */
   function getUrlFromLogs(id, isFromUrl) {
     if (!id) {
@@ -1249,7 +1230,9 @@
 
   /**
    * 从日志和 url 生成跳转链接
-   * @returns string | null
+   * @param {string} logicName - 设计名称
+   * @param {string} jvsAppId - 应用 id
+   * @returns {string | null}
    */
   function getUrlFromLogsAndUrl(logicName, jvsAppId) {
     if (!logicName) {
@@ -1808,7 +1791,7 @@
         star.addEventListener('click', (event) => {
           event.stopPropagation();
           handleClickNode(n);
-          // 立即刷新当前卡片，不等 400ms 轮询
+          // 立即刷新当前卡片，不等自动轮询
           handle([n]);
         });
         n.appendChild(star);
@@ -1928,31 +1911,6 @@
     }
 
     sync();
-  }
-
-  /**
-   * 窗口聚焦时自动松开一次左 Ctrl 键
-   * 场景：按快捷键切换软件时，如果包含 Ctrl，回到逻辑设计时，Ctrl 会一直按住，导致鼠标拖拽变成画框
-   * 不用了，控制台有错误：Uncaught TypeError: Cannot read properties of undefined (reading 'removeEventListener')
-    at HTMLDocument.<anonymous> (page.f3111d50.js:34:1216471)
-   */
-  function autoClickLeftCtrlKey() {
-    const container = document.querySelector('.container');
-    if (!container) {
-      return;
-    }
-
-    container.addEventListener('focus', function () {
-      // 创建一个模拟 Ctrl 键弹起的 KeyboardEvent (可选，如果需要模拟按下和弹起)
-      const ctrlUp = new KeyboardEvent('keyup', {
-        key: 'Control',
-        code: 'ControlLeft',
-        ctrlKey: false,
-        bubbles: true,
-      });
-
-      container.dispatchEvent(ctrlUp);
-    });
   }
 
   /**
@@ -2203,48 +2161,6 @@
       { passive: false }
     );
     container.setAttribute('data-11ze-canvas-scroll', 'true');
-  }
-
-  function resetRefreshPageLastTime() {
-    jvsStorage.set(STORAGE_KEYS.REFRESH_PAGE_LAST_TIME, Date.now());
-  }
-
-  /**
-   * 每 15 分钟自动刷新页面，避免自动退出登录状态
-   * @returns
-   */
-  function autoRefreshPage() {
-    const currentUrl = window.location.href;
-    const needRefreshUrlKeyword = ['myiframe', 'wel'];
-    if (!needRefreshUrlKeyword.some((keyword) => currentUrl.includes(keyword))) {
-      return;
-    }
-    // 开发站
-    if (!['dev'].some((keyword) => currentUrl.includes(keyword))) {
-      return;
-    }
-
-    let lastTime = jvsStorage.get(STORAGE_KEYS.REFRESH_PAGE_LAST_TIME);
-    if (!lastTime) {
-      lastTime = Date.now();
-      jvsStorage.set(STORAGE_KEYS.REFRESH_PAGE_LAST_TIME, lastTime);
-      return;
-    }
-
-    // 正确移除和添加事件监听器
-    if (STATE.pageHandler) {
-      window.removeEventListener('mousedown', STATE.pageHandler, { passive: true });
-    }
-    STATE.pageHandler = resetRefreshPageLastTime;
-    window.addEventListener('mousedown', STATE.pageHandler, { passive: true });
-
-    const currentTime = Date.now();
-    if (currentTime - lastTime < 1000 * CONFIG.REFRESH_INTERVAL_SECOND) {
-      return;
-    }
-
-    jvsStorage.set(STORAGE_KEYS.REFRESH_PAGE_LAST_TIME, currentTime);
-    location.reload();
   }
 
 /**
