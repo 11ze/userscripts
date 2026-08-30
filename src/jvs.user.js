@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.2
-// @description 2026-08-30 轮询间隔 400ms→200ms（文档与测试注释去数值化，间隔唯一事实源收敛到 CONFIG 常量），getMode 同值不再重写存储
+// @version     0.8.3
+// @description 2026-08-30 模式读写分离（collectAppMode 采集落库、currentMode 历史优先）、模式色板单一事实源 MODE_COLORS 生成按钮换色 CSS、getAppNameForLog 更名 collectAppName 显式化藏写
 // ==/UserScript==
 
 (function () {
@@ -110,6 +110,19 @@
     tabDesignClicked: false, // 替代 window.secondTabDesignClicked11ze
     skipCopyComponentButton: false, // 替代 window.currentPageNotAddCopyComponentNameButton
     componentLibraryExpanded: false, // 替代 window.autoExpandComponentLibraryCategory11ze
+  };
+
+  /** 模式色板单一事实源：text 投影日志表格行色，buttonPlain 投影按钮整钮换色 CSS */
+  const MODE_COLORS = {
+    开发模式: { text: 'black' },
+    测试模式: {
+      text: 'green',
+      buttonPlain: { color: '#67C23A', borderColor: '#B3E19D', hoverBackgroundColor: '#F0F9EB', hoverBorderColor: '#67C23A' },
+    },
+    正式模式: {
+      text: 'red',
+      buttonPlain: { color: '#F56C6C', borderColor: '#FAB6B6', hoverBackgroundColor: '#FEF0F0', hoverBorderColor: '#F56C6C' },
+    },
   };
 
   /**
@@ -421,6 +434,12 @@
       saveLog: saveLog,
       getLogs: getLogs,
       getTabType: getTabType,
+      getModeColor: getModeColor,
+      collectAppMode: collectAppMode,
+      getModeFromHistory: getModeFromHistory,
+      currentMode: currentMode,
+      buildModeColorCss: buildModeColorCss,
+      MODE_COLORS: MODE_COLORS,
       highlightApps: highlightApps,
       filterStarredApps: filterStarredApps,
       toggleAppCenterSidebar: toggleAppCenterSidebar,
@@ -430,7 +449,7 @@
       get canvasScrollOperation() {
         return canvasScrollOperation;
       },
-      getStyles: () => JVS_STYLES,
+      getStyles: () => JVS_STYLES + buildModeColorCss(),
     };
   }
 
@@ -473,7 +492,7 @@
   const updateLogButtonOperation = {
     name: 'updateLogButton',
     probe() {
-      const mode = getModeFromHistory() || getMode();
+      const mode = currentMode();
       const existContainer = document.getElementById('ze-jvs-log-container');
       if (!existContainer) {
         return 'missing';
@@ -584,7 +603,7 @@
     const jvsAppId = getJvsAppId();
     const tabType = getTabType();
     const designName = getNewTabTitle();
-    const appName = getAppNameForLog();
+    const appName = collectAppName();
 
     if (!designName || !appName || !id || !jvsAppId || !tabType) {
       return null;
@@ -594,10 +613,11 @@
   }
 
   /**
-   * 获取应用名称（用于日志记录）
+   * 采集应用名称（用于日志记录）：DOM 抓取，命中干净的单行名时
+   * 顺手落库 saveAppIdName（写一次语义，应用改名不回写）
    * @returns {string} 应用名称
    */
-  function getAppNameForLog() {
+  function collectAppName() {
     for (const selector of APP_NAME_SELECTORS) {
       const elements = document.querySelectorAll(selector);
       for (const el of elements) {
@@ -810,7 +830,7 @@
     '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>';
 
   function updateLogButton() {
-    const mode = getModeFromHistory() || getMode();
+    const mode = currentMode();
     const existContainer = document.getElementById('ze-jvs-log-container');
 
     if (existContainer) {
@@ -947,7 +967,11 @@
     return jvsStorage.get(STORAGE_KEYS.APP_MODE_MAP, {});
   }
 
-  function getMode() {
+  /**
+   * 采集当前模式：读 DOM 模式项，值变才写入目录（显式的写入口）
+   * @returns {string} 模式名，无 .system-list 时空串
+   */
+  function collectAppMode() {
     const systemList = document.querySelector('.system-list');
     if (!systemList) {
       return '';
@@ -989,13 +1013,31 @@
     return appModeMap[jvsAppId];
   }
 
+  /** 当前模式唯一入口：历史目录优先，未命中走 DOM 采集 */
+  function currentMode() {
+    return getModeFromHistory() || collectAppMode();
+  }
+
   function getModeColor(mode) {
-    const modeColorMapping = {
-      开发模式: 'black',
-      测试模式: 'green',
-      正式模式: 'red',
-    };
-    return modeColorMapping[mode] ?? 'black';
+    return MODE_COLORS[mode]?.text ?? 'black';
+  }
+
+  /** 按钮整钮随 data-mode 换色的规则，色值全部取自 MODE_COLORS.buttonPlain */
+  function buildModeColorCss() {
+    return Object.entries(MODE_COLORS)
+      .filter(([, palette]) => palette.buttonPlain)
+      .map(([mode, { buttonPlain }]) => `
+  .button-11ze[data-mode="${mode}"] {
+    color: ${buttonPlain.color} !important;
+    border-color: ${buttonPlain.borderColor} !important;
+  }
+
+  .button-11ze[data-mode="${mode}"]:hover {
+    background-color: ${buttonPlain.hoverBackgroundColor} !important;
+    border-color: ${buttonPlain.hoverBorderColor} !important;
+  }
+`)
+      .join('');
   }
 
   /**
@@ -1087,7 +1129,7 @@
       document.title = newTabTitle;
       changeFavicon(ICONS[tabType]);
     } else {
-      let prefix = getMode();
+      let prefix = collectAppMode();
 
       if (!prefix) {
         prefix = getEnvironment();
@@ -2482,27 +2524,7 @@ const JVS_STYLES = `
     border-color: #409EFF !important;
   }
 
-  /* 日志按钮整钮随模式换色：色板取自 Element plain 绿/红，开发模式用默认蓝。
-     日志表格行色仍走 getModeColor 的关键字色板，两处并存待统一 */
-  .button-11ze[data-mode="测试模式"] {
-    color: #67C23A !important;
-    border-color: #B3E19D !important;
-  }
-
-  .button-11ze[data-mode="测试模式"]:hover {
-    background-color: #F0F9EB !important;
-    border-color: #67C23A !important;
-  }
-
-  .button-11ze[data-mode="正式模式"] {
-    color: #F56C6C !important;
-    border-color: #FAB6B6 !important;
-  }
-
-  .button-11ze[data-mode="正式模式"]:hover {
-    background-color: #FEF0F0 !important;
-    border-color: #F56C6C !important;
-  }
+  /* 日志按钮整钮随模式换色：规则由 buildModeColorCss 从 MODE_COLORS 生成（文件末尾拼接注入） */
 
   .button-11ze:hover {
     cursor: pointer;
@@ -2684,5 +2706,5 @@ const JVS_STYLES = `
 
 `;
 
-GM_addStyle(JVS_STYLES);
+GM_addStyle(JVS_STYLES + buildModeColorCss());
 })();

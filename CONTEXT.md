@@ -17,6 +17,8 @@
 ## jvs
 
 - **环境检测（isJVS）**：按页面 link 标签判定是否 JVS 站点，非 JVS 早退。
+- **当前模式（currentMode）**：模式读取统一入口，历史映射优先、未命中走 DOM 采集（collectAppMode 顺手落库）。
+- **模式色板（MODE_COLORS）**：模式→颜色的单一事实源，text 投影日志表格行色，buttonPlain 投影按钮换色 CSS（buildModeColorCss 生成）。
 - **新旧双版**：新版（qicong-edf）与旧版（jyy-dev）两套 DOM 并存，改动须两版兼顾。
 - **操作队列（operations）**：`createOperationRunner` 按固定间隔轮询调度的混合数组，probe 键控跳过无变化 tick。
 - **设计器类型（getTabType）**：逻辑/列表/表单/流程四类，须设计器头部与页签文本同时满足。
