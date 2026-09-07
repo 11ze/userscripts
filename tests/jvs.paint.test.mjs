@@ -22,16 +22,7 @@ const EXPECTED_COLORS = {
 };
 
 function fakeComponent({ innerText = '', textContent = '' } = {}) {
-  const component = { innerText, textContent, classList: { added: [] } };
-  component.classList.add = (name) => component.classList.added.push(name);
-  component.style = {};
-  // setProperty 不可枚举，保住「未命中时样式不动」断言对空 style 的检查
-  Object.defineProperty(component.style, 'setProperty', {
-    value: (name, value) => {
-      component.style[name] = value;
-    },
-  });
-  return component;
+  return { innerText, textContent, style: {} };
 }
 
 function loadScriptHooks(fakeDom) {
@@ -113,24 +104,4 @@ test('一个选择器下的多个组件各自独立匹配', () => {
   assert.equal(components[0].style.backgroundColor, EXPECTED_COLORS.loop);
   assert.deepEqual(Object.keys(components[1].style), []);
   assert.equal(components[2].style.backgroundColor, EXPECTED_COLORS.warning);
-});
-
-test('命中类型时加 ze-typed 类并写 --ze-type-color 变量，供样式精修钩住', () => {
-  const component = fakeComponent({ innerText: '数据模型-按条件新增' });
-  const hooks = loadScriptHooks({ '.getItem': [component] });
-
-  hooks.paintComponents('.getItem', 'innerText');
-
-  assert.deepEqual(component.classList.added, ['ze-typed']);
-  assert.equal(component.style['--ze-type-color'], EXPECTED_COLORS.data);
-});
-
-test('未命中类型时不加类不写变量', () => {
-  const component = fakeComponent({ innerText: '自由布局容器' });
-  const hooks = loadScriptHooks({ '.getItem': [component] });
-
-  hooks.paintComponents('.getItem', 'innerText');
-
-  assert.deepEqual(component.classList.added, []);
-  assert.equal(component.style['--ze-type-color'], undefined);
 });

@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.11
-// @description 2026-08-30 修复表单设计组件名悬停消失——站点 hover 规则（.formitem:not(.clicked):hover 藏 .type-name）被 !important 覆盖，常显组件名悬停不丢
+// @version     0.8.12
+// @description 2026-09-07 撤销新版逻辑设计节点精修——节点回原生白边框与左右图标形态、名称折行回框内裁切、命中类型只留背景上色；灰线实线/端点圆点/入边箭头保留
 // ==/UserScript==
 
 (function () {
@@ -1288,8 +1288,6 @@
         if (typeToColor.types.some((t) => text.includes(t))) {
           component.style.backgroundColor = typeToColor.color;
           component.style.borderColor = typeToColor.color;
-          component.classList.add('ze-typed');
-          component.style.setProperty('--ze-type-color', typeToColor.color);
           break;
         }
       }
@@ -2393,40 +2391,6 @@ const JVS_STYLES = `
     }
   }
 
-  /* 新版 JVS，逻辑设计，框与 .top 维持原生固定高（连线坐标走原生逻辑），只放开文本层溢出——
-     折行名称完整画到框外，不占布局、不推锚点；:not 隔离旧版节点。
-     节点本体严禁加定位：原生 static，inline 里的 top/left 是应用写的画布坐标冗余，一激活就飞 */
-  .jvs-rule-node.ef-node-container:not(.jtk-droppable) .ef-node-text {
-    overflow: visible !important;
-  }
-
-  /* 新版 JVS，逻辑设计，隐藏节点左侧图标（类名带 flow-node-drag 但实测非拖拽把手，
-     拖拽走整个节点），文字左移占满 */
-  .jvs-rule-node.ef-node-container:not(.jtk-droppable) .ef-node-left-ico {
-    display: none !important;
-  }
-
-  /* 新版 JVS，逻辑设计，右侧执行结果图标槽空置时收起（有结果时应用给槽内 reference
-     图标挂 el-node-state-success/el-node-state-error 字体图标类，空置时没有——
-     图标是字体不是 svg，:empty 也不可用）；文字层 width:100% 自动占满，
-     有执行结果图标时恢复原生占位不压字 */
-  .jvs-rule-node.ef-node-container:not(.jtk-droppable) .ef-node-right-ico:not(:has([class*="el-node-state"])) {
-    display: none !important;
-  }
-
-  /* 新版 JVS，逻辑设计，所有节点统一精修：可见的中性灰实线描边（原生是 2px 白色占位边框）、
-     8px 圆角、轻投影；常驻实线顺带压掉应用原生 hover 的虚线边框 */
-  .jvs-rule-node.ef-node-container:not(.jtk-droppable) {
-    border: 1px solid #c0c4cc !important;
-    border-radius: 8px !important;
-    box-shadow: 0 1px 3px rgba(31, 45, 61, 0.12) !important;
-  }
-
-  /* 新版 JVS，逻辑设计，命中类型的节点（paint 端加 ze-typed 类与颜色变量）换同色深一阶描边 */
-  .jvs-rule-node.ef-node-container.ze-typed:not(.jtk-droppable) {
-    border-color: color-mix(in srgb, var(--ze-type-color), #303133 30%) !important;
-  }
-
   /* 新版 JVS，逻辑设计，只把静止灰线的虚线改实线（粗细、颜色都保持原生）、端点显形为
      白底圆点（原生透明不可见）；:not 排除的是应用状态类词表快照（success 绿虚线是日志
      回放动画，error/async/abnormal/active 同为状态线）——应用加新状态类须回来补，
@@ -2446,7 +2410,7 @@ const JVS_STYLES = `
   /* 新版 JVS，逻辑设计，入边箭头加大加深后微缩（原生 8宽×8高浅灰实心小三角
      不起眼）；left 补偿值 = 左右 border 的一半，保持水平居中；尖角钉在节点
      顶边（尖角 = 盒顶 + 三角高，top 取负的三角高；原生扎进节点 4px 的位置
-     被用户否决）；:not(.jtk-droppable) 隔离旧版（旧版节点同带这些类，见上方节点规则） */
+     被用户否决）；:not(.jtk-droppable) 隔离旧版（旧版节点同带这些类） */
   .jvs-rule-node.ef-node-container:not(.jtk-droppable) .top-endpoint {
     top: -10px !important;
     left: calc(50% - 6px) !important;
