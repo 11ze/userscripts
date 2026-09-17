@@ -2249,12 +2249,8 @@
       _createLogicNameDisplay: _createLogicNameDisplay,
       _createOpenLogicButton: _createOpenLogicButton,
       setCanvasScroll: setCanvasScroll,
-      get canvasScrollOperation() {
-        return canvasScrollOperation;
-      },
-      get updateLogButtonOperation() {
-        return updateLogButtonOperation;
-      },
+      canvasScrollOperation: canvasScrollOperation,
+      updateLogButtonOperation: updateLogButtonOperation,
       getStyles: () => JVS_STYLES + buildModeColorCss(),
     };
   }
