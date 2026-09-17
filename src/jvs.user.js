@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.12
-// @description 2026-09-07 撤销新版逻辑设计节点精修——节点回原生白边框与左右图标形态、名称折行回框内裁切、命中类型只留背景上色；灰线实线/端点圆点/入边箭头保留
+// @version     0.8.13
+// @description 2026-09-17 修复日志弹窗再点按钮关闭时泄漏 document 外点监听器；表格 HTML 抽纯函数 buildLogTableHtml 补单测
 // ==/UserScript==
 
 (function () {
@@ -477,6 +477,8 @@
       toggleAppCenterSidebar: toggleAppCenterSidebar,
       syncAppCenterUrl: syncAppCenterUrl,
       getLogButtonName: getLogButtonName,
+      showLogPopup: showLogPopup,
+      buildLogTableHtml: buildLogTableHtml,
       ensureInjected: ensureInjected,
       addButtonToCopyDesignName: addButtonToCopyDesignName,
       addButtonToCopyComponentName: addButtonToCopyComponentName,
@@ -773,18 +775,13 @@
   }
 
   /**
-   * 显示日志弹窗
+   * 日志表格 HTML（表头+表体）：模式列按应用模式目录条件输出，
+   * 行倒序、跳过保存类日志
+   * @param {LogEntry[]} logs
+   * @param {Object<string, string>} appModeMap 应用 id → 模式名
+   * @returns {string} table 的 innerHTML
    */
-  function showLogPopup() {
-    const popupId = '11ze-jvs-log-popup';
-    const oldPopup = document.getElementById(popupId);
-    if (oldPopup) {
-      oldPopup.remove();
-      return;
-    }
-
-    const logs = enrichLogsWithAppName(getLogs());
-    const appModeMap = getAppModelMap();
+  function buildLogTableHtml(logs, appModeMap) {
     const hasMode = Object.keys(appModeMap).length > 0;
     const listContent = [];
 
@@ -813,6 +810,45 @@
       `);
     }
 
+    return `
+      <thead>
+        <tr style="background-color: #eef5fe" class="log-11ze-table-tr">
+          <th> 时间 &nbsp;</th>
+          ${hasMode ? `<th> 模式 &nbsp;</th>` : ''}
+          <th> 应用 &nbsp;</th>
+          <th style="text-align: center"> 类型 &nbsp;</th>
+          <th> 名称 &nbsp;</th>
+        </tr>
+      </thead>
+      <tbody>${listContent.join('')}</tbody>
+    `;
+  }
+
+  // 外点关闭监听器挂在 document 上，注册/摘除必须成对
+  let logPopupOutsideClick = null;
+
+  function removeLogPopupOutsideClick() {
+    if (logPopupOutsideClick) {
+      document.removeEventListener('click', logPopupOutsideClick);
+      logPopupOutsideClick = null;
+    }
+  }
+
+  /**
+   * 显示日志弹窗
+   */
+  function showLogPopup() {
+    const popupId = '11ze-jvs-log-popup';
+    const oldPopup = document.getElementById(popupId);
+    if (oldPopup) {
+      oldPopup.remove();
+      removeLogPopupOutsideClick();
+      return;
+    }
+
+    const logs = enrichLogsWithAppName(getLogs());
+    const appModeMap = getAppModelMap();
+
     const popup = document.createElement('div');
     popup.className = 'popup-11ze';
     popup.id = popupId;
@@ -828,18 +864,7 @@
     const logTable = document.createElement('table');
     logTable.className = 'table-11ze';
     logTable.style.marginTop = '10px';
-    logTable.innerHTML = `
-      <thead>
-        <tr style="background-color: #eef5fe" class="log-11ze-table-tr">
-          <th> 时间 &nbsp;</th>
-          ${hasMode ? `<th> 模式 &nbsp;</th>` : ''}
-          <th> 应用 &nbsp;</th>
-          <th style="text-align: center"> 类型 &nbsp;</th>
-          <th> 名称 &nbsp;</th>
-        </tr>
-      </thead>
-      <tbody>${listContent.join('')}</tbody>
-    `;
+    logTable.innerHTML = buildLogTableHtml(logs, appModeMap);
 
     popup.appendChild(logTable);
     document.body.appendChild(popup);
@@ -856,12 +881,13 @@
       if (nameTd) window.open(nameTd.dataset.url, '_blank');
     });
 
-    document.addEventListener('click', function closePopupOnOutsideClick(event) {
+    logPopupOutsideClick = function closePopupOnOutsideClick(event) {
       if (popup && !popup.contains(event.target) && !event.target.closest('#ze-jvs-log-container')) {
         popup.remove();
-        document.removeEventListener('click', closePopupOnOutsideClick);
+        removeLogPopupOutsideClick();
       }
-    });
+    };
+    document.addEventListener('click', logPopupOutsideClick);
   }
 
   /**
