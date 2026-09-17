@@ -41,6 +41,7 @@ function fakeEl(className = '') {
       attrs[key] = String(value);
     },
     getAttribute: (key) => (key in attrs ? attrs[key] : null),
+    hasAttribute: (key) => key in attrs,
     addEventListener(type, handler) {
       (listeners[type] ||= []).push(handler);
     },

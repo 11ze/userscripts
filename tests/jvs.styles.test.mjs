@@ -104,6 +104,20 @@ test('旧版节点展开名称的规则不波及既有「展开组件名称」�
   );
 });
 
+test('注入按钮统一左距：查看/复制按钮的 10px 间距由样式表给（替代原内联 marginLeft）', () => {
+  const hooks = loadScriptHooks();
+  const styles = hooks.getStyles();
+
+  // 四类注入按钮（查看逻辑、复制逻辑名、复制组件名、复制设计名）共用一条规则
+  // （选择器组在源码中多行排版，用组尾的 id 选择器锚定声明块）；
+  // 须 !important 且位于 .button-11ze 的 margin 简写之后，否则被其 4px 左距盖过
+  assertDeclaration(
+    styles,
+    '#copy-design-name-button-11ze',
+    'margin-left: 10px !important'
+  );
+});
+
 test('新版只把静止灰线虚线改实线（状态线不碰、粗细颜色原生）、端点显形为白底圆点，节点本体零规则块', () => {
   const hooks = loadScriptHooks();
   const styles = hooks.getStyles();

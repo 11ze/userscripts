@@ -93,14 +93,13 @@ test('逻辑名复制按钮：键同跳过', () => {
   assert.equal(label.appended.length, 0);
 });
 
-test('逻辑名复制按钮：键异 → 移除重建，新按钮带新名与 10px 间距', () => {
+test('逻辑名复制按钮：键异 → 移除重建，新按钮带新名', () => {
   const copyButton = makeInjectedNode({ attrs: { 'target-logic-name': '旧逻辑' } });
   const label = makeLabelHost({ copyButton });
   loadDesignerHooks(emptyDocument())._createCopyNameButton(label, '新逻辑');
   assert.equal(copyButton.removed, true);
   assert.equal(label.appended.length, 1);
   assert.equal(label.appended[0].getAttribute('target-logic-name'), '新逻辑');
-  assert.equal(label.appended[0].style.marginLeft, '10px');
 });
 
 test('逻辑名复制按钮：无现有按钮 → 直接建', () => {
@@ -148,13 +147,12 @@ test('逻辑名展示：名称变化 → 移除重建（textContent=新名）', 
 
 // ==================== 查看逻辑按钮（键与名称分离） ====================
 
-test('查看逻辑按钮：新建三件套——展示、按钮（target-key=键）、复制名，间距 10px', () => {
+test('查看逻辑按钮：新建三件套——展示、按钮（target-key=键）、复制名', () => {
   const label = makeLabelHost();
   loadDesignerHooks(emptyDocument())._createOpenLogicButton(label, 'logic-key-1', '订单逻辑', () => {});
   assert.equal(label.appended.length, 3);
   assert.equal(label.appended[0].textContent, '订单逻辑');
   assert.equal(label.appended[1].getAttribute('target-key'), 'logic-key-1');
-  assert.equal(label.appended[1].style.marginLeft, '10px');
   assert.equal(label.appended[2].getAttribute('target-logic-name'), '订单逻辑');
 });
 

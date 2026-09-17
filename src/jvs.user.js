@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.15
-// @description 2026-09-17 修复画布滚轮平移后从组件库拖入新组件落点按旧平移量错位——平移后同步宿主组件 offsetXY（应用落点换算的数据源，原生拖拽结束时才自己同步）
+// @version     0.8.16
+// @description 2026-09-17 等价重构：元素闩锁统一走 Utils、三处复制按钮收敛为注入内核、弹窗定位公式单源；删死参数/死 CSS/恒假守卫/无效 beforeunload；轮询省重复工作（日志与 APP_NAME_MAP 每 tick 单次解析、title/favicon 同值跳过、组件上色同色跳过）
 // ==/UserScript==
 
 (function () {
@@ -144,27 +144,22 @@
 
   /**
    * 检查是否包含 jvs-ui / edf-ui 的 link 标签
-   * @param {boolean} isLogFunction - 是否为日志功能调用
    * @returns {boolean}
    */
-  function isJVS(isLogFunction) {
+  function isJVS() {
     const links = document.getElementsByTagName('link');
     for (const link of links) {
       const matchList = ['jvs-ui', 'edf-ui'];
 
       if (link.href && matchList.some((match) => link.href.includes(match))) {
-        let message = '%c「改善 JVS 开发体验」已检测到 JVS 环境';
-        if (isLogFunction) {
-          message += '（日志功能）';
-        }
-        console.log(message, 'color: #0099ff;');
+        console.log('%c「改善 JVS 开发体验」已检测到 JVS 环境', 'color: #0099ff;');
         return true;
       }
     }
     return false;
   }
 
-  if (!isJVS(false)) {
+  if (!isJVS()) {
     return;
   }
 
@@ -440,13 +435,8 @@
     return mapping;
   }
 
-  function getUrl() {
-    return location.href;
-  }
-
   function getJvsAppId() {
-    const urlParams = getQueryParamMapping(getUrl());
-    return urlParams['jvsAppId'];
+    return getQueryParamMapping(location.href)['jvsAppId'];
   }
 
   /**
@@ -529,12 +519,13 @@
    * @returns {LogEntry | null} 日志对象，如果数据不完整则返回 null
    */
   function createLogEntry() {
-    const url = getUrl();
-    const id = getQueryParamMapping(url)['id'];
-    const jvsAppId = getJvsAppId();
+    const url = location.href;
+    const urlParams = getQueryParamMapping(url);
+    const id = urlParams['id'];
+    const jvsAppId = urlParams['jvsAppId'];
     const tabType = getTabType();
     const designName = getNewTabTitle();
-    const appName = collectAppName();
+    const appName = collectAppName(jvsAppId);
 
     if (!designName || !appName || !id || !jvsAppId || !tabType) {
       return null;
@@ -546,9 +537,10 @@
   /**
    * 采集应用名称（用于日志记录）：DOM 抓取，命中干净的单行名时
    * 顺手落库 saveAppIdName（写一次语义，应用改名不回写）
+   * @param {string} jvsAppId - 调用方已解析的应用 id（免重复解析 URL）
    * @returns {string} 应用名称
    */
-  function collectAppName() {
+  function collectAppName(jvsAppId) {
     for (const selector of APP_NAME_SELECTORS) {
       const elements = document.querySelectorAll(selector);
       for (const el of elements) {
@@ -561,7 +553,7 @@
             .filter(Boolean);
           if (textArray.length === 1) {
             const appName = textArray[0].split(' ')[0].trim();
-            saveAppIdName(getJvsAppId(), appName);
+            saveAppIdName(jvsAppId, appName);
             return appName;
           }
           if (document.querySelector('.list-item')) {
@@ -583,24 +575,30 @@
     return appNameMap[jvsAppId] ?? '';
   }
 
+  // 本会话已确认落库的应用 id：命中直接返回，省去每 tick 全量读回 APP_NAME_MAP
+  // （副作用：存储被手动清空后不再自动重建，刷新页面才重新落库）
+  const savedAppIds = new Set();
+
   function saveAppIdName(jvsAppId, appName) {
-    if (appName === '复制') {
+    if (appName === '复制' || !jvsAppId || !appName) {
       return;
     }
 
-    if (!jvsAppId || !appName) {
+    if (savedAppIds.has(jvsAppId)) {
       return;
     }
 
     const appNameMap = getAppNameMap();
 
     if (appNameMap[jvsAppId]) {
+      savedAppIds.add(jvsAppId);
       return;
     }
 
     appNameMap[jvsAppId] = appName;
     appNameMap[appName] = jvsAppId;
     jvsStorage.set(STORAGE_KEYS.APP_NAME_MAP, appNameMap);
+    savedAppIds.add(jvsAppId);
   }
 
   /**
@@ -624,18 +622,16 @@
    * 获取日志列表（纯读：剪切过期与重复条目，不改动 appName）
    */
   function getLogs() {
-    const logs = jvsStorage.get(STORAGE_KEYS.LOGS, []);
-    if (!logs) return [];
-
-    return cutOverdueLogs(logs, Date.now());
+    return cutOverdueLogs(jvsStorage.get(STORAGE_KEYS.LOGS, []), Date.now());
   }
 
   /**
    * 用应用目录补全日志的 appName（仅用于展示，不回写存储）
    */
   function enrichLogsWithAppName(logs) {
+    const appNameMap = getAppNameMap();
     logs.forEach((log) => {
-      const appName = getAppIdName(log.jvsAppId);
+      const appName = appNameMap[log.jvsAppId];
       if (appName) log.appName = appName;
     });
     return logs;
@@ -698,8 +694,9 @@
 
     const systemListItems = systemList.querySelectorAll('li');
     for (const systemListItem of systemListItems) {
-      if (systemListItem.innerText.includes('模式')) {
-        const mode = systemListItem.innerText.trim();
+      const text = systemListItem.innerText;
+      if (text.includes('模式')) {
+        const mode = text.trim();
 
         const jvsAppId = getJvsAppId();
         if (jvsAppId) {
@@ -718,18 +715,12 @@
   }
 
   function getModeFromHistory() {
-    const urlParams = getQueryParamMapping(getUrl());
-    if (!urlParams) {
-      return '';
-    }
-
-    const jvsAppId = urlParams['jvsAppId'];
+    const jvsAppId = getJvsAppId();
     if (!jvsAppId) {
       return '';
     }
 
-    const appModeMap = getAppModelMap();
-    return appModeMap[jvsAppId];
+    return getAppModelMap()[jvsAppId];
   }
 
   /** 当前模式唯一入口：历史目录优先，未命中走 DOM 采集 */
@@ -762,10 +753,10 @@
   /**
    * 倒序取首条命中 matcher 的日志（同 id 可能因 type 不同多条并存，倒序即最新优先）
    * @param {(log: object) => boolean} matcher
+   * @param {LogEntry[]} [logs] - 复用调用方已解析的日志（同一 tick 内多次查询只解析一次存储）
    * @returns {object | null}
    */
-  function latestLogWhere(matcher) {
-    const logs = getLogs();
+  function latestLogWhere(matcher, logs = getLogs()) {
     for (let i = logs.length - 1; i >= 0; i--) {
       if (matcher(logs[i])) {
         return logs[i];
@@ -778,14 +769,15 @@
    * 从日志或 url 生成跳转链接
    * @param {string} id - 设计 id
    * @param {boolean} isFromUrl - 是否是从 url 中获取
+   * @param {LogEntry[]} [logs] - 复用调用方已解析的日志
    * @returns {string | null}
    */
-  function getUrlFromLogs(id, isFromUrl) {
+  function getUrlFromLogs(id, isFromUrl, logs) {
     if (!id) {
       return null;
     }
 
-    const log = latestLogWhere((item) => item.id === id);
+    const log = latestLogWhere((item) => item.id === id, logs);
     if (log) {
       return log.url;
     }
@@ -819,10 +811,11 @@
   /**
    * 按设计 id 反查设计名（查看逻辑按钮的展示与复制名用）
    * @param {string} id - 设计 id
+   * @param {LogEntry[]} [logs] - 复用调用方已解析的日志
    * @returns {string | null}
    */
-  function findDesignNameById(id) {
-    const log = latestLogWhere((item) => item.id === id);
+  function findDesignNameById(id, logs) {
+    const log = latestLogWhere((item) => item.id === id, logs);
     return log ? log.designName : null;
   }
 
@@ -886,6 +879,12 @@
     }
   }
 
+  /** 弹窗定位：跟随按钮容器右下角（打开时与拖拽跟随时共用） */
+  function positionLogPopup(popup, containerTop, containerHeight, right) {
+    popup.style.top = containerTop + containerHeight + CONFIG.LOG_BAR.popupGap + 'px';
+    popup.style.right = right + 'px';
+  }
+
   /**
    * 显示日志弹窗
    */
@@ -907,11 +906,12 @@
 
     // 弹窗位置以按钮右下角为准
     const btnContainer = document.getElementById('ze-jvs-log-container');
-    if (btnContainer) {
-      const containerTop = parseInt(btnContainer.style.top, 10) || CONFIG.LOG_BAR.top;
-      popup.style.top = (containerTop + btnContainer.offsetHeight + CONFIG.LOG_BAR.popupGap) + 'px';
-      popup.style.right = btnContainer.style.right || CONFIG.LOG_BAR.right + 'px';
-    }
+    positionLogPopup(
+      popup,
+      parseInt(btnContainer?.style.top, 10) || CONFIG.LOG_BAR.top,
+      btnContainer?.offsetHeight || 0,
+      parseInt(btnContainer?.style.right, 10) || CONFIG.LOG_BAR.right,
+    );
 
     const logTable = document.createElement('table');
     logTable.className = 'table-11ze';
@@ -921,16 +921,14 @@
     popup.appendChild(logTable);
     document.body.appendChild(popup);
 
-    // 事件委托
-    logTable.addEventListener('click', (e) => {
+    // 事件委托：左键与中键（auxclick button===1）走同一打开逻辑
+    const openDesign = (e) => {
       const nameTd = e.target.closest('.log-design-name-11ze');
       if (nameTd) window.open(nameTd.dataset.url, '_blank');
-    });
-
+    };
+    logTable.addEventListener('click', openDesign);
     logTable.addEventListener('auxclick', (e) => {
-      if (e.button !== 1) return;
-      const nameTd = e.target.closest('.log-design-name-11ze');
-      if (nameTd) window.open(nameTd.dataset.url, '_blank');
+      if (e.button === 1) openDesign(e);
     });
 
     logPopupOutsideClick = function closePopupOnOutsideClick(event) {
@@ -1009,8 +1007,7 @@
       onMove(newTop, newRight, containerHeight) {
         const popup = document.getElementById('11ze-jvs-log-popup');
         if (popup) {
-          popup.style.top = (newTop + containerHeight + CONFIG.LOG_BAR.popupGap) + 'px';
-          popup.style.right = newRight + 'px';
+          positionLogPopup(popup, newTop, containerHeight, newRight);
         }
       },
     });
@@ -1040,7 +1037,7 @@
    */
   function buildLogForSave() {
     const newLog = createLogEntry();
-    if (!newLog || !newLog.tabType) {
+    if (!newLog) {
       return null;
     }
     if (newLog.appName.length > 100 || newLog.appName === newLog.designName) {
@@ -1070,7 +1067,8 @@
   };
 
   /**
-   * 更新日志按钮（容器缺失或按钮模式与当前不符时重建，由调度器的键对比控制）
+   * 更新日志按钮（键 = 容器在否 + 当前模式；容器在而模式未变时由
+   * updateLogButton 的内部守卫吸收，不必在 probe 里重复细判）
    * payload 携带 probe 读到的模式，apply 不再重取
    */
   const updateLogButtonOperation = {
@@ -1078,13 +1076,7 @@
     probe() {
       const mode = currentMode();
       const existContainer = document.getElementById('ze-jvs-log-container');
-      if (!existContainer) {
-        return { key: 'missing', payload: mode };
-      }
-      const buttonMode = existContainer.querySelector('#ze-jvs-log-button')?.dataset.mode || '';
-      return buttonMode === mode
-        ? { key: 'stable:' + mode, payload: mode }
-        : { key: 'stale:' + buttonMode + '->' + mode, payload: mode };
+      return { key: existContainer ? mode : 'missing', payload: mode };
     },
     apply: updateLogButton,
   };
@@ -1102,7 +1094,7 @@
 
     // 双闩锁是序列两击计数器，缺一不可：属性闩锁 = 第一击（元素级，SPA 换页随 DOM 销毁），
     // STATE.tabDesignClicked = 第二击（会话级）——「会话内首个设计页点两次、后续设计页点一次」是有意行为
-    if (element.getAttribute('second-tab-design-clicked-11ze')) {
+    if (Utils.isMarked(element, 'second-tab-design-clicked-11ze')) {
       if (STATE.tabDesignClicked) {
         return;
       }
@@ -1113,7 +1105,7 @@
     }
 
     element.click();
-    element.setAttribute('second-tab-design-clicked-11ze', 'true');
+    Utils.mark(element, 'second-tab-design-clicked-11ze');
   }
 
   /**
@@ -1152,12 +1144,37 @@
       const text = component[textProperty].trim();
       for (const typeToColor of COMPONENT_TYPE_COLORS) {
         if (typeToColor.types.some((t) => text.includes(t))) {
-          component.style.backgroundColor = typeToColor.color;
-          component.style.borderColor = typeToColor.color;
+          // 颜色没变就不写 style：每 tick 轮询下省掉重复的样式重算
+          if (component.dataset.paintColor !== typeToColor.color) {
+            component.dataset.paintColor = typeToColor.color;
+            component.style.backgroundColor = typeToColor.color;
+            component.style.borderColor = typeToColor.color;
+          }
           break;
         }
       }
     }
+  }
+
+  /**
+   * 从页头 HTML 提取名称文本：先剥掉 svg 图标，需要时再跨过 center 样式锚点，
+   * 最后截掉尾部标签；解析不出（无 </svg> 或锚点）返回 null，由调用方试下一个元素
+   * @param {string} html
+   * @param {boolean} hasCenterAnchor
+   * @returns {string | null}
+   */
+  function headerTextFromHtml(html, hasCenterAnchor) {
+    let text = html.split('</svg>')[1];
+    if (!text) {
+      return null;
+    }
+    if (hasCenterAnchor) {
+      text = text.split('center;">')[1];
+      if (!text) {
+        return null;
+      }
+    }
+    return text.split('<')[0].trim();
   }
 
   /**
@@ -1175,40 +1192,17 @@
     }
 
     for (let i = 1; i < APP_NAME_SELECTORS.length; i++) {
-      const allTextElements = document.querySelectorAll(APP_NAME_SELECTORS[i]);
-
-      for (let j = 0; j < allTextElements.length; j++) {
-        const text = allTextElements[j].innerHTML;
-
-        if (!text.includes('<')) {
-          return text.trim();
+      for (const el of document.querySelectorAll(APP_NAME_SELECTORS[i])) {
+        const html = el.innerHTML;
+        if (!html.includes('<')) {
+          return html.trim();
         }
 
-        if (i === 3) {
-          let splitText = text.split('</svg>')[1];
-          if (!splitText) {
-            continue;
-          }
-
-          splitText = splitText.split('center;">')[1];
-          if (!splitText) {
-            continue;
-          }
-
-          splitText = splitText.split('<')[0];
-          return splitText.trim();
+        // i === 3 的选择器（新版列表/表单设计页头）多一层 center 样式锚点要跨过
+        const text = headerTextFromHtml(html, i === 3);
+        if (text !== null) {
+          return text;
         }
-
-        const splitText = text.split('</svg>')[1];
-        if (!splitText) {
-          continue;
-        }
-
-        if (splitText.includes('<')) {
-          return splitText.split('<')[0].trim();
-        }
-
-        return splitText.trim();
       }
     }
 
@@ -1218,6 +1212,10 @@
 
     return '';
   }
+
+  // 上次写入的标题与设计类型：相同则跳过本轮 DOM 写（title 失效与 favicon href 写都省）
+  let lastAppliedTitle = null;
+  let lastAppliedTabType = null;
 
   /**
    * 修改浏览器标签页标题
@@ -1245,17 +1243,24 @@
       });
     }
 
+    // collectAppMode 有写副作用（模式目录值变即写），非设计页须每 tick 调，不能上提
+    let title;
     if (tabType) {
-      document.title = newTabTitle;
-      changeFavicon(ICONS[tabType]);
+      title = newTabTitle;
     } else {
-      let prefix = collectAppMode();
+      const prefix = collectAppMode() || getEnvironment();
+      title = prefix + '｜' + (newTabTitle || '未打开应用');
+    }
 
-      if (!prefix) {
-        prefix = getEnvironment();
-      }
+    if (title === lastAppliedTitle && tabType === lastAppliedTabType) {
+      return;
+    }
+    lastAppliedTitle = title;
+    lastAppliedTabType = tabType;
 
-      document.title = prefix + '｜' + (newTabTitle ? newTabTitle : '未打开应用');
+    document.title = title;
+    if (tabType) {
+      changeFavicon(ICONS[tabType]);
     }
   }
 
@@ -1277,19 +1282,9 @@
       const timeDomId = id + '-time-11ze';
 
       const resultPopover = document.getElementById(id);
-      if (!resultPopover) {
-        document.getElementById(timeDomId)?.remove();
-        continue;
-      }
-
-      const resultText = resultPopover.querySelector('div > h4 > span > span');
-      if (!resultText) {
-        document.getElementById(timeDomId)?.remove();
-        continue;
-      }
-
-      const resultTextContent = resultText.textContent.trim();
-      if (!resultTextContent) {
+      const resultText = resultPopover?.querySelector('div > h4 > span > span');
+      const resultTextContent = resultText?.textContent.trim();
+      if (!resultPopover || !resultText || !resultTextContent) {
         document.getElementById(timeDomId)?.remove();
         continue;
       }
@@ -1315,26 +1310,34 @@
     }
   }
 
+  /** 取文本含 textPart 的表单 label 列表（逻辑按钮群的宿主） */
+  function findLogicLabels(textPart) {
+    return [...document.querySelectorAll('.el-form-item__label')].filter((label) =>
+      label.innerText.includes(textPart),
+    );
+  }
+
   /**
    * 逻辑设计，检查到【逻辑调用】组件时，自动添加一个按钮用于查看对应的逻辑设计
    */
   function addButtonToOpenNewLogicDesign() {
-    const labels = document.querySelectorAll('.el-form-item__label');
-    for (const label of labels) {
-      if (!label.innerText.includes('逻辑引擎远程调用')) {
-        continue;
-      }
+    const labels = findLogicLabels('逻辑引擎远程调用');
+    if (!labels.length) {
+      return;
+    }
 
+    // 每 tick 只解析一次日志，循环内各查询共用
+    const logs = getLogs();
+    for (const label of labels) {
       const logicKey = label.nextElementSibling.querySelector('.el-input__inner').title;
-      const newUrl = getUrlFromLogs(logicKey, true);
+      const newUrl = getUrlFromLogs(logicKey, true, logs);
       if (!newUrl) {
-        _removeLookLogicButton(label);
-        _createCopyNameButton(label, null);
+        _clearLogicButtons(label);
         continue;
       }
 
       // 按日志反查逻辑名（展示与复制名用），键用逻辑 id
-      const logicName = findDesignNameById(logicKey) ?? '';
+      const logicName = findDesignNameById(logicKey, logs) ?? '';
 
       _createOpenLogicButton(label, logicKey, logicName, () => window.open(newUrl, '_blank'));
     }
@@ -1380,7 +1383,6 @@
           dataset: { 'target-key': key },
           onClick,
         });
-        newButton.style.marginLeft = '10px';
         target.appendChild(newButton);
         return newButton;
       },
@@ -1400,6 +1402,12 @@
     _createLogicNameDisplay(target, null);
   }
 
+  // 逻辑按钮组的清理对：移除查看按钮，复制按钮置空（名字未知时不建）
+  function _clearLogicButtons(label) {
+    _removeLookLogicButton(label);
+    _createCopyNameButton(label, null);
+  }
+
   // 检查 logicName 是否变化，如变化则移除旧按钮并返回是否需要继续处理
   function _updateButtonsIfNeeded(label) {
     const existedButton = label.querySelector('.ze-look-logic-button');
@@ -1412,8 +1420,7 @@
     }
 
     // 没有逻辑名称或发生变化时，移除旧按钮
-    _removeLookLogicButton(label);
-    _createCopyNameButton(label, null);
+    _clearLogicButtons(label);
     return logicName;
   }
 
@@ -1437,88 +1444,97 @@
     });
   }
 
-  // 创建复制按钮（工厂函数）
-  function _createCopyNameButton(target, logicName) {
-    const buttonClass = 'ze-copy-logic-name-button';
+  /**
+   * 「复制」按钮注入内核：身份键 = 待复制文本，键异重建；文本空或 allow=false
+   * 时只清不建（键异路径旧按钮已移除，保持「移除后可不建」语义）
+   * @param {Object} spec
+   * @param {Element | Document | null} spec.host - ensureInjected 的宿主
+   * @param {string} spec.find - 已注入按钮 selector
+   * @param {string} spec.keyAttr - 身份属性名，同时写进按钮 dataset
+   * @param {string} spec.name - 待复制文本（身份键）
+   * @param {Object} [spec.buttonOptions] - createButton 差异项（className/id/type）
+   * @param {boolean} [spec.allow=true] - false 时拒绝注入
+   * @param {(button: HTMLButtonElement) => void} spec.place - 挂载到 DOM
+   */
+  function _injectCopyButton({ host, find, keyAttr, name, buttonOptions = {}, allow = true, place }) {
     return ensureInjected({
-      host: target,
-      find: '.' + buttonClass,
-      keyAttr: 'target-logic-name',
-      key: logicName,
+      host,
+      find,
+      keyAttr,
+      key: name,
       mount() {
-        if (!logicName) return null;
+        if (!name || !allow) return null;
         const copyButton = createButton({
           text: '复制',
-          className: buttonClass,
-          dataset: { 'target-logic-name': logicName },
-          type: 'default',
+          ...buttonOptions,
+          dataset: { [keyAttr]: name },
           onClick: (e) => {
             e.preventDefault();
             e.stopPropagation();
-            Utils.copyToClipboard(logicName, copyButton, '已复制');
+            Utils.copyToClipboard(name, copyButton);
           },
         });
-        copyButton.style.marginLeft = '10px';
-        target.appendChild(copyButton);
+        place(copyButton);
         return copyButton;
       },
     });
   }
 
-  /**
-   * 新版逻辑嵌套组件，检查到【逻辑嵌套】组件时，自动添加一个按钮用于查看对应的逻辑设计
-   * 从已打开过的逻辑设计中获取跳转链接
-   */
-  function firstAddButtonToOpenNewLogicDesignForNestedLogic() {
-    const labels = document.querySelectorAll('.el-form-item__label');
-    for (const label of labels) {
-      if (!label.innerText.includes('选择逻辑引擎')) {
-        continue;
-      }
+  // 创建复制按钮（工厂函数）
+  function _createCopyNameButton(target, logicName) {
+    return _injectCopyButton({
+      host: target,
+      find: '.ze-copy-logic-name-button',
+      keyAttr: 'target-logic-name',
+      name: logicName,
+      buttonOptions: { className: 'ze-copy-logic-name-button', type: 'default' },
+      place: (copyButton) => target.appendChild(copyButton),
+    });
+  }
 
+  /**
+   * 新版逻辑嵌套组件，检查到【选择逻辑引擎】时，自动添加一个按钮用于查看对应的逻辑设计
+   * 回退梯子：先从日志反查链接，查不到再点开左上角逻辑列表按名匹配
+   */
+  function addButtonToOpenNewLogicDesignForNestedLogic() {
+    const labels = findLogicLabels('选择逻辑引擎');
+
+    for (const label of labels) {
       const logicName = _updateButtonsIfNeeded(label);
       if (!logicName) {
         continue;
       }
 
-      const jvsAppId = getJvsAppId();
-      const newUrl = getUrlFromLogsAndUrl(logicName, jvsAppId);
-      if (!newUrl) {
-        secondAddButtonToOpenNewLogicDesignForNestedLogic();
+      const newUrl = getUrlFromLogsAndUrl(logicName, getJvsAppId());
+      if (newUrl) {
+        _createOpenLogicButton(label, logicName, logicName, () => window.open(newUrl, '_blank'));
         return;
       }
 
-      _createOpenLogicButton(label, logicName, logicName, () => window.open(newUrl, '_blank'));
+      _openLogicDesignFromRuleList(labels);
       return;
     }
   }
 
   /**
-   * 新版逻辑嵌套组件，检查到【逻辑嵌套】组件时，自动添加一个按钮用于查看对应的逻辑设计
-   * 从左上角的 icon 中获取跳转页面
-   * 谨慎使用，点到引用按钮会覆盖当前逻辑设计，自动保存，不可逆
+   * 回退梯子第二级：点开左上角逻辑列表，按名匹配跳转。
+   * 点击的是「设计」按钮——点「引用」会引用设计覆盖当前逻辑设计，自动保存，不可逆
    */
-  function secondAddButtonToOpenNewLogicDesignForNestedLogic() {
-    const labels = document.querySelectorAll('.el-form-item__label');
-
+  function _openLogicDesignFromRuleList(labels) {
     const otherRuleListIcon = document.querySelector('.rule-list-icon');
     if (!otherRuleListIcon) {
       return;
     }
-    if (!otherRuleListIcon.getAttribute('check-logic-design-rule-list-icon-11ze')) {
+    if (!Utils.isMarked(otherRuleListIcon, 'check-logic-design-rule-list-icon-11ze')) {
       // 点击后才有逻辑列表
       otherRuleListIcon.click();
       otherRuleListIcon.click();
     }
-    otherRuleListIcon.setAttribute('check-logic-design-rule-list-icon-11ze', 'true');
+    Utils.mark(otherRuleListIcon, 'check-logic-design-rule-list-icon-11ze');
 
     const otherRuleList = document.querySelectorAll('.other-rule-list > .list-box > .list-item');
 
     for (const label of labels) {
-      if (!label.innerText.includes('选择逻辑引擎')) {
-        continue;
-      }
-
       const logicName = _updateButtonsIfNeeded(label);
       if (!logicName) {
         continue;
@@ -1532,8 +1548,6 @@
 
         if (otherRuleText === logicName) {
           _createOpenLogicButton(label, logicName, logicName, () => {
-            // 第一个按钮是「设计」，第二个「引用」
-            // 点击引用会引用设计覆盖当前逻辑设计，自动保存，不可逆
             const desginButtons = otherRule
               .querySelector('.list-item-tool')
               .querySelectorAll('div.el-tooltip');
@@ -1563,27 +1577,16 @@
     if (designName) {
       const designNameText = designName.innerText.trim();
 
-      ensureInjected({
+      _injectCopyButton({
         host: document,
         find: '#copy-design-name-button-11ze',
         keyAttr: 'design-name-11ze',
-        key: designNameText,
-        mount() {
-          // 名称旁无 use 图标（编辑态图标）时不注入；键异时旧按钮已在上文移除
-          if (!designName.querySelector('use')) {
-            return null;
-          }
-
-          const copyButton = createButton({
-            text: '复制',
-            id: 'copy-design-name-button-11ze',
-            dataset: { 'design-name-11ze': designNameText },
-            onClick: () => Utils.copyToClipboard(designNameText, copyButton, '已复制'),
-          });
-          copyButton.style.marginLeft = '10px';
-          designName.parentNode.insertBefore(copyButton, designName.nextSibling);
-          return copyButton;
-        },
+        name: designNameText,
+        // 名称旁无 use 图标（编辑态图标）时不注入；键异时旧按钮已移除
+        allow: !!designName.querySelector('use'),
+        buttonOptions: { id: 'copy-design-name-button-11ze' },
+        place: (copyButton) =>
+          designName.parentNode.insertBefore(copyButton, designName.nextSibling),
       });
     }
   }
@@ -1592,8 +1595,6 @@
    * 新版 JVS，添加按钮复制组件名称
    */
   function addButtonToCopyComponentName() {
-    const buttonClass = 'ze-copy-component-name-button';
-
     const componentName = document.querySelector('#node_detailpannel > h4 > div > span');
     if (!componentName) {
       return;
@@ -1612,23 +1613,17 @@
 
     const componentNameText = componentName.innerText.trim();
 
-    ensureInjected({
+    _injectCopyButton({
       host: document,
       find: '#copy-component-name-button-11ze',
       keyAttr: 'component-name-11ze',
-      key: componentNameText,
-      mount() {
-        const copyButton = createButton({
-          text: '复制',
-          id: 'copy-component-name-button-11ze',
-          className: buttonClass,
-          dataset: { 'component-name-11ze': componentNameText },
-          onClick: () => Utils.copyToClipboard(componentNameText, copyButton, '已复制'),
-        });
-        copyButton.style.marginLeft = '10px';
-        componentName.parentNode.insertBefore(copyButton, componentName.nextSibling);
-        return copyButton;
+      name: componentNameText,
+      buttonOptions: {
+        id: 'copy-component-name-button-11ze',
+        className: 'ze-copy-component-name-button',
       },
+      place: (copyButton) =>
+        componentName.parentNode.insertBefore(copyButton, componentName.nextSibling),
     });
   }
 
@@ -1688,12 +1683,12 @@
         continue;
       }
 
-      element.style.whiteSpace = 'normal';
-
       // 行级标记是性能闩锁：未标记的行才扫日志，避免每 tick 全表重查
       if (Utils.isMarked(element, 'form-added-button-11ze')) {
         continue;
       }
+
+      element.style.whiteSpace = 'normal';
 
       const targetUrl = getUrlFromLogs(designId, false);
       if (!targetUrl) {
@@ -1734,24 +1729,18 @@
     }
 
     // 文字标题元素跟展开内容元素同级
-    const buttons = document.querySelectorAll('.el-collapse-item > .el-collapse-item__wrap');
-    for (const button of buttons) {
-      if (Utils.isMarked(button, 'bottom-body-checked-11ze')) {
+    const wraps = document.querySelectorAll('.el-collapse-item > .el-collapse-item__wrap');
+    for (const wrap of wraps) {
+      if (Utils.isMarked(wrap, 'bottom-body-checked-11ze')) {
         continue;
       }
 
-      const text = button.parentElement.innerText.trim();
-
-      const targetNames = ['设置', '扩展', '功能', '校验'];
-
-      for (const targetName of targetNames) {
-        if (text.includes(targetName)) {
-          button.style.display = 'block';
-          break;
-        }
+      const text = wrap.parentElement.innerText.trim();
+      if (['设置', '扩展', '功能', '校验'].some((t) => text.includes(t))) {
+        wrap.style.display = 'block';
       }
 
-      Utils.mark(button, 'bottom-body-checked-11ze');
+      Utils.mark(wrap, 'bottom-body-checked-11ze');
     }
   }
 
@@ -1765,16 +1754,14 @@
     const selector =
       '#app > div > div > div.jvs-tags > div > div > div.top-nav > ul > li:nth-child(2) > span';
     const element = document.querySelector(selector);
-    const url = location.href;
-    if (element) {
-      if (
-        element.innerText === '应用中心' &&
-        url.includes(HOME_ROUTE) &&
-        !element.hasAttribute('app-center-clicked-11ze')
-      ) {
-        element.click();
-        element.setAttribute('app-center-clicked-11ze', 'true');
-      }
+    if (
+      element &&
+      element.innerText === '应用中心' &&
+      location.href.includes(HOME_ROUTE) &&
+      !Utils.isMarked(element, 'app-center-clicked-11ze')
+    ) {
+      element.click();
+      Utils.mark(element, 'app-center-clicked-11ze');
     }
   }
 
@@ -1799,10 +1786,6 @@
     const STAR_SVG =
       '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>';
 
-    function getContentSelector() {
-      return 'div > div > div > p';
-    }
-
     // 每次现读存储：点击闭包不持有列表快照，多标签页同开不会互相覆盖
     function getMarkedApps() {
       return jvsStorage.get(STORAGE_KEYS.HIGHLIGHT_APPS, []);
@@ -1821,8 +1804,17 @@
       });
     }
 
+    // 卡片名缓存：同一卡片节点只读一次 innerText（强制布局读），卡片随列表重建自动失效；
+    // 应用改名而节点复用时读到旧名——名单里存的也是旧名，星标语义不变
+    const cardTextCache = new WeakMap();
+
     function getNodeText(node) {
-      return node.querySelector(getContentSelector()).innerText.trim();
+      let text = cardTextCache.get(node);
+      if (text === undefined) {
+        text = node.querySelector('div > div > div > p').innerText.trim();
+        cardTextCache.set(node, text);
+      }
+      return text;
     }
 
     function handleClickNode(node) {
@@ -2091,12 +2083,12 @@
     }
 
     applicationElements.forEach(function (appElement) {
-      if (appElement.classList.contains('set-click-11ze')) {
+      if (Utils.isMarked(appElement, 'set-click-11ze')) {
         return;
       }
 
       appElement.addEventListener('click', handleApplicationClick);
-      appElement.classList.add('set-click-11ze');
+      Utils.mark(appElement, 'set-click-11ze');
     });
   }
 
@@ -2163,7 +2155,7 @@
       syncHostOffsetXY(vueComp, restore);
     }
     canvasScrollState.seen = canvas;
-    if (container.getAttribute('data-11ze-canvas-scroll')) {
+    if (Utils.isMarked(container, 'data-11ze-canvas-scroll')) {
       return;
     }
     container.addEventListener(
@@ -2179,7 +2171,7 @@
       },
       { passive: false }
     );
-    container.setAttribute('data-11ze-canvas-scroll', 'true');
+    Utils.mark(container, 'data-11ze-canvas-scroll');
   }
 
   /**
@@ -2208,7 +2200,7 @@
       }
       canvasScrollState.identity = identity;
       canvasScrollState.offset = stage.canvas.getOffset();
-      return stage.container.getAttribute('data-11ze-canvas-scroll') ? 'mounted' : 'mount';
+      return Utils.isMarked(stage.container, 'data-11ze-canvas-scroll') ? 'mounted' : 'mount';
     },
     apply: setCanvasScroll,
   };
@@ -2463,8 +2455,7 @@ const JVS_STYLES = `
       0 8px 24px rgba(0, 0, 0, 0.15) !important;
     background-color: #fff !important;
     position: fixed;
-    top: 50px;
-    right: 310px; /* 默认值，由 JS 动态覆盖 */
+    /* 定位唯一归 JS：positionLogPopup 以 CONFIG.LOG_BAR 兜底 */
     z-index: 9999;
     padding: 0 10px 10px 10px;
     max-height: 800px;
@@ -2511,21 +2502,6 @@ const JVS_STYLES = `
 
   /* 名称列鼠标变为小手 */
   .log-design-name-11ze {
-    cursor: pointer;
-  }
-
-  .log-11ze-select {
-    display: inline-block;
-    background-color: white !important;
-    border-color: #D6E4FF !important;
-    color: black !important;
-    border: 1px solid #D6E4FF !important;
-    font-size: 14px !important;
-    border-radius: 6px !important;
-  }
-
-  .log-11ze-select:hover {
-    background-color: #E8F4FF !important;
     cursor: pointer;
   }
 
@@ -2579,6 +2555,15 @@ const JVS_STYLES = `
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  /* 逻辑按钮群的查看/复制按钮与设计名、组件名旁的复制按钮：统一左距 10px
+     （写在 .button-11ze 的 margin 之后，靠源顺序盖过其 margin 简写） */
+  .ze-look-logic-button,
+  .ze-copy-logic-name-button,
+  .ze-copy-component-name-button,
+  #copy-design-name-button-11ze {
+    margin-left: 10px !important;
   }
 
   /* 逻辑设计左上角的逻辑列表弹窗宽度 */
@@ -2737,23 +2722,25 @@ const JVS_STYLES = `
   const operations = [
     // 设计器模块
     changeTitle,
-    enterAppCenter,
-    syncAppCenterUrl,
     enterTabDesign,
     adjustInterfaceAndComponentStyle,
     addButtonToOpenNewLogicDesign,
-    firstAddButtonToOpenNewLogicDesignForNestedLogic,
+    addButtonToOpenNewLogicDesignForNestedLogic,
     addButtonToCopyDesignName,
     addButtonToCopyComponentName,
     addButtonToClearAllFields,
     addButtonToOpenNewFormOrListDesign,
+    expandFormDesignAllComponentSettings,
+    autoExpandComponentLibraryCategory,
+    showNodeExecTime,
+    // 应用中心模块
+    enterAppCenter,
+    syncAppCenterUrl,
     highlightApps,
     filterStarredApps,
     toggleAppCenterSidebar,
-    expandFormDesignAllComponentSettings,
-    autoExpandComponentLibraryCategory,
     applicationSetClick,
-    showNodeExecTime,
+    // 画布滚轮平移
     canvasScrollOperation,
     // 日志模块
     updateLogButtonOperation,
@@ -2766,12 +2753,8 @@ const JVS_STYLES = `
     console.error(error);
   }
 
-  const jvsTimer = setInterval(
+  setInterval(
     createOperationRunner(operations, reportOperationError),
     CONFIG.TIMER_INTERVAL,
   );
-
-  window.addEventListener('beforeunload', () => {
-    clearInterval(jvsTimer);
-  });
 })();

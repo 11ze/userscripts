@@ -22,7 +22,7 @@ const EXPECTED_COLORS = {
 };
 
 function fakeComponent({ innerText = '', textContent = '' } = {}) {
-  return { innerText, textContent, style: {} };
+  return { innerText, textContent, style: {}, dataset: {} };
 }
 
 function loadScriptHooks(fakeDom) {

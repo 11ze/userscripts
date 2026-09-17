@@ -33,6 +33,5 @@
 - **样式常量（COLORS / STYLES）**：统一管理颜色、动画配置，避免硬编码
 - **工具函数**：提取 `setStyles`、`setHover`、`createEl` 最小工具集（各脚本自带一份，自最相近的脚本复制）
 - **优先使用 CSS**：`white-space`、`display` 等 CSS 替代频繁 DOM 操作，CSS 动画替代 JS 动画
-- **资源清理**：页面卸载时清理定时器（`beforeunload` 事件）
 - **复用现有 CSS 类**：添加新组件时先搜索现有类名（如 `.log-11ze-*`）
 - **z-index**：Toast/弹窗用高 z-index 避开站点 UI（现有日志弹窗固定 `9998`）；多个弹窗互相遮挡时用递增 z-index 保证后弹在上

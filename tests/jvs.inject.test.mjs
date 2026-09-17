@@ -189,7 +189,7 @@ function loadDesignerEnv({ designName, existing = null, boxes = [] } = {}) {
   return hooks;
 }
 
-test('复制设计名：无现有按钮且名称带 use 图标 → 插入复制按钮（带身份属性与 10px 间距）', () => {
+test('复制设计名：无现有按钮且名称带 use 图标 → 插入复制按钮（带身份属性）', () => {
   const designName = makeDesignName('订单逻辑', true);
   const hooks = loadDesignerEnv({ designName });
   hooks.addButtonToCopyDesignName();
@@ -197,7 +197,6 @@ test('复制设计名：无现有按钮且名称带 use 图标 → 插入复制�
   assert.equal(designName.inserted.length, 1);
   const button = designName.inserted[0].node;
   assert.equal(button.getAttribute('design-name-11ze'), '订单逻辑');
-  assert.equal(button.style.marginLeft, '10px');
 });
 
 test('复制设计名：键同 → 不动现有按钮', () => {
