@@ -87,6 +87,29 @@ test('uniqueLogs 按 id + type 去重，保留最新一条', () => {
   );
 });
 
+test('createLogEntry 完整链：URL 带 jvsAppId 且命中干净单行名时 APP_NAME_MAP 落库', () => {
+  // 与上方同名测试数据工厂不同物：这里调的是脚本内部的 createLogEntry（hooks 暴露）。
+  // 锁调用点传参——collectAppName 的 jvsAppId 形参由 createLogEntry 传入，
+  // 漏传会被 saveAppIdName 空值守卫拦截、落库静默断流（曾因只直测 saveAppIdName 漏网）
+  const { hooks } = loadJvsHooks({
+    location: { href: 'https://jvs.example.com/#/ruleDesign?id=1&jvsAppId=app-1' },
+    document: {
+      getElementsByTagName: () => [{ href: 'data:text/css,/*jvs-ui*/' }],
+      querySelector: () => null,
+      querySelectorAll: (selector) =>
+        selector.includes('app-item-info')
+          ? [{ textContent: '订单中心', innerHTML: '' }]
+          : [],
+      getElementById: () => null,
+      addEventListener() {},
+    },
+  });
+
+  // designName 等其余字段桩未给，条目为 null；落库发生在 collectAppName 内、条目守卫之前
+  assert.equal(hooks.createLogEntry(), null);
+  assert.equal(hooks.getAppIdName('app-1'), '订单中心');
+});
+
 test('saveAppIdName 双向写入且对已有 id 幂等', () => {
   const { hooks, store } = loadJvsHooks();
 

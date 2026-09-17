@@ -29,7 +29,9 @@ export function makeStorageStub() {
   };
 }
 
-/** 通用元素桩：className/classList/attribute/listener/style 最小闭环 */
+/** 通用元素桩：className/classList/attribute/listener/style/dataset 最小闭环。
+ *  接口面以本函数为模板——源码新用到 hasAttribute/dataset 等元素能力时，
+ *  这里补齐一处，其余测试文件复制桩时照此对齐，避免逐文件追补 */
 export function makeFakeEl() {
   const classes = new Set();
   const attrs = {};
@@ -40,6 +42,7 @@ export function makeFakeEl() {
     innerHTML: '',
     innerText: '',
     style: {},
+    dataset: {},
     parentElement: null,
     classList: {
       toggle(name, force) {
@@ -53,6 +56,7 @@ export function makeFakeEl() {
       attrs[key] = String(value);
     },
     getAttribute: (key) => attrs[key],
+    hasAttribute: (key) => key in attrs,
     getBoundingClientRect: () => ({ right: 0 }),
     listeners: {},
     children: [],

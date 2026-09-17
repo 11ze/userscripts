@@ -2225,6 +2225,7 @@
     window.__JVS_TEST__.hooks = {
       createOperationRunner: createOperationRunner,
       paintComponents: paintComponents,
+      createLogEntry: createLogEntry,
       cutOverdueLogs: cutOverdueLogs,
       uniqueLogs: uniqueLogs,
       enrichLogsWithAppName: enrichLogsWithAppName,
