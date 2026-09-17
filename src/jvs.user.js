@@ -934,7 +934,7 @@
     });
 
     logPopupOutsideClick = function closePopupOnOutsideClick(event) {
-      if (popup && !popup.contains(event.target) && !event.target.closest('#ze-jvs-log-container')) {
+      if (!popup.contains(event.target) && !event.target.closest('#ze-jvs-log-container')) {
         popup.remove();
         removeLogPopupOutsideClick();
       }
