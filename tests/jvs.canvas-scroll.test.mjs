@@ -58,14 +58,15 @@ function wheelEvent({ deltaX = 0, deltaY = 0, shiftKey = false } = {}) {
   return event;
 }
 
-/** 画布环境：container（.butterfly-vue-container）挂在带 __vue__.canvas 的宿主下 */
+/** 画布环境：container（.butterfly-vue-container）挂在带 __vue__.canvas 的宿主下；
+ *  宿主组件链上的父组件持有 offsetXY（应用拖入新组件的落点换算数据源，初始为空数组） */
 function makeCanvasStage() {
   const stage = { container: null, canvas: makeCanvas(), activeTool: '主画布' };
   stage.rebuild = () => {
     const host = fakeEl('butterfly-vue');
     const container = fakeEl('butterfly-vue-container');
     container.parentElement = host;
-    host.__vue__ = { canvas: stage.canvas };
+    host.__vue__ = { canvas: stage.canvas, $parent: { offsetXY: [] } };
     stage.container = container;
   };
   stage.rebuild();
@@ -329,4 +330,50 @@ test('快速双切回原画布：轮询只见身份未变，带回原平移（�
   runner();
   assert.deepEqual(stage.canvas.calls[0], [0, -100], '身份没变，视作同画布重建，恢复原平移');
   assert.equal(stage.container.listeners.wheel.length, 1, '监听照常重挂');
+});
+
+test('wheel 平移后同步宿主组件 offsetXY：应用拖入新组件的落点换算不再按旧平移错位', () => {
+  const ctx = loadScriptHooks();
+  const { hooks, stage } = ctx;
+  hooks.setCanvasScroll();
+  const hostOffsetXY = () => stage.container.parentElement.__vue__.$parent.offsetXY;
+
+  fireWheel(stage, wheelEvent({ deltaY: 100 }));
+  // join 成字符串断言：脚本在 vm 桩环境里创建的数组原型与主 realm 不同，deepEqual 会误报
+  assert.equal(
+    hostOffsetXY().join(','),
+    '0,-100',
+    'wheel 平移到 [0,-100]，宿主 offsetXY 应同步为同值'
+  );
+
+  fireWheel(stage, wheelEvent({ deltaY: 60 }));
+  assert.equal(hostOffsetXY().join(','), '0,-160', '连续滚动应跟随最新平移');
+});
+
+test('画布重建恢复平移时也同步宿主组件 offsetXY', () => {
+  const ctx = loadScriptHooks();
+  const { stage } = ctx;
+  const runner = ctx.runner();
+
+  runner();
+  fireWheel(stage, wheelEvent({ deltaY: 100 })); // [0,-100]
+  runner();
+
+  ctx.rebuildCanvas(); // 画布重建：宿主组件链换成新桩（offsetXY 回初始空数组）
+  runner(); // apply 走 restore 分支带回平移
+  assert.equal(
+    stage.container.parentElement.__vue__.$parent.offsetXY.join(','),
+    '0,-100',
+    '恢复平移后宿主 offsetXY 应同步，重建后拖入的组件落点才正确'
+  );
+});
+
+test('宿主组件链上没有 offsetXY 字段时静默跳过，不抛错', () => {
+  const ctx = loadScriptHooks();
+  const { hooks, stage } = ctx;
+  stage.container.parentElement.__vue__.$parent = {}; // 站点改版：字段没了
+  hooks.setCanvasScroll();
+
+  fireWheel(stage, wheelEvent({ deltaY: 100 }));
+  assert.deepEqual(stage.canvas.calls[0], [0, -100], 'wheel 平移本身不受影响');
 });

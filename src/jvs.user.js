@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.14
-// @description 2026-09-17 特性聚拢纯移动重排——日志/设计器/应用中心/画布各成一块，operations 数组与轮询启动沉文件尾，零行为变化
+// @version     0.8.15
+// @description 2026-09-17 修复画布滚轮平移后从组件库拖入新组件落点按旧平移量错位——平移后同步宿主组件 offsetXY（应用落点换算的数据源，原生拖拽结束时才自己同步）
 // ==/UserScript==
 
 (function () {
@@ -2133,6 +2133,22 @@
   }
 
   /**
+   * 把平移量同步进宿主组件链上的 offsetXY 字段
+   * 应用拖入新组件的落点换算只认该字段（画布原生左键拖拽结束时它才被应用自己同步），
+   * wheel/恢复平移走 canvas.move 不经过那条路径，不同步则落点按旧平移量错位
+   */
+  function syncHostOffsetXY(vueComp, offset) {
+    let comp = vueComp?.$parent;
+    for (let i = 0; comp && i < 3; i++) {
+      if (Array.isArray(comp.offsetXY)) {
+        comp.offsetXY = [...offset];
+        return;
+      }
+      comp = comp.$parent;
+    }
+  }
+
+  /**
    * 给逻辑设计的画布挂滚轮平移（wheel → Butterfly canvas.move）
    * 全走画布 API：坐标系服务同步（不与左键拖拽冲突），小地图视口框由站点原生联动；
    * 主/循环画布切换时容器整体重建，闩锁随 DOM 销毁，由轮询调度自动重挂；
@@ -2140,9 +2156,11 @@
    */
   function setCanvasScroll() {
     const { container, canvas } = getButterflyCanvas();
+    const vueComp = container.parentElement.__vue__;
     const restore = canvasScrollRestoreOf(canvas);
     if (restore) {
       canvas.move(restore);
+      syncHostOffsetXY(vueComp, restore);
     }
     canvasScrollState.seen = canvas;
     if (container.getAttribute('data-11ze-canvas-scroll')) {
@@ -2155,7 +2173,9 @@
         const offset = canvas.getOffset();
         const deltaX = e.deltaX || (e.shiftKey ? e.deltaY : 0);
         const deltaY = deltaX ? 0 : e.deltaY;
-        canvas.move([offset[0] - deltaX, offset[1] - deltaY]);
+        const next = [offset[0] - deltaX, offset[1] - deltaY];
+        canvas.move(next);
+        syncHostOffsetXY(vueComp, next);
       },
       { passive: false }
     );
