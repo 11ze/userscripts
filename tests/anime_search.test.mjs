@@ -21,32 +21,41 @@ const sourcePath = path.join(currentDir, '../src/anime_search.user.js');
 
 function createElementStub(tag) {
   const listeners = new Map();
+  const children = [];
   return {
     tagName: tag,
     textContent: '',
     style: {},
+    children,
+    childNodes: children,
     addEventListener(type, handler) {
       listeners.set(type, handler);
     },
     fire(type) {
       listeners.get(type)?.call(this);
     },
+    appendChild(child) {
+      children.push(child);
+    },
   };
 }
 
 /**
- * 标题元素假件：textContent 即标题，记录挂载的按钮
+ * 标题元素假件：一个文本节点 + 记录挂载的按钮（按钮同进 childNodes，贴近真实 DOM）
  */
 function makeTitleElement(text = '咒术回战 第二季') {
   const appended = [];
+  const childNodes = [{ nodeType: 3, textContent: text }];
   return {
     appended,
+    childNodes,
     querySelector() {
       return null;
     },
     textContent: text,
     appendChild(child) {
       appended.push(child);
+      childNodes.push(child);
     },
   };
 }
@@ -161,6 +170,7 @@ test('extractTitle：span 缺失或为空时回退元素文本', () => {
       return null;
     },
     textContent: '攻壳机动队 SAC_2045',
+    childNodes: [{ nodeType: 3, textContent: '攻壳机动队 SAC_2045' }],
   };
   assert.equal(extractTitle(noSpan), '攻壳机动队 SAC_2045');
 
@@ -169,19 +179,39 @@ test('extractTitle：span 缺失或为空时回退元素文本', () => {
       return { textContent: '' };
     },
     textContent: '后备标题',
+    childNodes: [{ nodeType: 3, textContent: '后备标题' }],
   };
   assert.equal(extractTitle(emptySpan), '后备标题');
 });
 
-test('extractTitle：剥离自挂按钮的 🔍🏆ℹ️', () => {
+test('extractTitle：自挂按钮文字不进标题（重跑防护）', () => {
+  const { extractTitle } = loadScriptHooks();
+  const buttonNode = {
+    nodeType: 1,
+    tagName: 'BUTTON',
+    textContent: '详情',
+    childNodes: [{ nodeType: 3, textContent: '详情' }],
+  };
+  const element = {
+    querySelector() {
+      return null;
+    },
+    textContent: '咒术回战 第二季🔍详情',
+    childNodes: [{ nodeType: 3, textContent: '咒术回战 第二季' }, buttonNode],
+  };
+  assert.equal(extractTitle(element), '咒术回战 第二季');
+});
+
+test('extractTitle（误剥回归）：标题本身含「详情」二字不被吞', () => {
   const { extractTitle } = loadScriptHooks();
   const element = {
     querySelector() {
       return null;
     },
-    textContent: '标题 🔍🏆ℹ️',
+    textContent: '咒术回战 详情篇',
+    childNodes: [{ nodeType: 3, textContent: '咒术回战 详情篇' }],
   };
-  assert.equal(extractTitle(element), '标题');
+  assert.equal(extractTitle(element), '咒术回战 详情篇');
 });
 
 test('extractTitle：空文本返回空串', () => {
@@ -191,6 +221,7 @@ test('extractTitle：空文本返回空串', () => {
       return null;
     },
     textContent: '',
+    childNodes: [{ nodeType: 3, textContent: '' }],
   };
   assert.equal(extractTitle(element), '');
 });
@@ -258,13 +289,44 @@ test('测试钩子暴露 createButtonPair', () => {
   assert.equal(typeof createButtonPair, 'function');
 });
 
-test('createButtonPair：返回一对 🔍/🏆 按钮', () => {
+test('测试钩子暴露 createAgeSearchButton', () => {
+  const { createAgeSearchButton } = loadScriptHooks();
+  assert.equal(typeof createAgeSearchButton, 'function');
+});
+
+test('createAgeSearchButton：当前域名 favicon 图标，点击开站内搜索', () => {
+  const sandbox = loadScriptSandbox();
+  const { createAgeSearchButton } = sandbox.__ANIME_SEARCH_TEST__.hooks;
+  const button = createAgeSearchButton('https://www.agedm.io', '咒术回战 第二季');
+
+  assert.equal(button.tagName, 'button');
+  assert.equal(button.textContent, '');
+  assert.equal(button.children.length, 1);
+  assert.equal(button.children[0].tagName, 'img');
+  assert.equal(button.children[0].src, 'https://www.agedm.io/favicon.ico');
+  assert.equal(button.children[0].alt, '');
+  assert.equal(button.children[0].style.width, '14px');
+  assert.equal(button.children[0].style.height, '14px');
+
+  button.fire('click');
+  assert.deepEqual(sandbox.__openCalls, [
+    { url: 'https://www.agedm.io/search?query=咒术回战 第二季', target: '_blank' },
+  ]);
+});
+
+test('createButtonPair：返回 🔍 与豆瓣 favicon 图标钮', () => {
   const { createButtonPair } = loadScriptHooks();
   const [search, douban] = createButtonPair('咒术回战');
   assert.equal(search.tagName, 'button');
   assert.equal(douban.tagName, 'button');
   assert.equal(search.textContent, '🔍');
-  assert.equal(douban.textContent, '🏆');
+  assert.equal(douban.textContent, '');
+  assert.equal(douban.children.length, 1);
+  assert.equal(douban.children[0].tagName, 'img');
+  assert.equal(douban.children[0].src, 'https://www.douban.com/favicon.ico');
+  assert.equal(douban.children[0].alt, '');
+  assert.equal(douban.children[0].style.width, '14px');
+  assert.equal(douban.children[0].style.height, '14px');
 });
 
 test('createButtonPair：emoji 收紧行高并居中，防继承标题行高撑大按钮', () => {
@@ -309,7 +371,8 @@ test('按钮挂载：首个命中的选择器挂一对按钮并停止', () => {
   assert.equal(titleElement.appended.length, 2);
   assert.equal(titleElement.appended[0].tagName, 'button');
   assert.equal(titleElement.appended[0].textContent, '🔍');
-  assert.equal(titleElement.appended[1].textContent, '🏆');
+  assert.equal(titleElement.appended[1].tagName, 'button');
+  assert.equal(titleElement.appended[1].children[0].src, 'https://www.douban.com/favicon.ico');
 
   titleElement.appended[0].fire('click');
   assert.deepEqual(sandbox.__openCalls, [
@@ -317,28 +380,37 @@ test('按钮挂载：首个命中的选择器挂一对按钮并停止', () => {
   ]);
 });
 
-test('按钮挂载：AGE play 页追加 ℹ️ 详情按钮并当前页跳转', () => {
+test('按钮挂载：AGE play 页四个按钮，顺序为 🔍/豆瓣/AGE/详情', () => {
   const titleElement = makeTitleElement('咒术回战 第二季');
   const sandbox = loadScriptSandbox({
     element: titleElement,
     href: 'https://www.agedm.io/play/20260212/1/1',
   });
 
-  assert.equal(titleElement.appended.length, 3, '搜索对 + ℹ️ 详情按钮');
-  const detailButton = titleElement.appended[2];
+  assert.equal(titleElement.appended.length, 4, '搜索对 + AGE 站内搜索 + 详情');
+  assert.equal(titleElement.appended[0].textContent, '🔍');
+  assert.equal(titleElement.appended[1].children[0].src, 'https://www.douban.com/favicon.ico');
+  assert.equal(titleElement.appended[2].children[0].src, 'https://www.agedm.io/favicon.ico');
+  const detailButton = titleElement.appended[3];
   assert.equal(detailButton.tagName, 'button');
-  assert.equal(detailButton.textContent, 'ℹ️');
+  assert.equal(detailButton.textContent, '详情');
 
   detailButton.fire('click');
   assert.equal(sandbox.location.href, 'https://www.agedm.io/detail/20260212');
 });
 
-test('按钮挂载：非 play 页不追加 ℹ️ 详情按钮', () => {
+test('按钮挂载：AGE 非 play 页挂站内搜索但不挂详情', () => {
   const titleElement = makeTitleElement('咒术回战 第二季');
   const sandbox = loadScriptSandbox({
     element: titleElement,
     href: 'https://www.agedm.io/detail/20260212',
   });
 
-  assert.equal(titleElement.appended.length, 2);
+  assert.equal(titleElement.appended.length, 3);
+  assert.equal(titleElement.appended[2].children[0].src, 'https://www.agedm.io/favicon.ico');
+
+  titleElement.appended[2].fire('click');
+  assert.deepEqual(sandbox.__openCalls, [
+    { url: 'https://www.agedm.io/search?query=咒术回战 第二季', target: '_blank' },
+  ]);
 });
