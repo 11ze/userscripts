@@ -272,9 +272,28 @@ test('只看星标过滤：body class 驱动卡片与空组隐藏，纯 CSS 无 
   );
 });
 
-test('只看星标开关 pill：未激活灰描边，激活金色由 body class 派生', () => {
+test('只看星标开关 pill：等高等字号同行搜索框、圆角随全局注入按钮，激活金色由 body class 派生', () => {
   const hooks = loadScriptHooks();
   const styles = hooks.getStyles();
+
+  // 回流内 pill：等高同行搜索框——新版 mini 28px / 旧版 medium 36px（线上实测量），
+  // height 钉死后垂直 padding 归零、line-height 配对 height - border 2 保证文字居中；
+  // 字号同样随行内搜索框（线上实测 mini 12 / medium 14——旧版挂载点 .filter-bar 继承值
+  // 是 12px，inherit 拿不到搜索框的 14px，故显式写）；
+  // 圆角与全局注入按钮（.drag-handle-11ze）同为 8px；
+  // 旧版筛选行 flex gap 管水平间距、清零 margin
+  assertDeclaration(styles, '.ze-star-filter-btn', 'height: 28px');
+  assertDeclaration(styles, '.ze-star-filter-btn', 'line-height: 26px');
+  assertDeclaration(styles, '.ze-star-filter-btn', 'font-size: 12px');
+  assertDeclaration(styles, '.ze-star-filter-btn', 'padding: 0 12px');
+  assertDeclaration(styles, '.ze-star-filter-btn', 'box-sizing: border-box');
+  assertDeclaration(styles, '.ze-star-filter-btn', 'border-radius: 8px');
+  assertDeclaration(styles, '.ze-star-filter-btn', 'margin-left: 10px');
+  assertDeclaration(styles, '.ze-star-filter-btn', 'background: transparent');
+  assertDeclaration(styles, '.filter-bar .ze-star-filter-btn', 'height: 36px');
+  assertDeclaration(styles, '.filter-bar .ze-star-filter-btn', 'line-height: 34px');
+  assertDeclaration(styles, '.filter-bar .ze-star-filter-btn', 'font-size: 14px');
+  assertDeclaration(styles, '.filter-bar .ze-star-filter-btn', 'margin: 0');
 
   assertDeclaration(styles, '.ze-star-filter-btn', 'border: 1px solid #C0C4CC');
   assertDeclaration(
@@ -287,9 +306,6 @@ test('只看星标开关 pill：未激活灰描边，激活金色由 body class 
     'body.ze-star-filter-on .ze-star-filter-btn',
     'color: #FAAD14'
   );
-
-  // 旧版筛选行内（搜索框右侧）：对齐与间距交给 flex 的 align-items/gap，清掉钉顶 margin
-  assertDeclaration(styles, '.filter-bar .ze-star-filter-btn', 'margin: 0');
 });
 
 test('全局按钮：仿应用内 plain 蓝，去重阴影，hover 只动底色与边框', () => {

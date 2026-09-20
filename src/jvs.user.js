@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.16
-// @description 2026-09-17 等价重构：元素闩锁统一走 Utils、三处复制按钮收敛为注入内核、弹窗定位公式单源；删死参数/死 CSS/恒假守卫/无效 beforeunload；轮询省重复工作（日志与 APP_NAME_MAP 每 tick 单次解析、title/favicon 同值跳过、组件上色同色跳过）
+// @version     0.8.17
+// @description 2026-09-20 应用中心「只看星标」开关挪进顶部不滚动的搜索行——新版搜索框右侧、旧版筛选行内（恢复 v0.8.16 位置），滚动不消失；按钮等高等字号同行搜索框（新版 28px/12px、旧版 36px/14px）、圆角对齐全局注入按钮 8px
 // ==/UserScript==
 
 (function () {
@@ -1870,7 +1870,8 @@
    * JS 只产出 body class 这一个事实，卡片/空组隐藏与空态提示全由 CSS :has() 驱动；
    * 状态现读存储（多标签页同开自动一致），离开应用中心时清理 body class。
    * 新版应用中心容器是 .app-page，旧版是 .jvs-layout-tempOpen 下的 .template-content-box，
-   * 按钮优先注入旧版筛选行（.filter-bar）搜索框右侧，无筛选行才钉容器顶部
+   * 按钮排进顶部不滚动的搜索行（旧版筛选行 flex 内、新版 .search-input 所在列），
+   * 挂进行内元素随 SPA 路由切换销毁
    */
   function filterStarredApps() {
     const btnClass = 'ze-star-filter-btn';
@@ -1897,9 +1898,10 @@
       return;
     }
 
-    // 旧版筛选行（全部分类 + 搜索框）是静态标记、挂载即渲染；卡片列表由异步数据 v-for、
-    // 晚于筛选行出现。按钮与提示分别判重：提示只在第一张卡出现后插进其父级（卡片流开头），
-    // 卡片没出来就等下一个 tick（host 缺失守卫）——往容器 prepend 会把提示顶到筛选行上方
+    // 旧版筛选行（全部分类 + 搜索框）是静态标记、挂载即渲染；新版搜索框在顶部搜索行
+    // （.search-input 所在列），与卡片滚动区分离、滚动不消失。卡片列表由异步数据 v-for、
+    // 晚于筛选行出现。提示只在第一张卡出现后插进其父级（卡片流开头），卡片没出来就等
+    // 下一个 tick（host 缺失守卫）——往容器 prepend 会把提示顶到筛选行上方
     const filterBar = appPage.querySelector('.filter-bar');
     const firstCard = appPage.querySelector('.application');
     const tipHost = filterBar ? firstCard?.parentElement : appPage;
@@ -1914,8 +1916,10 @@
         return tip;
       },
     });
+    // 按钮与提示同理走 host 缺失守卫：新版搜索行晚渲染就等下一个 tick
+    const btnHost = filterBar ?? document.querySelector('.search-input')?.parentElement;
     const btn = ensureInjected({
-      host: filterBar ?? appPage,
+      host: btnHost,
       find: '.' + btnClass,
       mount() {
         const created = document.createElement('button');
@@ -1926,7 +1930,7 @@
           jvsStorage.set(STORAGE_KEYS.STARRED_FILTER, !isFilterOn());
           syncFilterState();
         });
-        filterBar ? filterBar.append(created) : appPage.prepend(created);
+        btnHost.append(created);
         return created;
       },
     });
@@ -2647,16 +2651,20 @@ const JVS_STYLES = `
     display: block;
   }
 
-  /* 只看星标开关 pill：钉在应用列表上方，未激活灰描边、激活金色 */
+  /* 只看星标开关 pill：随顶部搜索行排在搜索框右侧（滚动不消失），等高等字号同行
+     搜索框（新版 mini 28px/12px、旧版 medium 36px/14px）、圆角随全局注入按钮，
+     未激活灰描边、激活金色 */
   .ze-star-filter-btn {
-    margin: 0 0 12px 12px;
-    padding: 4px 12px;
+    margin-left: 10px;
+    height: 28px;
+    padding: 0 12px;
     border: 1px solid #C0C4CC;
-    border-radius: 12px;
+    border-radius: 8px;
+    box-sizing: border-box;
     background: transparent;
     color: #909399;
     font-size: 12px;
-    line-height: 20px;
+    line-height: 26px;
     cursor: pointer;
     transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
@@ -2666,8 +2674,12 @@ const JVS_STYLES = `
     color: #FAAD14;
   }
 
-  /* 旧版筛选行内（搜索框右侧）：对齐与间距交给 flex 的 align-items/gap，清掉钉顶 margin */
+  /* 旧版筛选行内（搜索框右侧）：等高等字号旧版 medium 搜索框（字号挂载点继承不到
+     故显式写），对齐与水平间距交给 flex 的 align-items/gap，清掉 margin */
   .filter-bar .ze-star-filter-btn {
+    height: 36px;
+    line-height: 34px;
+    font-size: 14px;
     margin: 0;
   }
 

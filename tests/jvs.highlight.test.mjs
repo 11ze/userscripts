@@ -45,6 +45,13 @@ function loadScriptHooks(cards, mode = 'new') {
     card.parentElement = cardArea; // 卡片流所在层 = 第一张卡的父级
     cardArea.append(card);
   }
+  // 新版搜索行不滚动：.search-input 挂在自己的列里（与 appPage 同层、不在其内），
+  // 开关按钮落搜索框父级、排搜索框右侧
+  const searchCol = makeContainer('el-col el-col-12');
+  const searchInput = makeFakeEl();
+  searchInput.className = 'search-input el-input';
+  searchInput.parentElement = searchCol;
+  searchCol.append(searchInput);
   const body = makeFakeEl();
 
   const { hooks, store } = loadJvsHooks({
@@ -53,12 +60,19 @@ function loadScriptHooks(cards, mode = 'new') {
       querySelector: (selector) => {
         if (selector === '.application') return cards[0] ?? null;
         if (selector === '.app-page') return mode === 'new' ? appPage : null;
+        // 两版站点都可能出现 .search-input 类名（不按 mode 区分）——
+        // 旧版须靠 filterBar 优先抢回按钮挂点（?? 短路），见优先级用例
+        if (selector === '.search-input') return searchInput;
         if (selector === '.jvs-layout-tempOpen > .template-content-box') {
           return mode === 'old' ? templateBox : null;
         }
         if (selector === '.ze-star-filter-btn' || selector === '.ze-star-empty-tip') {
-          const host = mode === 'new' ? appPage : mode === 'old' ? templateBox : null;
-          return host ? host.querySelector(selector) : null;
+          if (mode === 'new') {
+            const host = selector === '.ze-star-filter-btn' ? searchCol : appPage;
+            return host.querySelector(selector);
+          }
+          if (mode === 'old') return templateBox.querySelector(selector);
+          return null;
         }
         return null;
       },
@@ -76,6 +90,8 @@ function loadScriptHooks(cards, mode = 'new') {
     templateBox,
     filterBar,
     cardArea,
+    searchCol,
+    searchInput,
     body,
     /** 模拟 SPA 路由切换：进出应用中心、切新旧版容器 */
     setMode: (next) => {
@@ -149,14 +165,20 @@ test('点击后立即刷新当前卡片星标，不等轮询', () => {
   assert.deepEqual(readMarked(), []);
 });
 
-test('只看星标开关：注入 pill 与空态提示，状态现读存储同步 body class', () => {
+test('只看星标开关：新版注入搜索框旁（顶部搜索行不滚动），状态现读存储同步 body class', () => {
   const card = makeCard('应用C');
-  const { hooks, appPage, body, writeFilter } = loadScriptHooks([card]);
+  const { hooks, appPage, searchCol, body, writeFilter } = loadScriptHooks([card]);
 
   // 默认关：按钮与提示注入，body 无过滤 class
   hooks.filterStarredApps();
-  const btn = appPage.querySelector('.ze-star-filter-btn');
-  assert.notEqual(btn, null, '开关按钮应注入 app-page');
+  const btn = searchCol.querySelector('.ze-star-filter-btn');
+  assert.notEqual(btn, null, '开关按钮应注入搜索框所在列');
+  assert.equal(
+    searchCol.children[searchCol.children.length - 1],
+    btn,
+    '按钮 append 在搜索框之后（行内搜索框右侧）'
+  );
+  assert.equal(appPage.querySelector('.ze-star-filter-btn'), null, '滚动区内不放按钮');
   assert.notEqual(appPage.querySelector('.ze-star-empty-tip'), null, '空态提示应注入');
   assert.equal(body.classList.contains('ze-star-filter-on'), false);
   assert.equal(btn.getAttribute('aria-pressed'), 'false');
@@ -174,7 +196,7 @@ test('旧版应用中心：开关注入筛选行内搜索框右侧，与原生�
 
   hooks.filterStarredApps();
   const btn = filterBar.querySelector('.ze-star-filter-btn');
-  assert.notEqual(btn, null, '旧版开关按钮应注入 .filter-bar（搜索框右侧）');
+  assert.notEqual(btn, null, '旧版开关按钮应注入筛选行（顶部不滚动）');
   assert.notEqual(
     cardArea.querySelector('.ze-star-empty-tip'),
     null,
@@ -188,6 +210,19 @@ test('旧版应用中心：开关注入筛选行内搜索框右侧，与原生�
 
   btn.click();
   assert.equal(body.classList.contains('ze-star-filter-on'), false, '点击应立即关闭');
+});
+
+test('旧版两类挂点并存时筛选行优先：按钮不落 .search-input 搜索框列', () => {
+  const card = makeCard('应用C');
+  const { hooks, filterBar, searchCol } = loadScriptHooks([card], 'old');
+
+  hooks.filterStarredApps();
+  assert.notEqual(filterBar.querySelector('.ze-star-filter-btn'), null, '按钮应进筛选行');
+  assert.equal(
+    searchCol.querySelector('.ze-star-filter-btn'),
+    null,
+    '页面同时出现 .search-input 时按钮不得落搜索框列（?? 优先级锁定）'
+  );
 });
 
 test('旧版卡片未渲染时：先插按钮不插提示，卡片出现后提示落进卡片列表区', () => {
@@ -221,10 +256,10 @@ test('旧版卡片未渲染时：先插按钮不插提示，卡片出现后提�
 
 test('只看星标开关：点击切换存储并立即同步，不等轮询', () => {
   const card = makeCard('应用C');
-  const { hooks, appPage, body, readFilter } = loadScriptHooks([card]);
+  const { hooks, searchCol, body, readFilter } = loadScriptHooks([card]);
 
   hooks.filterStarredApps();
-  const btn = appPage.querySelector('.ze-star-filter-btn');
+  const btn = searchCol.querySelector('.ze-star-filter-btn');
 
   btn.click();
   assert.equal(readFilter(), true, '点击后存储应翻为 true');
