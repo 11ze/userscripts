@@ -1,32 +1,22 @@
 # CONTEXT.md
 
-领域词汇表（术语名 + 一句话）。技能输出命名时用这里的术语；机制细节看 `docs/scripts/<script>.md`，新概念定名时补进来。
+领域词汇表（术语名 + 一句话意图）。技能输出命名时用这里的术语；机制细节看 `docs/scripts/<script>.md`，新概念定名时补进来。
 
 ## anime_search
 
-- **站点判定（detectSite）**：由 hostname + pathname 推出所属站点，`null` 即早退。
-- **标题提取（extractTitle）**：从站点标题元素取出干净番剧名，剥离自挂按钮 emoji。
-- **译名去重（uniqueText）**：豆瓣「原名称 译名」并列只留前者的启发式。
+- **译名去重**：豆瓣「原名称 译名」并列只留前者的启发式。
+- **SPA 换页不补挂**：站内换页后按钮不重新挂载——用户决策：刷新页面即可，不为该场景加轮询。
 
 ## color_mode_switch
 
-- **反转色模式（reverse color mode）**：整页 `filter: invert(1) hue-rotate(180deg)`，媒体与自挂按钮二次反转抵消。
-- **状态存取（readState/writeState）**：注入式存储端口，异常时读出关闭、写返回 false。
-- **反转样式表（buildReverseColorCss）**：纯函数生成的反色 CSS，样式变更只改这一处。
+- **反转色模式**：整页反色滤镜，媒体与自挂按钮二次反转抵消（CSS filter 下子树无法脱离整页反转）。
 
 ## jvs
 
-- **环境检测（isJVS）**：按页面 link 标签判定是否 JVS 站点，非 JVS 早退。
-- **当前模式（currentMode）**：模式读取统一入口，历史映射优先、未命中走 DOM 采集（collectAppMode 顺手落库）。
-- **模式色板（MODE_COLORS）**：模式→颜色的单一事实源，text 投影日志表格行色，buttonPlain 投影按钮换色 CSS（buildModeColorCss 生成）。
 - **新旧双版**：新版（qicong-edf）与旧版（jyy-dev）两套 DOM 并存，改动须两版兼顾。
-- **操作队列（operations）**：`createOperationRunner` 按固定间隔轮询调度的混合数组，probe 键控跳过无变化 tick；probe 可返回 `{ key, payload }`——键对比走 key、载荷直达 apply。
-- **幂等注入（ensureInjected）**：宿主内键控判重注入——键同跳过、键异移除重建、省略键为恒等键，mount 可返回 null 拒绝注入；设计器按钮集群统一走此出口。
-- **日志查询（latestLogWhere）**：倒序首命中内核，getUrlFromLogs/getUrlFromLogsAndUrl/findDesignNameById 三包装。
-- **设计器类型（getTabType）**：逻辑/列表/表单/流程四类，须设计器头部与页签文本同时满足。
-- **星标（highlightApps）**：应用卡片右上角星标按钮，标记按应用名存 localStorage。
-- **只看星标过滤（filterStarredApps）**：JS 只产出 body class，卡片显隐全由 CSS `:has()` 驱动的 pill 开关。
-- **地址栏同步（syncAppCenterUrl）**：应用中心用 `replaceState` 把地址栏统一到 `#/wel/index`。
-- **侧边栏收起（toggleAppCenterSidebar）**：body class 驱动分类侧边栏隐藏、卡片区拉满。
-- **画布滚轮平移（canvasScrollOperation）**：wheel 走 Butterfly `canvas.move`，画布重建带回平移、切换画布清记录不重放。
-- **表单组件名常显（active-formitem2）**：借站点原生激活类让名字条常显，hover 时站点藏名字的规则被 `!important` 盖回。
+- **当前模式**：模式读取统一入口，历史映射优先、未命中走 DOM 采集。
+- **模式色板**：模式→颜色的单一事实源，投影日志表格行色与按钮换色。
+- **操作队列**：固定间隔轮询调度的混合数组，probe 键控跳过无变化 tick。
+- **幂等注入**：按钮判重注入统一出口——键同跳过、键异移除重建、mount 可返回 null 拒绝注入。
+- **星标**：应用卡片星标按钮，标记按应用名存 localStorage。
+- **只看星标过滤**：JS 只产出 body class，卡片显隐全由 CSS `:has()` 驱动。
