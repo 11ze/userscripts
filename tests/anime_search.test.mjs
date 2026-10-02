@@ -396,7 +396,9 @@ test('按钮挂载：AGE play 页四个按钮，顺序为 🔍/豆瓣/AGE/详情
   assert.equal(detailButton.textContent, '详情');
 
   detailButton.fire('click');
-  assert.equal(sandbox.location.href, 'https://www.agedm.io/detail/20260212');
+  assert.deepEqual(sandbox.__openCalls, [
+    { url: 'https://www.agedm.io/detail/20260212', target: '_blank' },
+  ]);
 });
 
 test('按钮挂载：AGE 非 play 页挂站内搜索但不挂详情', () => {

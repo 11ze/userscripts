@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         搜索动漫
 // @namespace    https://github.com/11ze
-// @version      0.6.16
-// @description  2026-09-19 新增 AGE 站内搜索钮（当前域 favicon），豆瓣/详情钮换图标与文字并统一对齐；标题提取改跳过按钮子树，不再正则剥字
+// @version      0.6.17
+// @description  2026-10-03 AGE 详情按钮改为新标签页打开，不再离开当前播放页
 // @author       11ze
 // @match        *://*/*
 // @icon         data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItc2VhcmNoIj48Y2lyY2xlIGN4PSIxMSIgY3k9IjExIiByPSI4Ij48L2NpcmNsZT48cGF0aCBkPSJtMjEgMjEtNC4zNS00LjM1Ij48L3BhdGg+PC9zdmc+
@@ -234,11 +234,11 @@
   }
 
   /**
-   * 按钮渲染：「详情」跳转按钮，点击当前标签页跳转
+   * 按钮渲染：「详情」跳转按钮，点击新标签页打开
    */
   function createDetailButton(href) {
     return createButton('详情', function () {
-      location.href = href;
+      window.open(href, '_blank');
     });
   }
 
