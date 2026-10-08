@@ -29,6 +29,7 @@ function loadScriptHooks() {
       warn() {},
     },
     URLSearchParams: URLSearchParams,
+    URL: URL,
     GM_addStyle() {},
     GM_registerMenuCommand() {},
     addEventListener() {},
@@ -143,6 +144,39 @@ test('parseUrl：空串与非字符串参数返回空数组', () => {
   assert.equal(JSON.stringify(parseUrl('')), '[]');
   assert.equal(JSON.stringify(parseUrl(null)), '[]');
   assert.equal(JSON.stringify(parseUrl(undefined)), '[]');
+});
+
+test('shouldReloadAfterNavigate：same-document（仅 hash 变化或 URL 全同）需要补 reload', () => {
+  const { shouldReloadAfterNavigate } = loadScriptHooks();
+  // same-document 导航不触发加载，需要 reload
+  assert.equal(
+    shouldReloadAfterNavigate(
+      'https://example.com/p?a=1#/route?x=1',
+      'https://example.com/p?a=1#/route?x=2',
+    ),
+    true,
+  );
+  // URL 完全相同：赋值不导航，需要 reload
+  assert.equal(
+    shouldReloadAfterNavigate('https://example.com/p?a=1', 'https://example.com/p?a=1'),
+    true,
+  );
+});
+
+test('shouldReloadAfterNavigate：跨文档导航不能 reload（会取消跳转）', () => {
+  const { shouldReloadAfterNavigate } = loadScriptHooks();
+  assert.equal(
+    shouldReloadAfterNavigate('https://example.com/p?a=1', 'https://example.com/p?a=2'),
+    false,
+  );
+  assert.equal(
+    shouldReloadAfterNavigate('https://example.com/p?a=1', 'https://example.com/q?a=1'),
+    false,
+  );
+  assert.equal(
+    shouldReloadAfterNavigate('https://a.com/p', 'https://b.com/p'),
+    false,
+  );
 });
 
 test('parseUrl：空段跳过', () => {

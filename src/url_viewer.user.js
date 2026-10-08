@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         查看网址
 // @namespace    https://github.com/11ze
-// @version      0.4.2
-// @description  2026-08-14 修复重复参数键编辑后丢失和参数值中 ? 后内容截断
+// @version      0.4.3
+// @description  2026-10-08 修复点跳转被紧跟的 reload 取消（回到旧地址）；「跳转」按钮改为「确定」
 // @author       11ze
 // @license      MIT
 // @match        *://*/*
@@ -489,6 +489,19 @@
     return url.toString();
   }
 
+  // ==================== 导航决策 ====================
+  /**
+   * location.href 赋值是异步导航：跨文档跳转后紧跟 reload() 会取消跳转，回到旧地址。
+   * 只有 same-document 导航（除 hash 外全同）不会触发页面加载，需要补一次 reload。
+   */
+  function shouldReloadAfterNavigate(currentHref, nextHref) {
+    const current = new URL(currentHref);
+    const next = new URL(nextHref);
+    return current.origin === next.origin
+      && current.pathname === next.pathname
+      && current.search === next.search;
+  }
+
   // ==================== 底部按钮栏 ====================
   function createBottomBar(popup) {
     const bar = createEl('div', buttonBarStyles);
@@ -517,18 +530,22 @@
     const editModeGroup = createEl('div', { ...modeGroupStyles, display: 'none' });
     editModeGroup.classList.add('edit-mode');
 
-    const goButton = createEl('button', primaryButtonStyles, { textContent: '跳转' });
-    goButton.onclick = () => {
-      window.location.href = buildUrlFromPanel(popup);
-      window.location.reload();
+    const confirmButton = createEl('button', primaryButtonStyles, { textContent: '确定' });
+    confirmButton.onclick = () => {
+      const nextUrl = buildUrlFromPanel(popup);
+      const reloadAfter = shouldReloadAfterNavigate(window.location.href, nextUrl);
+      window.location.href = nextUrl;
+      if (reloadAfter) {
+        window.location.reload();
+      }
     };
-    setHover(goButton, { background: COLORS.blueHover }, { background: COLORS.blue });
+    setHover(confirmButton, { background: COLORS.blueHover }, { background: COLORS.blue });
 
     const cancelButton = createEl('button', closeButtonStyles, { textContent: '取消' });
     cancelButton.onclick = () => switchToViewMode(popup, bar);
     setHover(cancelButton, { borderColor: COLORS.textMuted }, { borderColor: COLORS.border });
 
-    editModeGroup.appendChild(goButton);
+    editModeGroup.appendChild(confirmButton);
     editModeGroup.appendChild(cancelButton);
 
     bar.appendChild(viewModeGroup);
@@ -598,6 +615,7 @@
     window.__URL_VIEWER_TEST__.hooks = {
       parseUrl: parseUrl,
       buildUrlFromPanel: buildUrlFromPanel,
+      shouldReloadAfterNavigate: shouldReloadAfterNavigate,
     };
   }
 
