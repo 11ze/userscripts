@@ -4,7 +4,7 @@
 
 - **新旧双版**：站点有新版（qicong-edf）与旧版（jyy-dev）两套环境，DOM 结构不同；改动须两版兼顾并在两版实测。
 - **操作队列**：probe 采集（允许幂等写，如模式目录同值不重写、值变才落库）、apply 消费 probe 采到的数据不二次读取；probe 键不变时跳过 apply（probe 返回 `{ key, payload }` 时 apply 直接收 payload）。apply 成功才记录键——抛错下一 tick 同键重试自愈；接受代价：持续出错的 apply 每 tick 报一次 console 错。
-- **定义顺序**：operations 数组与 setInterval 须放在全部定义之后——TDZ 前科 v0.8.6（局部遮蔽全局同名函数真机崩过）；测试钩子块仅 `getStyles` 用箭头惰性引用其后定义的 JVS_STYLES，其余登记的 const 须定义在钩子块之前。
+- **定义顺序**：operations 数组与 setInterval 须放在全部定义之后——TDZ 前科 v0.8.6（局部遮蔽全局同名函数真机崩过）。测试钩子块在 IIFE 末尾（setInterval 之后），登记任何 const 不受定义顺序约束。
 - **设计器类型**：`getTabType` 须设计器头部与页签文本同时满足——否则旧版非设计页残留的「逻辑设计」页签被误匹配。
 - **旧版节点展开名称**：只压缩 `.ef-node-text` 行高并框内垂直居中，节点框/`.top`/连线锚点零改动——`height: auto` 会让节点形态重算、锚点错位，已被用户截图否决。
 - **新版节点形态保持原生**：节点形态全部保持原生；`ze-typed` 命中描边（v0.7.31 引入）已于 v0.8.12 整体撤销，勿再加回。脚本只动连线观感：
