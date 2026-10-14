@@ -1,12 +1,11 @@
 'use strict';
 
 /**
- * URL 解析模型测试
+ * URL 解析与重建模型测试
  *
  * 通过 vm 桩环境执行 url_viewer.user.js 全文，从 window.__URL_VIEWER_TEST__
- * 条件钩子取出 IIFE 内部的解析函数。断言用 JSON.stringify 字符串对比，
+ * 条件钩子取出 IIFE 内部的解析/重建函数。断言用 JSON.stringify 字符串对比，
  * 避开 vm realm 的 deepEqual 引用相等误报。
- * 见 plans/2026-08-14-candidate-6-url-model.md。
  */
 
 import test from 'node:test';
@@ -191,5 +190,75 @@ test('parseUrl：空段跳过', () => {
       { host: 'https://h.com/', params: [] },
       { host: '/route', params: [] },
     ]),
+  );
+});
+
+// ==================== buildUrl（parseUrl 的逆函数） ====================
+
+test('buildUrl：主段参数写入 search，重复键与空值保留', () => {
+  const { buildUrl } = loadScriptHooks();
+  assert.equal(
+    buildUrl('https://example.com/', [
+      {
+        host: 'https://example.com/',
+        params: [
+          { key: 'a', value: '1' },
+          { key: 'a', value: '2' },
+          { key: 'empty', value: '' },
+        ],
+      },
+    ]),
+    'https://example.com/?a=1&a=2&empty=',
+  );
+});
+
+test('buildUrl：主段无参数时基底 search 原样保留', () => {
+  const { buildUrl } = loadScriptHooks();
+  assert.equal(
+    buildUrl('https://example.com/p', [
+      { host: 'https://example.com/p', params: [] },
+      { host: '/route', params: [{ key: 'id', value: 'abc' }] },
+    ]),
+    'https://example.com/p#/route?id=abc',
+  );
+});
+
+test('buildUrl：无参数 hash 段保留在重建结果里（v0.4.4 前会被丢弃）', () => {
+  const { parseUrl, buildUrl } = loadScriptHooks();
+  const segments = parseUrl('https://example.com/p?x=1#frag#b?y=2');
+  assert.equal(
+    buildUrl('https://example.com/p?x=1#frag#b?y=2', segments),
+    'https://example.com/p?x=1#frag#b?y=2',
+  );
+});
+
+test('buildUrl：编辑后的值跨段生效', () => {
+  const { parseUrl, buildUrl } = loadScriptHooks();
+  const segments = parseUrl('https://example.com/p?x=1#frag#b?y=2');
+  segments[0].params[0].value = '9';
+  segments[2].params[0].value = 'edit';
+  assert.equal(
+    buildUrl('https://example.com/p?x=1#frag#b?y=2', segments),
+    'https://example.com/p?x=9#frag#b?y=edit',
+  );
+});
+
+test('buildUrl：值经 URLSearchParams 归一化（空格变 +，非逐字节还原）', () => {
+  const { buildUrl } = loadScriptHooks();
+  assert.equal(
+    buildUrl('https://e.com/', [
+      { host: 'https://e.com/', params: [{ key: 'q', value: 'a b' }] },
+    ]),
+    'https://e.com/?q=a+b',
+  );
+});
+
+test('buildUrl 与 parseUrl 往返：iframe 嵌套路由段列表不丢不变形', () => {
+  const { parseUrl, buildUrl } = loadScriptHooks();
+  const fixture = 'https://jvs.example.com/#/myiframe/urlPath?name=学年学期管理&src=/page-design-ui/#/list/use?id=abc&jvsAppId=app1';
+  const segments = parseUrl(fixture);
+  assert.equal(
+    JSON.stringify(parseUrl(buildUrl('https://jvs.example.com/', segments))),
+    JSON.stringify(segments),
   );
 });

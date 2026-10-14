@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         查看网址
 // @namespace    https://github.com/11ze
-// @version      0.4.3
-// @description  2026-10-08 修复点跳转被紧跟的 reload 取消（回到旧地址）；「跳转」按钮改为「确定」
+// @version      0.4.4
+// @description  2026-10-14 编辑确定改走段列表模型重建（buildUrl 纯函数化）；修复无参数 hash 段在确定后丢失
 // @author       11ze
 // @license      MIT
 // @match        *://*/*
@@ -234,7 +234,7 @@
 
   // ==================== 动画样式 ====================
   GM_addStyle(`
-    input[data-param-key]:focus {
+    input.param-input:focus {
       border-color: ${COLORS.blue};
       background-color: ${COLORS.blueBg};
     }
@@ -345,6 +345,36 @@
     return segments;
   }
 
+  /**
+   * parseUrl 的逆函数：段列表 + 基底地址 → URL 字符串
+   * 主段（下标 0）参数写入 search，其余段按原序以 # 连接写入 hash，
+   * 无参数段同样保留（按表格重建的旧实现会静默丢段）
+   * 序列化走 URLSearchParams，是归一化而非逐字节还原（空格变 +、? 编码为 %3F）
+   */
+  function buildUrl(baseUrl, segments) {
+    const url = new URL(baseUrl);
+    const [main, ...hashSegments] = segments;
+
+    if (main && main.params.length > 0) {
+      const params = new URLSearchParams();
+      for (const { key, value } of main.params) params.append(key, value);
+      url.search = params.toString();
+    }
+
+    if (hashSegments.length > 0) {
+      url.hash = hashSegments
+        .map((segment) => {
+          const params = new URLSearchParams();
+          for (const { key, value } of segment.params) params.append(key, value);
+          const queryString = params.toString();
+          return segment.host + (queryString ? '?' + queryString : '');
+        })
+        .join('#');
+    }
+
+    return url.toString();
+  }
+
   // ==================== DOM 创建函数 ====================
   function createSeparator() {
     return createEl('div', separatorStyles);
@@ -367,7 +397,7 @@
     return table;
   }
 
-  function addParamRow(table, param, hashIndex = 0) {
+  function addParamRow(table, param) {
     const row = table.insertRow();
     const cell1 = row.insertCell(0);
     const cell2 = row.insertCell(1);
@@ -384,8 +414,6 @@
     // 参数值单元格
     const valueSpan = createEl('span', valueSpanStyles, { textContent: param.value });
     valueSpan.title = '点击复制参数值';
-    valueSpan.dataset.paramKey = param.key;
-    valueSpan.dataset.hashIndex = String(hashIndex);
     cell2.onclick = (e) => copyToClipboard(param.value, e.clientX, e.clientY);
     setStyles(cell2, { ...cellStyles, color: COLORS.textSecondary });
     setHover(cell2, { backgroundColor: COLORS.blueBg }, { backgroundColor: '' });
@@ -399,94 +427,49 @@
     }
 
     row.style.transition = 'none';
+
+    return { cell: cell2, span: valueSpan, param: param, input: null };
   }
 
   // ==================== 模式切换 ====================
-  function switchToEditMode(popup, bar) {
-    const valueSpans = popup.querySelectorAll('span[data-param-key]');
-    valueSpans.forEach((span) => {
+  function switchToEditMode(bindings, bar) {
+    for (const binding of bindings) {
       const input = createEl('input', valueInputStyles, {
-        value: span.textContent,
+        value: binding.param.value,
+        className: 'param-input',
       });
-      input.dataset.paramKey = span.dataset.paramKey;
-      input.dataset.hashIndex = span.dataset.hashIndex;
-      input.dataset.originalValue = span.textContent;
 
-      const cell = span.closest('td');
-      cell.onclick = null;
-      cell.style.cursor = 'text';
-      span.replaceWith(input);
-    });
+      binding.cell.onclick = null;
+      binding.cell.style.cursor = 'text';
+      binding.span.replaceWith(input);
+      binding.input = input;
+    }
 
     // 切换按钮: 隐藏查看模式按钮，显示编辑模式按钮
     bar.querySelector('.view-mode').style.display = 'none';
     bar.querySelector('.edit-mode').style.display = 'flex';
   }
 
-  function switchToViewMode(popup, bar) {
-    const inputs = popup.querySelectorAll('input[data-param-key]');
-    inputs.forEach((input) => {
+  function switchToViewMode(bindings, bar) {
+    // 编辑值只在点「确定」时采纳，取消直接按模型重渲染
+    for (const binding of bindings) {
       const span = createEl('span', valueSpanStyles, {
-        textContent: input.dataset.originalValue,
+        textContent: binding.param.value,
       });
       span.title = '点击复制参数值';
-      span.dataset.paramKey = input.dataset.paramKey;
-      span.dataset.hashIndex = input.dataset.hashIndex;
       setHover(span, { color: COLORS.blueHover }, { color: '' });
 
-      const cell = input.closest('td');
-      cell.onclick = (e) => copyToClipboard(span.textContent, e.clientX, e.clientY);
-      cell.style.cursor = 'pointer';
+      binding.cell.onclick = (e) => copyToClipboard(binding.param.value, e.clientX, e.clientY);
+      binding.cell.style.cursor = 'pointer';
 
-      input.replaceWith(span);
-    });
+      binding.input.replaceWith(span);
+      binding.span = span;
+      binding.input = null;
+    }
 
     // 切换按钮
     bar.querySelector('.edit-mode').style.display = 'none';
     bar.querySelector('.view-mode').style.display = 'flex';
-  }
-
-  // ==================== URL 重建 ====================
-  function buildUrlFromPanel(popup) {
-    const inputs = popup.querySelectorAll('input[data-param-key]');
-
-    // 按 hash-index 分组
-    const grouped = {};
-    inputs.forEach((input) => {
-      const idx = input.dataset.hashIndex;
-      if (!grouped[idx]) grouped[idx] = [];
-      grouped[idx].push({ key: input.dataset.paramKey, value: input.value });
-    });
-
-    const url = new URL(window.location.href);
-
-    // 重建主 URL 参数 (hash-index=0)
-    if (grouped[0]) {
-      const params = new URLSearchParams();
-      grouped[0].forEach(({ key, value }) => params.append(key, value));
-      url.search = params.toString();
-    }
-
-    // 重建 hash 片段中的参数 (hash-index>0)
-    const hashTables = Array.from(popup.querySelectorAll('table[data-hash-index]'))
-      .filter((table) => table.dataset.hashIndex !== '0')
-      .sort((a, b) => Number(a.dataset.hashIndex) - Number(b.dataset.hashIndex));
-
-    if (hashTables.length > 0) {
-      const newHash = hashTables.map((table) => {
-        const idx = table.dataset.hashIndex;
-        const hostPath = table.dataset.hashHost;
-        const params = new URLSearchParams();
-        if (grouped[idx]) {
-          grouped[idx].forEach(({ key, value }) => params.append(key, value));
-        }
-        return hostPath + (params.toString() ? '?' + params.toString() : '');
-      }).join('#');
-
-      url.hash = newHash;
-    }
-
-    return url.toString();
   }
 
   // ==================== 导航决策 ====================
@@ -503,9 +486,9 @@
   }
 
   // ==================== 底部按钮栏 ====================
-  function createBottomBar(popup) {
+  function createBottomBar(popup, session) {
     const bar = createEl('div', buttonBarStyles);
-    const hasParams = popup.querySelectorAll('span[data-param-key]').length > 0;
+    const hasParams = session.segments.some((segment) => segment.params.length > 0);
 
     // 查看模式按钮组
     const viewModeGroup = createEl('div', { ...modeGroupStyles, display: 'flex' });
@@ -517,7 +500,7 @@
 
     if (hasParams) {
       const editButton = createEl('button', primaryButtonStyles, { textContent: '编辑' });
-      editButton.onclick = () => switchToEditMode(popup, bar);
+      editButton.onclick = () => switchToEditMode(session.bindings, bar);
       setHover(editButton, { background: COLORS.blueHover }, { background: COLORS.blue });
       viewModeGroup.appendChild(editButton);
     } else {
@@ -532,7 +515,10 @@
 
     const confirmButton = createEl('button', primaryButtonStyles, { textContent: '确定' });
     confirmButton.onclick = () => {
-      const nextUrl = buildUrlFromPanel(popup);
+      for (const { input, param } of session.bindings) {
+        param.value = input.value;
+      }
+      const nextUrl = buildUrl(session.baseUrl, session.segments);
       const reloadAfter = shouldReloadAfterNavigate(window.location.href, nextUrl);
       window.location.href = nextUrl;
       if (reloadAfter) {
@@ -542,7 +528,7 @@
     setHover(confirmButton, { background: COLORS.blueHover }, { background: COLORS.blue });
 
     const cancelButton = createEl('button', closeButtonStyles, { textContent: '取消' });
-    cancelButton.onclick = () => switchToViewMode(popup, bar);
+    cancelButton.onclick = () => switchToViewMode(session.bindings, bar);
     setHover(cancelButton, { borderColor: COLORS.textMuted }, { borderColor: COLORS.border });
 
     editModeGroup.appendChild(confirmButton);
@@ -556,7 +542,10 @@
 
   // ==================== 主函数 ====================
   function main() {
-    const urlInfo = parseUrl(decodeURIComponent(window.location.href));
+    // 打开时快照：基底地址与解码串只取一次，编辑会话全程认这份模型
+    const rawHref = window.location.href;
+    const decodedHref = decodeURIComponent(rawHref);
+    const segments = parseUrl(decodedHref);
 
     const popup = createEl('div', popupStyles, {
       id: '11ze-url-reader-popup',
@@ -565,7 +554,7 @@
 
     // 完整 URL 显示
     const fullUrlDiv = createEl('div', fullUrlStyles, {
-      textContent: decodeURIComponent(window.location.href),
+      textContent: decodedHref,
     });
     popup.appendChild(fullUrlDiv);
 
@@ -573,8 +562,9 @@
 
     // 构建参数列表；出现过表之后，每个 host 段前都加分隔线
     let separatorNeeded = false;
+    const bindings = [];
 
-    urlInfo.forEach((segment, index) => {
+    segments.forEach((segment, index) => {
       if (separatorNeeded) {
         popup.appendChild(createSeparator());
       }
@@ -584,18 +574,16 @@
       if (segment.params.length === 0) return;
 
       const table = createTable(index);
-      table.dataset.hashHost = segment.host;
-      table.dataset.hashIndex = String(index);
       popup.appendChild(table);
       for (const param of segment.params) {
-        addParamRow(table, param, index);
+        bindings.push(addParamRow(table, param));
       }
 
       separatorNeeded = true;
     });
 
     // 底部按钮栏
-    popup.appendChild(createBottomBar(popup));
+    popup.appendChild(createBottomBar(popup, { segments, bindings, baseUrl: rawHref }));
 
     document.body.appendChild(popup);
     popup.style.animation = `${ANIM.slideIn} 0.3s ${ANIM.timing}`;
@@ -614,7 +602,7 @@
   if (window.__URL_VIEWER_TEST__) {
     window.__URL_VIEWER_TEST__.hooks = {
       parseUrl: parseUrl,
-      buildUrlFromPanel: buildUrlFromPanel,
+      buildUrl: buildUrl,
       shouldReloadAfterNavigate: shouldReloadAfterNavigate,
     };
   }
