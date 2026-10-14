@@ -77,7 +77,10 @@ function loadScriptSandbox({ element, href } = {}) {
       warn() {},
     },
     URL: URL,
-    GM_addStyle() {},
+    __styleInjections: [],
+    GM_addStyle(css) {
+      sandbox.__styleInjections.push(css);
+    },
     location: {
       href: pageHref,
       origin: pageUrl.origin,
@@ -415,4 +418,32 @@ test('按钮挂载：AGE 非 play 页挂站内搜索但不挂详情', () => {
   assert.deepEqual(sandbox.__openCalls, [
     { url: 'https://www.agedm.io/search?query=咒术回战 第二季', target: '_blank' },
   ]);
+});
+
+test('装配表：douban/bilibili 按钮序列只有通用对——即使站在 /play/ 路径下也不产详情钮', () => {
+  // age 域 + /play/ 路径让 buildDetailHref 的误挂条件拉满，
+  // 再调 douban/bilibili 工厂验证站点差异各自封装，不随主循环泄漏
+  const sandbox = loadScriptSandbox({ href: 'https://www.agedm.io/play/20260212' });
+  const { SITE_SETUP } = sandbox.__ANIME_SEARCH_TEST__.hooks;
+
+  assert.equal(SITE_SETUP.douban.buildButtons('咒术回战').length, 2);
+  assert.equal(SITE_SETUP.bilibili.buildButtons('咒术回战').length, 2);
+});
+
+test('装配表：AGE play 页序列四个按钮，CSS 屏蔽只在 AGE 条目', () => {
+  const sandbox = loadScriptSandbox({ href: 'https://www.agedm.io/play/20260212' });
+  const { SITE_SETUP } = sandbox.__ANIME_SEARCH_TEST__.hooks;
+
+  assert.equal(SITE_SETUP.age.buildButtons('咒术回战').length, 4);
+  assert.ok(SITE_SETUP.age.css.includes('global_notice_wrapper'));
+  assert.equal(SITE_SETUP.douban.css, undefined);
+  assert.equal(SITE_SETUP.bilibili.css, undefined);
+});
+
+test('CSS 注入：AGE 站注入屏蔽样式，豆瓣站不注入', () => {
+  const ageSandbox = loadScriptSandbox({ href: 'https://www.agedm.io/detail/20260212' });
+  assert.equal(ageSandbox.__styleInjections.length, 1);
+
+  const doubanSandbox = loadScriptSandbox({ href: 'https://www.douban.com/subject/26363254/' });
+  assert.equal(doubanSandbox.__styleInjections.length, 0);
 });

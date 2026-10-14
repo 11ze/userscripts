@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         搜索动漫
 // @namespace    https://github.com/11ze
-// @version      0.6.17
-// @description  2026-10-03 AGE 详情按钮改为新标签页打开，不再离开当前播放页
+// @version      0.6.18
+// @description 2026-10-14 站点→按钮工厂序列收拢为装配表——加站/加按钮不再改主循环控制流；buildDetailHref 收进 AGE 条目，不再依赖其他站路径判定恰好排除 /play/
 // @author       11ze
 // @match        *://*/*
 // @icon         data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItc2VhcmNoIj48Y2lyY2xlIGN4PSIxMSIgY3k9IjExIiByPSI4Ij48L2NpcmNsZT48cGF0aCBkPSJtMjEgMjEtNC4zNS00LjM1Ij48L3BhdGg+PC9zdmc+
@@ -276,6 +276,45 @@
     },
   ];
 
+  // 站点 → 按钮工厂序列 + 站点级样式：加站/加按钮改这张表，主循环不动。
+  // buildDetailHref 只对 AGE 的 /play/ 有意义，收在 age 条目内——
+  // 不再依赖其他站点的路径判定恰好排除 /play/ 前缀
+  const SITE_SETUP = {
+    age: {
+      buildButtons(title) {
+        const buttons = [
+          ...createButtonPair(title),
+          createAgeSearchButton(location.origin, title),
+        ];
+        const detailHref = buildDetailHref(location.pathname, location.origin);
+        if (detailHref) {
+          buttons.push(createDetailButton(detailHref));
+        }
+        return buttons;
+      },
+      css: `
+        .comment-box-cover,
+        .comment-function-wrapper,
+        .comment_textarea,
+        .comment-content-wrapper {
+          display: none !important;
+        }
+
+        /* 屏蔽全局通知弹窗 */
+        .global_notice_wrapper {
+          display: none !important;
+        }
+      `,
+    },
+    douban: { buildButtons: createButtonPair },
+    bilibili: { buildButtons: createButtonPair },
+  };
+
+  const setup = SITE_SETUP[site];
+  if (setup.css) {
+    GM_addStyle(setup.css);
+  }
+
   for (let i = 0; i < list.length; i++) {
     const item = list[i];
     const hDom = document.querySelector(item.dom);
@@ -284,36 +323,10 @@
     }
 
     const title = extractTitle(hDom);
-    for (const button of createButtonPair(title)) {
+    for (const button of setup.buildButtons(title)) {
       hDom.appendChild(button);
     }
-
-    if (site === 'age') {
-      hDom.appendChild(createAgeSearchButton(location.origin, title));
-    }
-
-    const detailHref = buildDetailHref(location.pathname, location.origin);
-    if (detailHref) {
-      hDom.appendChild(createDetailButton(detailHref));
-    }
     break;
-  }
-
-  if (site === 'age') {
-    const css = `
-      .comment-box-cover,
-      .comment-function-wrapper,
-      .comment_textarea,
-      .comment-content-wrapper {
-        display: none !important;
-      }
-
-      /* 屏蔽全局通知弹窗 */
-      .global_notice_wrapper {
-        display: none !important;
-      }
-    `;
-    GM_addStyle(css);
   }
 
   // 测试钩子：浏览器中 __ANIME_SEARCH_TEST__ 不存在，此分支永不执行
@@ -326,6 +339,7 @@
       buildDetailHref,
       createDetailButton,
       createAgeSearchButton,
+      SITE_SETUP,
     };
   }
 })();
