@@ -7,5 +7,6 @@
 - **decode 时机**：打开时对整串 decodeURIComponent 一次，parseUrl 与顶部完整 URL 显示共用——分段依赖参数里编码的 `%23` 炸开成段。
 - **编辑能力边界**：UI 只能改参数值，不能增删行、不能改键——段列表形状在会话内稳定；编辑值点「确定」才采纳进模型，「取消」直接按模型重渲染。
 - **导航决策**：`location.href` 赋值是异步导航，跨文档跳转后紧跟 reload 会取消跳转（v0.4.3 教训）；只有 same-document 导航需补 reload。
+- **开关收口**：openViewer/closeViewer 一对函数管 popup 生命周期——两个入口（菜单 / Ctrl+U）、三条关路径（关闭钮 / 点外部 / Ctrl+U）全走它；open 幂等（已开先关）、close 成对摘除 document click 监听器。新增关路径不得绕开 closeViewer 裸 remove（v0.4.5 前三条路径只有点外部摘监听器，其余空转到下次任意点击）。
 
-验证：`node --test tests/url_viewer.url.test.mjs`。
+验证：`node --test tests/url_viewer.url.test.mjs tests/url_viewer.popup.test.mjs`。

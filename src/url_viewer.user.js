@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         查看网址
 // @namespace    https://github.com/11ze
-// @version      0.4.4
-// @description  2026-10-14 编辑确定改走段列表模型重建（buildUrl 纯函数化）；修复无参数 hash 段在确定后丢失
+// @version      0.4.5
+// @description  2026-10-14 popup 开关收口 open/close 一对函数——菜单连点不再叠层，三条关路径（关闭钮/点外部/Ctrl+U）都成对摘除 document 监听器，删除恒假的菜单项 ID 判断
 // @author       11ze
 // @license      MIT
 // @match        *://*/*
@@ -495,7 +495,7 @@
     viewModeGroup.classList.add('view-mode');
 
     const closeButton = createEl('button', closeButtonStyles, { textContent: '关闭（Ctrl + U）' });
-    closeButton.onclick = () => { popup.remove(); };
+    closeButton.onclick = closeViewer;
     setHover(closeButton, { borderColor: COLORS.textMuted }, { borderColor: COLORS.border });
 
     if (hasParams) {
@@ -541,7 +541,26 @@
   }
 
   // ==================== 主函数 ====================
-  function main() {
+
+  // 开关收口：两个入口（菜单 / Ctrl+U）、三条关路径（关闭钮 / 点外部 / Ctrl+U）
+  // 全走这一对函数——open 幂等（已开先关），close 成对摘除 document 监听器
+  let activePopup = null;
+  let outsideClickHandler = null;
+
+  function closeViewer() {
+    if (activePopup) {
+      activePopup.remove();
+      activePopup = null;
+    }
+    if (outsideClickHandler) {
+      document.removeEventListener('click', outsideClickHandler);
+      outsideClickHandler = null;
+    }
+  }
+
+  function openViewer() {
+    closeViewer();
+
     // 打开时快照：基底地址与解码串只取一次，编辑会话全程认这份模型
     const rawHref = window.location.href;
     const decodedHref = decodeURIComponent(rawHref);
@@ -589,13 +608,13 @@
     popup.style.animation = `${ANIM.slideIn} 0.3s ${ANIM.timing}`;
 
     // 点击外部关闭
-    const closePopup = (event) => {
-      if (!popup.contains(event.target) && event.target.id !== 'url-reader-menu-item') {
-        popup.remove();
-        document.removeEventListener('click', closePopup);
+    activePopup = popup;
+    outsideClickHandler = (event) => {
+      if (!popup.contains(event.target)) {
+        closeViewer();
       }
     };
-    document.addEventListener('click', closePopup);
+    document.addEventListener('click', outsideClickHandler);
   }
 
   // 测试钩子：浏览器中 __URL_VIEWER_TEST__ 不存在，此分支永不执行
@@ -607,16 +626,15 @@
     };
   }
 
-  GM_registerMenuCommand('查看 (Ctrl + U)', main);
+  GM_registerMenuCommand('查看 (Ctrl + U)', openViewer);
 
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey && e.key === 'u') {
       e.preventDefault();
-      const existing = document.getElementById('11ze-url-reader-popup');
-      if (existing) {
-        existing.remove();
+      if (activePopup) {
+        closeViewer();
       } else {
-        main();
+        openViewer();
       }
     }
   });
