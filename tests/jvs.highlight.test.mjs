@@ -151,6 +151,33 @@ test('再次执行（轮询）时渲染跟随最新存储', () => {
   assert.equal(card.star.classList.contains('ze-marked'), true);
 });
 
+test('卡片名缓存跨 tick 生效：同一节点多轮渲染只读一次 innerText', () => {
+  let reads = 0;
+  const card = {
+    className: 'application',
+    parentElement: null,
+    star: null,
+    querySelector(selector) {
+      if (selector === '.ze-star-btn') return card.star;
+      if (selector === 'div > div > div > p') {
+        // innerText 是强制布局读，计数锁「每节点一次」的缓存承诺
+        return { get innerText() { reads++; return '应用A'; } };
+      }
+      return null;
+    },
+    appendChild(child) {
+      card.star = child;
+    },
+  };
+  const { hooks, writeMarked } = loadScriptHooks([card]);
+  writeMarked(['应用A']);
+
+  hooks.highlightApps();
+  hooks.highlightApps(); // 下一 tick：节点未重建，应命中缓存
+
+  assert.equal(reads, 1);
+});
+
 test('点击后立即刷新当前卡片星标，不等轮询', () => {
   const card = makeCard('应用C');
   const { hooks, readMarked } = loadScriptHooks([card]);

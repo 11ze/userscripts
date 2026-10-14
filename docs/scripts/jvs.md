@@ -3,7 +3,7 @@
 只记代码推不出的约束、否决与坑；机制看源码分节注释与测试。版本号锚定 git 溯源。
 
 - **新旧双版**：站点有新版（qicong-edf）与旧版（jyy-dev）两套环境，DOM 结构不同；改动须两版兼顾并在两版实测。
-- **操作队列**：probe 纯读、apply 消费 probe 采到的数据不二次读取；probe 键不变时跳过 apply（probe 返回 `{ key, payload }` 时 apply 直接收 payload）。
+- **操作队列**：probe 采集（允许幂等写，如模式目录同值不重写、值变才落库）、apply 消费 probe 采到的数据不二次读取；probe 键不变时跳过 apply（probe 返回 `{ key, payload }` 时 apply 直接收 payload）。apply 成功才记录键——抛错下一 tick 同键重试自愈；接受代价：持续出错的 apply 每 tick 报一次 console 错。
 - **定义顺序**：operations 数组与 setInterval 须放在全部定义之后——TDZ 前科 v0.8.6（局部遮蔽全局同名函数真机崩过）；测试钩子块仅 `getStyles` 用箭头惰性引用其后定义的 JVS_STYLES，其余登记的 const 须定义在钩子块之前。
 - **设计器类型**：`getTabType` 须设计器头部与页签文本同时满足——否则旧版非设计页残留的「逻辑设计」页签被误匹配。
 - **旧版节点展开名称**：只压缩 `.ef-node-text` 行高并框内垂直居中，节点框/`.top`/连线锚点零改动——`height: auto` 会让节点形态重算、锚点错位，已被用户截图否决。
@@ -21,7 +21,7 @@
 - **幂等注入**：`ensureInjected` 是按钮判重注入统一出口，后续注入类按钮优先走此模块；mount 返回 null 为「移除后可不建」语义（复制设计名的 use 图标门依赖此）。
 - **日志查询**：`latestLogWhere` 是唯一内核，其余查询是单行包装；无跨 tick 缓存，同一 tick 内多次查询由调用方解析一次传入复用。
 - **日志弹窗**：document 外点关闭监听器注册/摘除必须成对——历史实现 toggle 路径只删弹窗不摘监听器，每次泄漏一个，多活到下一次任意点击才自愈。
-- **日志按钮模式换色**：模式前缀与「日志」同字号同色、6px 间距替代全角「｜」（前缀缩字号、黑色前缀两方案已被用户否决，勿改回）；模式变化走容器 remove+重建、不播 transition；表格行色与按钮换色同出自 `MODE_COLORS` 单一事实源。
+- **日志按钮模式换色**：模式前缀与「日志」同字号同色、6px 间距替代全角「｜」（前缀缩字号、黑色前缀两方案已被用户否决，勿改回）；模式变化走容器 remove+重建、不播 transition；表格行色与按钮换色同出自 `MODE_COLORS` 单一事实源。容器与按钮各带 data-mode（前者 ensureInjected 身份键、后者 `.button-11ze[data-mode]` 换色钩子），勿合并到一处。v0.8.18 前的存量容器无 data-mode，升级后首次执行必重建一次、拖拽位置重置——一次性迁移成本，已接受不修。
 - **设置栏按钮间距**：「测试」按钮外包两层 span、自身盒内 margin-left 溢出会吃掉相邻间距——实测 22px 视觉缝才追平左缝。
 - **画布滚轮平移**：
   - 全走 Butterfly `canvas.move` API——旧实现 CSS 硬怼 wrapper/minimap left/top 是死路（坐标系不知情、与左键拖拽打架、minimap 只能魔法系数单向模拟）。

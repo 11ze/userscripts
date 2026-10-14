@@ -158,6 +158,29 @@ test('probe 抛错同样被隔离，apply 不执行', () => {
   assert.equal(errors[0].error, probeBoom);
 });
 
+test('apply 抛错后键不记录：下一 tick 同键重试，成功后才记录', () => {
+  let failFirst = true;
+  const calls = [];
+  const { tick, errors } = createTestRunner([
+    {
+      name: 'watched',
+      probe: () => 'k1',
+      apply() {
+        if (failFirst) throw new Error('boom');
+        calls.push('ok');
+      },
+    },
+  ]);
+
+  tick(); // apply 抛错：键不得记录
+  failFirst = false;
+  tick(); // 同键重试，成功
+  tick(); // 键已记录，同键跳过
+
+  assert.deepEqual(calls, ['ok']);
+  assert.equal(errors.length, 1);
+});
+
 test('普通函数抛错时 onError 收到函数名', () => {
   const { tick, errors } = createTestRunner([
     function brokenOperation() {

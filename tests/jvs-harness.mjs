@@ -65,7 +65,16 @@ export function makeFakeEl() {
     },
     appendChild(child) {
       this.children.push(child);
+      child.parentElement = this;
       return child;
+    },
+    remove() {
+      const parent = this.parentElement;
+      if (parent) {
+        const index = parent.children.indexOf(this);
+        if (index !== -1) parent.children.splice(index, 1);
+      }
+      this.parentElement = null;
     },
     click() {
       this.listeners.click({ stopPropagation() {} });
@@ -73,7 +82,7 @@ export function makeFakeEl() {
   };
 }
 
-/** 容器桩：children + 按 class 递归查找 + prepend/append/appendChild */
+/** 容器桩：children + 按 class/id 递归查找 + prepend/append/appendChild */
 export function makeContainer(className = null) {
   const container = {
     className,
@@ -82,8 +91,9 @@ export function makeContainer(className = null) {
       const wanted = selector.slice(1);
       const direct = container.children.find(
         (child) =>
-          typeof child.className === 'string' &&
-          child.className.split(' ').includes(wanted)
+          (typeof child.className === 'string' &&
+            child.className.split(' ').includes(wanted)) ||
+          child.id === wanted
       );
       if (direct) return direct;
       for (const child of container.children) {
@@ -95,9 +105,11 @@ export function makeContainer(className = null) {
       return null;
     },
     prepend(...nodes) {
+      for (const node of nodes) node.parentElement = container;
       container.children.unshift(...nodes);
     },
     append(...nodes) {
+      for (const node of nodes) node.parentElement = container;
       container.children.push(...nodes);
     },
     appendChild(node) {

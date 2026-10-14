@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.17
-// @description 2026-09-20 应用中心「只看星标」开关挪进顶部不滚动的搜索行——新版搜索框右侧、旧版筛选行内（恢复 v0.8.16 位置），滚动不消失；按钮等高等字号同行搜索框（新版 28px/12px、旧版 36px/14px）、圆角对齐全局注入按钮 8px
+// @version     0.8.18
+// @description 2026-10-14 操作队列 apply 成功后才记录键——抛错下一 tick 同键重试自愈（不再卡死到键变化）；应用卡片名缓存跨 tick 存活，同一卡片只读一次 innerText；日志按钮容器迁 ensureInjected 身份键治理（data-mode 同键复用、键变原位重建），按钮换色 CSS 不变
 // ==/UserScript==
 
 (function () {
@@ -467,7 +467,8 @@
    * 普通函数每 tick 执行；{ name, probe, apply } 对象由 probe 返回的键控制：
    * probe 返回 null/undefined 表示本 tick 不适用；键不变时跳过 apply。
    * probe 也可返回 { key, payload } 对象——键对比走 key，payload 直达
-   * apply(payload)（probe 纯读，apply 消费 probe 采到的数据，不二次读取）
+   * apply(payload)（probe 采集，apply 消费采到的数据，不二次读取）。
+   * apply 成功后才记录键：抛错时键不记录，下一 tick 同键重试（自愈）
    * @param {Array<Function | {name: string, probe: Function, apply: Function}>} operations
    * @param {(name: string, error: unknown) => void} onError - 单个操作出错时的回调
    * @returns {() => void} tick 函数
@@ -487,8 +488,8 @@
           if (result === null || result === undefined) continue;
           const key = result.key ?? result;
           if (lastKeys.get(operation) === key) continue;
-          lastKeys.set(operation, key);
           operation.apply(result.payload);
+          lastKeys.set(operation, key);
         } catch (error) {
           onError(operation.name, error);
         }
@@ -955,63 +956,64 @@
   const MOVE_SVG =
     '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>';
 
+  // 容器带 data-mode 身份键走 ensureInjected：同键复用、键变原位重建；
+  // 按钮自身的 data-mode 是换色 CSS 钩子（.button-11ze[data-mode]），两者各司其职
   function updateLogButton(mode) {
-    const existContainer = document.getElementById('ze-jvs-log-container');
+    ensureInjected({
+      host: document.body,
+      find: '#ze-jvs-log-container',
+      keyAttr: 'data-mode',
+      key: mode || '',
+      mount() {
+        const button = createButton({
+          text: getLogButtonName(mode),
+          id: 'ze-jvs-log-button',
+          isHtml: true,
+          dataset: { 'data-mode': mode || '' },
+        });
 
-    if (existContainer) {
-      const existButton = existContainer.querySelector('#ze-jvs-log-button');
-      const buttonMode = existButton?.dataset.mode || '';
-      if (buttonMode === mode) return;
-      existContainer.remove();
-    }
+        Utils.setStyles(button, {
+          fontSize: '14px',
+        });
 
-    const buttonName = getLogButtonName(mode);
+        button.addEventListener('click', (event) => {
+          event.stopPropagation();
+          showLogPopup();
+        });
 
-    const button = createButton({
-      text: buttonName,
-      id: 'ze-jvs-log-button',
-      isHtml: true,
-      dataset: { 'data-mode': mode || '' },
-    });
+        const handle = document.createElement('div');
+        handle.className = 'drag-handle-11ze';
+        handle.innerHTML = MOVE_SVG;
 
-    Utils.setStyles(button, {
-      fontSize: '14px',
-    });
+        const container = document.createElement('div');
+        container.id = 'ze-jvs-log-container';
+        container.setAttribute('data-mode', mode || '');
+        Utils.setStyles(container, {
+          position: 'fixed',
+          top: CONFIG.LOG_BAR.top + 'px',
+          right: CONFIG.LOG_BAR.right + 'px',
+          zIndex: '9998',
+          display: 'flex',
+          alignItems: 'stretch',
+          transition: 'transform 0.2s ease',
+        });
+        container.appendChild(button);
+        container.appendChild(handle);
 
-    button.addEventListener('click', (event) => {
-      event.stopPropagation();
-      showLogPopup();
-    });
-
-    const handle = document.createElement('div');
-    handle.className = 'drag-handle-11ze';
-    handle.innerHTML = MOVE_SVG;
-
-    const container = document.createElement('div');
-    container.id = 'ze-jvs-log-container';
-    Utils.setStyles(container, {
-      position: 'fixed',
-      top: CONFIG.LOG_BAR.top + 'px',
-      right: CONFIG.LOG_BAR.right + 'px',
-      zIndex: '9998',
-      display: 'flex',
-      alignItems: 'stretch',
-      transition: 'transform 0.2s ease',
-    });
-    container.appendChild(button);
-    container.appendChild(handle);
-
-    makeDraggable(handle, container, {
-      minTop: CONFIG.LOG_BAR.top,
-      maxRight: CONFIG.LOG_BAR.right,
-      onMove(newTop, newRight, containerHeight) {
-        const popup = document.getElementById('11ze-jvs-log-popup');
-        if (popup) {
-          positionLogPopup(popup, newTop, containerHeight, newRight);
-        }
+        makeDraggable(handle, container, {
+          minTop: CONFIG.LOG_BAR.top,
+          maxRight: CONFIG.LOG_BAR.right,
+          onMove(newTop, newRight, containerHeight) {
+            const popup = document.getElementById('11ze-jvs-log-popup');
+            if (popup) {
+              positionLogPopup(popup, newTop, containerHeight, newRight);
+            }
+          },
+        });
+        document.body.appendChild(container);
+        return container;
       },
     });
-    document.body.appendChild(container);
   }
 
   /**
@@ -1068,7 +1070,7 @@
 
   /**
    * 更新日志按钮（键 = 容器在否 + 当前模式；容器在而模式未变时由
-   * updateLogButton 的内部守卫吸收，不必在 probe 里重复细判）
+   * ensureInjected 的身份键比对吸收，不必在 probe 里重复细判）
    * payload 携带 probe 读到的模式，apply 不再重取
    */
   const updateLogButtonOperation = {
@@ -1779,6 +1781,11 @@
   /**
    * 高亮应用中心的应用
    */
+  // 卡片名缓存：同一卡片节点只读一次 innerText（强制布局读），跨 tick 存活；
+  // 卡片随列表重建自动失效（键是节点本身）；应用改名而节点复用时读到旧名——
+  // 名单里存的也是旧名，星标语义不变
+  const cardTextCache = new WeakMap();
+
   function highlightApps() {
     const starClass = 'ze-star-btn';
     const markedClass = 'ze-marked';
@@ -1803,10 +1810,6 @@
         star.classList.toggle(markedClass, markedApps.includes(getNodeText(n)));
       });
     }
-
-    // 卡片名缓存：同一卡片节点只读一次 innerText（强制布局读），卡片随列表重建自动失效；
-    // 应用改名而节点复用时读到旧名——名单里存的也是旧名，星标语义不变
-    const cardTextCache = new WeakMap();
 
     function getNodeText(node) {
       let text = cardTextCache.get(node);
@@ -2253,6 +2256,7 @@
       toggleAppCenterSidebar: toggleAppCenterSidebar,
       syncAppCenterUrl: syncAppCenterUrl,
       getLogButtonName: getLogButtonName,
+      updateLogButton: updateLogButton,
       showLogPopup: showLogPopup,
       buildLogTableHtml: buildLogTableHtml,
       ensureInjected: ensureInjected,

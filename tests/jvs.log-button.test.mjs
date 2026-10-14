@@ -48,3 +48,31 @@ test('日志按钮 operation：无容器 probe 返回 missing，apply 全路径�
   hooks.updateLogButtonOperation.apply(probeResult.payload);
   assert.equal(body.children.length, 1);
 });
+
+test('updateLogButton 走 ensureInjected：容器 data-mode 为身份键，同键复用、键变重建', () => {
+  const body = makeContainer();
+  const { hooks } = loadJvsHooks({
+    document: {
+      getElementsByTagName: () => [{ href: 'data:text/css,/*jvs-ui*/' }],
+      querySelector: () => null,
+      querySelectorAll: () => [],
+      getElementById: () => null,
+      createElement: () => makeFakeEl(),
+      addEventListener() {},
+      body,
+    },
+  });
+
+  hooks.updateLogButton('开发模式');
+  assert.equal(body.children.length, 1);
+  const first = body.children[0];
+  assert.equal(first.getAttribute('data-mode'), '开发模式');
+
+  hooks.updateLogButton('开发模式'); // 同键：复用既有容器
+  assert.equal(body.children[0], first);
+
+  hooks.updateLogButton(''); // 键变：旧容器摘除、原位重建
+  assert.equal(body.children.length, 1);
+  assert.notEqual(body.children[0], first);
+  assert.equal(body.children[0].getAttribute('data-mode'), '');
+});
