@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         亮暗色切换
 // @namespace    https://github.com/11ze
-// @version      0.1.0
-// @description  2026-08-16 为任意网站提供亮暗色模式切换功能
+// @version      0.1.1
+// @description  2026-10-14 修逃生舱反杀与图标隐形，document-start 防闪白，hover 改不冒泡事件
 // @author       11ze
 // @match        *://*/*
+// @run-at       document-start
 // @noframes
-// @icon         data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0xMiAyMmM1LjUyMyAwIDEwLTQuNDc3IDEwLTEwYzAtLjQ2My0uNjk0LS41NC0uOTMzLS4xNDNhNi41IDYuNSAwIDEgMS04LjkyNC04LjkyNEMxMi41NCAyLjY5MyAxMi40NjMgMiAxMiAyQzYuNDc3IDIgMiA2LjQ3NyAyIDEyczQuNDc3IDEwIDEwIDEwIi8+PC9zdmc+
+// @icon         data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSIjZmZmIiBkPSJNMTIgMjJjNS41MjMgMCAxMC00LjQ3NyAxMC0xMGMwLS40NjMtLjY5NC0uNTQtLjkzMy0uMTQzYTYuNSA2LjUgMCAxIDEtOC45MjQtOC45MjRDMTIuNTQgMi42OTMgMTIuNDYzIDIgMTIgMkM2LjQ3NyAyIDIgNi40NzcgMiAxMnM0LjQ3NyAxMCAxMCAxMCIvPjwvc3ZnPg==
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 // @license      MIT
@@ -53,20 +54,26 @@
         filter: invert(1) hue-rotate(180deg) !important;
       }
 
+      /* 容器已带二次反转，容器内 img 再被上面的媒体规则命中会叠成三层（奇数）反转，白色图标变黑底黑字 */
+      [id='${TOGGLE_CONTAINER_ID}'] img {
+        filter: none !important;
+      }
+
       [style*="background-image"] {
         filter: invert(1) hue-rotate(180deg) !important;
       }
 
-      .reverse-color-mode-ignore,
-      [data-theme],
-      [data-color-mode] {
+      /* 逃生舱仅此类名：data-theme 之类的属性选择器特异性高于 html，会反杀整页反转；
+         且 filter:none 无法让子树脱离反转，本就只对媒体二次反转有效 */
+      .reverse-color-mode-ignore {
         filter: none !important;
       }
     `;
   }
 
+  // fill 必须是固定色值：img 加载的 SVG 拿不到页面颜色，currentColor 解析为黑色，#000 按钮底上不可见
   const ICON_SUN_DATA_URI =
-    'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0xMiAyMmM1LjUyMyAwIDEwLTQuNDc3IDEwLTEwYzAtLjQ2My0uNjk0LS41NC0uOTMzLS4xNDNhNi41IDYuNSAwIDEgMS04LjkyNC04LjkyNEMxMi41NCAyLjY5MyAxMi40NjMgMiAxMiAyQzYuNDc3IDIgMiA2LjQ3NyAyIDEyczQuNDc3IDEwIDEwIDEwIi8+PC9zdmc+';
+    'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSIjZmZmIiBkPSJNMTIgMjJjNS41MjMgMCAxMC00LjQ3NyAxMC0xMGMwLS40NjMtLjY5NC0uNTQtLjkzMy0uMTQzYTYuNSA2LjUgMCAxIDEtOC45MjQtOC45MjRDMTIuNTQgMi42OTMgMTIuNDYzIDIgMTIgMkM2LjQ3NyAyIDIgNi40NzcgMiAxMnM0LjQ3NyAxMCAxMCAxMCIvPjwvc3ZnPg==';
 
   const STYLES = {
     container: {
@@ -106,10 +113,11 @@
   }
 
   function setHover(el, hoverStyles, normalStyles = {}) {
-    el.addEventListener('mouseover', function () {
+    // mouseenter/mouseleave 不冒泡；mouseover/mouseout 会在容器与子按钮间连击导致透明度抖动
+    el.addEventListener('mouseenter', function () {
       setStyles(this, hoverStyles);
     });
-    el.addEventListener('mouseout', function () {
+    el.addEventListener('mouseleave', function () {
       setStyles(this, normalStyles);
     });
   }
@@ -125,15 +133,20 @@
   let reverseColorModeStyle = null;
   let toggleButtonElement = null;
 
+  /**
+   * document-start 即执行：早注反转样式防加载期闪白，此时 body 未就绪不碰按钮
+   */
   function init() {
     GM_registerMenuCommand('切换', toggleReverseColorMode);
-
-    createToggleButton();
-    updateToggleButton();
 
     if (isReverseColorMode) {
       applyReverseColorMode();
     }
+  }
+
+  function mountToggleButton() {
+    createToggleButton();
+    updateToggleButton();
   }
 
   function createToggleButton() {
@@ -204,13 +217,16 @@
       readState,
       writeState,
       buildReverseColorCss,
+      ICON_SUN_DATA_URI,
       STORAGE_KEY,
     };
   }
 
+  init();
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', mountToggleButton);
   } else {
-    init();
+    mountToggleButton();
   }
 })();

@@ -50,7 +50,8 @@ function createStorageStub(initial = {}) {
   };
 }
 
-function loadScriptSandbox({ storage } = {}) {
+function loadScriptSandbox({ storage, readyState = 'complete' } = {}) {
+  const domListeners = new Map();
   const sandbox = {
     console: {
       log() {},
@@ -59,8 +60,10 @@ function loadScriptSandbox({ storage } = {}) {
     },
     localStorage: storage ?? createStorageStub(),
     document: {
-      readyState: 'complete',
-      addEventListener() {},
+      readyState,
+      addEventListener(type, handler) {
+        domListeners.set(type, handler);
+      },
       createElement(tag) {
         return createElementStub(tag);
       },
@@ -83,6 +86,7 @@ function loadScriptSandbox({ storage } = {}) {
     __COLOR_MODE_SWITCH_TEST__: {},
   };
   sandbox.window = sandbox;
+  sandbox.__domListeners = domListeners;
 
   vm.createContext(sandbox);
   vm.runInContext(sourceText, sandbox, { filename: 'color_mode_switch.user.js' });
@@ -162,10 +166,32 @@ test('buildReverseColorCss（按钮自反回归）：按钮容器在双反转组
   assert.ok(css.includes("[id='11ze-reverse-color-mode-toggle-container']"));
 });
 
+test('buildReverseColorCss（图标三层反转回归）：容器内 img 豁免媒体双反转', () => {
+  const { buildReverseColorCss } = loadScriptHooks();
+  const noComments = buildReverseColorCss().replace(/\/\*[^*]*\*\//g, '');
+  const rules = [...noComments.matchAll(/([^{}]+)\{([^}]*)\}/g)].map((m) => ({
+    selector: m[1].trim(),
+    body: m[2],
+  }));
+  const exemption = rules.find(
+    (r) => r.selector === "[id='11ze-reverse-color-mode-toggle-container'] img",
+  );
+  assert.ok(exemption, '容器已带二次反转，容器内 img 再被媒体规则命中会叠成三层（奇数）反转');
+  assert.match(exemption.body, /filter:\s*none\s*!important/, '特异性 (0,1,1) 压过媒体规则 img (0,0,1)，图标只受 html+容器两层反转，fill 按原色渲染');
+});
+
 test('buildReverseColorCss（选择器合法性回归）：不含数字开头的 ID 选择器', () => {
   const { buildReverseColorCss } = loadScriptHooks();
   const css = buildReverseColorCss();
   assert.ok(!/[#.]11ze/.test(css), '数字开头 ID 是非法 CSS 选择器，会连累整组规则被浏览器丢弃');
+});
+
+test('buildReverseColorCss（逃生舱反杀回归）：不含 data-theme / data-color-mode 选择器', () => {
+  const css = loadScriptHooks().buildReverseColorCss();
+  assert.ok(
+    !css.includes('[data-theme]') && !css.includes('[data-color-mode]'),
+    '属性选择器特异性 (0,1,0) 高于 html (0,0,1)，挂在 <html> 上的站点整页反转被 filter:none 覆盖失效，图片仍二次反转变负片',
+  );
 });
 
 test('菜单切换：关→开写入存储并注入反转样式，再切回移除', () => {
@@ -201,12 +227,29 @@ test('初始状态开启：init 即注入反转样式', () => {
   assert.equal(sandbox.__styleCalls.length, 1);
 });
 
+test('时序（闪白回归）：document-start 即注样式与菜单，按钮等 DOMContentLoaded', () => {
+  const { STORAGE_KEY } = loadScriptHooks();
+  const storage = createStorageStub({ [STORAGE_KEY]: 'true' });
+  const sandbox = loadScriptSandbox({ storage, readyState: 'loading' });
+
+  assert.equal(sandbox.__styleCalls.length, 1, '样式在 DOM 就绪前已注入');
+  assert.ok(sandbox.__menuCommands['切换'], '菜单命令即时注册');
+  assert.ok(!getToggleButton(sandbox).container, 'body 未就绪，不挂按钮');
+
+  sandbox.__domListeners.get('DOMContentLoaded')();
+  assert.ok(getToggleButton(sandbox).button, 'DOMContentLoaded 后挂载按钮');
+});
+
 function readUserScriptHeader() {
   return sourceText.slice(0, sourceText.indexOf('==/UserScript=='));
 }
 
 test('元数据（iframe 回归）：头部声明 @noframes', () => {
   assert.ok(readUserScriptHeader().includes('@noframes'));
+});
+
+test('元数据（闪白回归）：头部声明 @run-at document-start', () => {
+  assert.match(readUserScriptHeader(), /@run-at\s+document-start/);
 });
 
 test('元数据：@description 恰一条且含日期', () => {
@@ -260,13 +303,17 @@ test('按钮显隐：初始开启时显示', () => {
   assert.equal(getToggleButton(sandbox).button.style.display, 'flex');
 });
 
-test('按钮交互：hover 切换透明度', () => {
+test('按钮交互：hover 切换透明度（enter/leave 不冒泡）', () => {
   const sandbox = loadScriptSandbox();
   const { container } = getToggleButton(sandbox);
 
-  container.fire('mouseover');
+  container.fire('mouseenter');
   assert.equal(container.style.opacity, '1');
-  container.fire('mouseout');
+  container.fire('mouseleave');
+  assert.equal(container.style.opacity, '0.7');
+
+  // mouseover 冒泡会在容器与子按钮间连击抖动，修复后容器不再监听它
+  container.fire('mouseover');
   assert.equal(container.style.opacity, '0.7');
 });
 
@@ -281,4 +328,14 @@ test('按钮交互：点击按钮等同菜单切换', () => {
 test('样式收编：源码不再含内联 cssText 与 innerHTML 拼串', () => {
   assert.ok(!sourceText.includes('cssText'), '样式应走 STYLES 常量 + setStyles');
   assert.ok(!sourceText.includes('innerHTML'), '图标应走 createEl 构建');
+});
+
+test('图标颜色（黑底不可见回归）：解码后 fill 为固定色值', () => {
+  const { ICON_SUN_DATA_URI } = loadScriptHooks();
+  const svg = Buffer.from(ICON_SUN_DATA_URI.split(',')[1], 'base64').toString('utf8');
+  assert.ok(
+    !svg.includes('currentColor'),
+    'img 加载的 SVG 是独立文档，拿不到页面颜色，currentColor 解析为黑色，#000 按钮底上图标不可见',
+  );
+  assert.ok(svg.includes('#fff'), 'fill 用固定亮色，黑底可见');
 });
