@@ -1,22 +1,6 @@
 # 用户脚本通用规范
 
-适用于所有 `src/*.user.js`。
-
-## 脚本头部
-
-```javascript
-// ==UserScript==
-// @name         脚本名称
-// @namespace    https://github.com/11ze
-// @version      x.y.z
-// @description  YYYY-MM-DD 一句话（变更说明或功能描述），只留最新一条
-// @author       11ze
-// @license      MIT
-// @match        模式匹配规则
-// @icon         图标 (data URI 或 URL)
-// @grant        GM_* 权限声明
-// ==/UserScript==
-```
+适用于所有 `src/*.user.js`。脚本头部字段看任一 `src/*.user.js` 开头即知，不在此复述。
 
 ## 事件处理
 

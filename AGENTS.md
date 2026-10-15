@@ -16,3 +16,4 @@ Tampermonkey 用户脚本集合：原生 JavaScript，无构建工具、无包�
 | 新建或修改任何脚本前 | [docs/userscript-conventions.md](docs/userscript-conventions.md) |
 | 改 `src/<script>.user.js` | [docs/scripts/<script>.md](docs/scripts/<script>.md) |
 | 发版 | [docs/release.md](docs/release.md) |
+| 新概念定名时 | 补进 [docs/scripts/<script>.md](docs/scripts/<script>.md)（术语、否决、坑） |
