@@ -284,6 +284,14 @@ test('按钮挂载：图标为 img 元素而非 innerHTML 拼串', () => {
   assert.ok(icon.src.startsWith('data:image/svg+xml'));
 });
 
+test('图标防站点样式污染：img 内联重置 border/outline/padding/background', () => {
+  const icon = getToggleButton(loadScriptSandbox()).button.children[0];
+  assert.equal(icon.style.border, 'none', '站点 img { border } 在图标上打出方框');
+  assert.equal(icon.style.outline, 'none');
+  assert.equal(icon.style.padding, '0');
+  assert.equal(icon.style.background, 'none');
+});
+
 test('按钮显隐：初始关闭隐藏，切换后显示、再切换隐藏', () => {
   const sandbox = loadScriptSandbox();
   const { button } = getToggleButton(sandbox);
@@ -330,12 +338,24 @@ test('样式收编：源码不再含内联 cssText 与 innerHTML 拼串', () => 
   assert.ok(!sourceText.includes('innerHTML'), '图标应走 createEl 构建');
 });
 
-test('图标颜色（黑底不可见回归）：解码后 fill 为固定色值', () => {
+test('图标颜色（同底隐形回归）：按钮图标 #fff 黑底可见，@icon currentColor 面板可见', () => {
   const { ICON_SUN_DATA_URI } = loadScriptHooks();
   const svg = Buffer.from(ICON_SUN_DATA_URI.split(',')[1], 'base64').toString('utf8');
   assert.ok(
-    !svg.includes('currentColor'),
-    'img 加载的 SVG 是独立文档，拿不到页面颜色，currentColor 解析为黑色，#000 按钮底上图标不可见',
+    svg.includes('#fff'),
+    'img 加载的 SVG 是独立文档，currentColor 回落黑色，#000 按钮底上不可见',
   );
-  assert.ok(svg.includes('#fff'), 'fill 用固定亮色，黑底可见');
+  // @icon 与按钮图标分家（v0.1.1 曾一刀切 #fff 致 @icon 在油猴浅色面板不可见）
+  assert.match(readUserScriptHeader(), /@icon\s+data:image\/svg\+xml;base64,[A-Za-z0-9+/=]+/, '@icon 须为独立 data URI');
+  const iconUri = readUserScriptHeader().match(/@icon\s+(data:image\/svg\+xml;base64,[A-Za-z0-9+/=]+)/)[1];
+  const iconSvg = Buffer.from(iconUri.split(',')[1], 'base64').toString('utf8');
+  assert.ok(iconSvg.includes('currentColor'), '@icon 底是油猴浅色面板，currentColor 回落黑色才可见');
+
+  const { button } = getToggleButton(loadScriptSandbox());
+  assert.equal(
+    button.style.backgroundColor,
+    '#000',
+    '按钮只在反转开启时显示；主场景暗转亮，反转后的亮页上黑底白月对比度最高',
+  );
+  assert.ok(!button.style.boxShadow, '阴影是白底方案在亮页勾边的补偿，黑底不需要');
 });

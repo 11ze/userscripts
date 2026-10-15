@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         亮暗色切换
 // @namespace    https://github.com/11ze
-// @version      0.1.1
-// @description  2026-10-14 修逃生舱反杀与图标隐形，document-start 防闪白，hover 改不冒泡事件
+// @version      0.1.2
+// @description  2026-10-15 @icon 回退 currentColor 修面板不可见；按钮黑底白月配反转后亮页，图标内联重置站点边框防方框
 // @author       11ze
 // @match        *://*/*
 // @run-at       document-start
 // @noframes
-// @icon         data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSIjZmZmIiBkPSJNMTIgMjJjNS41MjMgMCAxMC00LjQ3NyAxMC0xMGMwLS40NjMtLjY5NC0uNTQtLjkzMy0uMTQzYTYuNSA2LjUgMCAxIDEtOC45MjQtOC45MjRDMTIuNTQgMi42OTMgMTIuNDYzIDIgMTIgMkM2LjQ3NyAyIDIgNi40NzcgMiAxMnM0LjQ3NyAxMCAxMCAxMCIvPjwvc3ZnPg==
+// @icon         data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0xMiAyMmM1LjUyMyAwIDEwLTQuNDc3IDEwLTEwYzAtLjQ2My0uNjk0LS41NC0uOTMzLS4xNDNhNi41IDYuNSAwIDEgMS04LjkyNC04LjkyNEMxMi41NCAyLjY5MyAxMi40NjMgMiAxMiAyQzYuNDc3IDIgMiA2LjQ3NyAyIDEyczQuNDc3IDEwIDEwIDEwIi8+PC9zdmc+
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 // @license      MIT
@@ -71,7 +71,8 @@
     `;
   }
 
-  // fill 必须是固定色值：img 加载的 SVG 拿不到页面颜色，currentColor 解析为黑色，#000 按钮底上不可见
+  // 与 @icon 分家：按钮底 #000 需白月（img 独立文档 currentColor 回落黑，黑底不可见）；
+  // @icon 底是油猴浅色面板需 currentColor（回落黑）。两份 base64 人肉同步
   const ICON_SUN_DATA_URI =
     'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSIjZmZmIiBkPSJNMTIgMjJjNS41MjMgMCAxMC00LjQ3NyAxMC0xMGMwLS40NjMtLjY5NC0uNTQtLjkzMy0uMTQzYTYuNSA2LjUgMCAxIDEtOC45MjQtOC45MjRDMTIuNTQgMi42OTMgMTIuNDYzIDIgMTIgMkM2LjQ3NyAyIDIgNi40NzcgMiAxMnM0LjQ3NyAxMCAxMCAxMCIvPjwvc3ZnPg==';
 
@@ -95,6 +96,7 @@
       height: '40px',
       borderRadius: '50%',
       border: 'none',
+      // 按钮只在反转开启时显示，主场景暗转亮——反转后的亮页上黑底白月对比度最高，无需阴影补偿
       backgroundColor: '#000',
       cursor: 'pointer',
       fontSize: '20px',
@@ -105,6 +107,11 @@
     icon: {
       width: '24px',
       height: '24px',
+      // 站点全局 img 样式会命中此图标打出方框，四项内联重置挡住
+      border: 'none',
+      outline: 'none',
+      padding: '0',
+      background: 'none',
     },
   };
 
