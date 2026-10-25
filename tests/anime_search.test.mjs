@@ -313,7 +313,10 @@ test('createAgeSearchButton：当前域名 favicon 图标，点击开站内搜�
 
   button.fire('click');
   assert.deepEqual(sandbox.__openCalls, [
-    { url: 'https://www.agedm.io/search?query=咒术回战 第二季', target: '_blank' },
+    {
+      url: 'https://www.agedm.io/search?query=%E5%92%92%E6%9C%AF%E5%9B%9E%E6%88%98%20%E7%AC%AC%E4%BA%8C%E5%AD%A3',
+      target: '_blank',
+    },
   ]);
 });
 
@@ -361,8 +364,32 @@ test('createButtonPair：点击分别打开聚合搜索与豆瓣搜索', () => {
   search.fire('click');
   douban.fire('click');
   assert.deepEqual(sandbox.__openCalls, [
-    { url: 'https://so.wangze.tech?q=咒术回战', target: '_blank' },
-    { url: 'https://www.douban.com/search?q=咒术回战', target: '_blank' },
+    {
+      url: 'https://so.wangze.tech?q=%E5%92%92%E6%9C%AF%E5%9B%9E%E6%88%98',
+      target: '_blank',
+    },
+    {
+      url: 'https://www.douban.com/search?q=%E5%92%92%E6%9C%AF%E5%9B%9E%E6%88%98',
+      target: '_blank',
+    },
+  ]);
+});
+
+test('createSearchButton（截断回归）：标题编码后拼 URL，& 与 # 不再截断查询串', () => {
+  const sandbox = loadScriptSandbox();
+  const { createButtonPair } = sandbox.__ANIME_SEARCH_TEST__.hooks;
+  const [search, douban] = createButtonPair('Re:从零 & 异世界#1');
+  search.fire('click');
+  douban.fire('click');
+  assert.deepEqual(sandbox.__openCalls, [
+    {
+      url: 'https://so.wangze.tech?q=Re%3A%E4%BB%8E%E9%9B%B6%20%26%20%E5%BC%82%E4%B8%96%E7%95%8C%231',
+      target: '_blank',
+    },
+    {
+      url: 'https://www.douban.com/search?q=Re%3A%E4%BB%8E%E9%9B%B6%20%26%20%E5%BC%82%E4%B8%96%E7%95%8C%231',
+      target: '_blank',
+    },
   ]);
 });
 
@@ -379,7 +406,10 @@ test('按钮挂载：首个命中的选择器挂一对按钮并停止', () => {
 
   titleElement.appended[0].fire('click');
   assert.deepEqual(sandbox.__openCalls, [
-    { url: 'https://so.wangze.tech?q=咒术回战 第二季', target: '_blank' },
+    {
+      url: 'https://so.wangze.tech?q=%E5%92%92%E6%9C%AF%E5%9B%9E%E6%88%98%20%E7%AC%AC%E4%BA%8C%E5%AD%A3',
+      target: '_blank',
+    },
   ]);
 });
 
@@ -416,8 +446,31 @@ test('按钮挂载：AGE 非 play 页挂站内搜索但不挂详情', () => {
 
   titleElement.appended[2].fire('click');
   assert.deepEqual(sandbox.__openCalls, [
-    { url: 'https://www.agedm.io/search?query=咒术回战 第二季', target: '_blank' },
+    {
+      url: 'https://www.agedm.io/search?query=%E5%92%92%E6%9C%AF%E5%9B%9E%E6%88%98%20%E7%AC%AC%E4%BA%8C%E5%AD%A3',
+      target: '_blank',
+    },
   ]);
+});
+
+test('装配表：站点选择器收进条目（加站只改一处），站内优先级顺序保留', () => {
+  const { SITE_SETUP } = loadScriptHooks();
+  assert.equal(
+    JSON.stringify(SITE_SETUP.age.selectors),
+    JSON.stringify([
+      'div.body_content_wrapper h2',
+      'div.body_content_wrapper h5',
+      '#content > h1',
+    ]),
+  );
+  assert.equal(
+    JSON.stringify(SITE_SETUP.douban.selectors),
+    JSON.stringify(['h1 > span:nth-child(1)']),
+  );
+  assert.equal(
+    JSON.stringify(SITE_SETUP.bilibili.selectors),
+    JSON.stringify(["a[class*='mediainfo_mediaTitle']"]),
+  );
 });
 
 test('装配表：douban/bilibili 按钮序列只有通用对——即使站在 /play/ 路径下也不产详情钮', () => {

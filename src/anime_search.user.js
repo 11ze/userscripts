@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         搜索动漫
 // @namespace    https://github.com/11ze
-// @version      0.6.18
-// @description 2026-10-14 站点→按钮工厂序列收拢为装配表——加站/加按钮不再改主循环控制流；buildDetailHref 收进 AGE 条目，不再依赖其他站路径判定恰好排除 /play/
+// @version      0.6.19
+// @description 2026-10-25 标题 encodeURIComponent 后拼搜索 URL——含 & / # 的标题不再截断查询串；站点标题选择器收进装配表条目，加站只改一处；2026-10-14 站点→按钮工厂序列收拢为装配表——加站/加按钮不再改主循环控制流；buildDetailHref 收进 AGE 条目，不再依赖其他站路径判定恰好排除 /play/
 // @author       11ze
 // @match        *://*/*
 // @icon         data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItc2VhcmNoIj48Y2lyY2xlIGN4PSIxMSIgY3k9IjExIiByPSI4Ij48L2NpcmNsZT48cGF0aCBkPSJtMjEgMjEtNC4zNS00LjM1Ij48L3BhdGg+PC9zdmc+
@@ -211,7 +211,8 @@
    */
   function createSearchButton(content, target, title) {
     return createButton(content, function () {
-      window.open(target + title, '_blank');
+      // 标题编码后拼 URL：& / # 未编码会被解析为参数分隔符或 fragment，截断查询串
+      window.open(target + encodeURIComponent(title), '_blank');
     });
   }
 
@@ -253,34 +254,16 @@
     );
   }
 
-  const list = [
-    {
-      dom: 'div.body_content_wrapper h2',
-      name: 'AGE 动漫介绍页',
-    },
-    {
-      dom: 'div.body_content_wrapper h5',
-      name: 'AGE 视频播放页',
-    },
-    {
-      dom: '#content > h1',
-      name: 'AGE3',
-    },
-    {
-      dom: 'h1 > span:nth-child(1)',
-      name: '豆瓣',
-    },
-    {
-      dom: "a[class*='mediainfo_mediaTitle']",
-      name: '哔哩哔哩看番',
-    },
-  ];
-
-  // 站点 → 按钮工厂序列 + 站点级样式：加站/加按钮改这张表，主循环不动。
+  // 站点 → 标题选择器 + 按钮工厂序列 + 站点级样式：加站/加按钮改这张表，主循环不动。
   // buildDetailHref 只对 AGE 的 /play/ 有意义，收在 age 条目内——
   // 不再依赖其他站点的路径判定恰好排除 /play/ 前缀
   const SITE_SETUP = {
     age: {
+      selectors: [
+        'div.body_content_wrapper h2', // 动漫介绍页
+        'div.body_content_wrapper h5', // 视频播放页
+        '#content > h1', // AGE3
+      ],
       buildButtons(title) {
         const buttons = [
           ...createButtonPair(title),
@@ -306,8 +289,14 @@
         }
       `,
     },
-    douban: { buildButtons: createButtonPair },
-    bilibili: { buildButtons: createButtonPair },
+    douban: {
+      selectors: ['h1 > span:nth-child(1)'],
+      buildButtons: createButtonPair,
+    },
+    bilibili: {
+      selectors: ["a[class*='mediainfo_mediaTitle']"],
+      buildButtons: createButtonPair,
+    },
   };
 
   const setup = SITE_SETUP[site];
@@ -315,9 +304,8 @@
     GM_addStyle(setup.css);
   }
 
-  for (let i = 0; i < list.length; i++) {
-    const item = list[i];
-    const hDom = document.querySelector(item.dom);
+  for (const selector of setup.selectors) {
+    const hDom = document.querySelector(selector);
     if (!hDom) {
       continue;
     }
