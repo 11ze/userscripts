@@ -359,3 +359,17 @@ test('图标颜色（同底隐形回归）：按钮图标 #fff 黑底可见，@i
   );
   assert.ok(!button.style.boxShadow, '阴影是白底方案在亮页勾边的补偿，黑底不需要');
 });
+
+test('图标形状锁：@icon 与 ICON_SUN_DATA_URI 剥 fill 后逐字节一致', () => {
+  const { ICON_SUN_DATA_URI } = loadScriptHooks();
+  const iconUri = readUserScriptHeader().match(
+    /@icon\s+(data:image\/svg\+xml;base64,[A-Za-z0-9+/=]+)/
+  )[1];
+  // 两串只许 fill 不同：改月亮路径改一漏一，此断言变红（v0.1.2 整版还过这笔债）
+  const shapeOnly = (uri) =>
+    Buffer.from(uri.split(',')[1], 'base64')
+      .toString('utf8')
+      .replace(/fill="[^"]*"/, 'fill="X"');
+
+  assert.equal(shapeOnly(iconUri), shapeOnly(ICON_SUN_DATA_URI));
+});

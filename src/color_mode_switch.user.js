@@ -72,7 +72,8 @@
   }
 
   // 与 @icon 分家：按钮底 #000 需白月（img 独立文档 currentColor 回落黑，黑底不可见）；
-  // @icon 底是油猴浅色面板需 currentColor（回落黑）。两份 base64 人肉同步
+  // @icon 底是油猴浅色面板需 currentColor（回落黑）。两份 base64 人肉同步，
+  // 形状一致性（剥 fill 后逐字节一致）由测试锁定，改月亮路径须两处同改
   const ICON_SUN_DATA_URI =
     'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSIjZmZmIiBkPSJNMTIgMjJjNS41MjMgMCAxMC00LjQ3NyAxMC0xMGMwLS40NjMtLjY5NC0uNTQtLjkzMy0uMTQzYTYuNSA2LjUgMCAxIDEtOC45MjQtOC45MjRDMTIuNTQgMi42OTMgMTIuNDYzIDIgMTIgMkM2LjQ3NyAyIDIgNi40NzcgMiAxMnM0LjQ3NyAxMCAxMCAxMCIvPjwvc3ZnPg==';
 
