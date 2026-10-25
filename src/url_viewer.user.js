@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         查看网址
 // @namespace    https://github.com/11ze
-// @version      0.4.5
-// @description  2026-10-14 popup 开关收口 open/close 一对函数——菜单连点不再叠层，三条关路径（关闭钮/点外部/Ctrl+U）都成对摘除 document 监听器，删除恒假的菜单项 ID 判断
+// @version      0.4.6
+// @description  2026-10-25 打开时 decode 包 try/catch——SPA pushState 写入的裸 % href 不再抛 URIError 致弹窗打不开；2026-10-14 popup 开关收口 open/close 一对函数——菜单连点不再叠层，三条关路径（关闭钮/点外部/Ctrl+U）都成对摘除 document 监听器，删除恒假的菜单项 ID 判断
 // @author       11ze
 // @license      MIT
 // @match        *://*/*
@@ -563,7 +563,12 @@
 
     // 打开时快照：基底地址与解码串只取一次，编辑会话全程认这份模型
     const rawHref = window.location.href;
-    const decodedHref = decodeURIComponent(rawHref);
+    let decodedHref = rawHref;
+    try {
+      decodedHref = decodeURIComponent(rawHref);
+    } catch {
+      // SPA 经 pushState 写入的 URL 可含裸 %，decode 会抛 URIError——回退原串，弹窗照常打开
+    }
     const segments = parseUrl(decodedHref);
 
     const popup = createEl('div', popupStyles, {

@@ -49,6 +49,28 @@ function makeEl(tag) {
       el.listeners[type] = handler;
     },
     removeEventListener() {},
+    replaceWith(replacement) {
+      const parent = el.parentElement;
+      if (parent) {
+        const index = parent.children.indexOf(el);
+        if (index !== -1) parent.children.splice(index, 1, replacement);
+      }
+      replacement.parentElement = parent;
+      el.parentElement = null;
+    },
+    querySelector(selector) {
+      // 支持底栏用的 '.className' 形式
+      if (selector.startsWith('.')) {
+        const cls = selector.slice(1);
+        return findDescendant(
+          el,
+          (node) =>
+            typeof node.className === 'string' &&
+            node.className.split(/\s+/).includes(cls)
+        );
+      }
+      return null;
+    },
     insertRow() {
       const row = makeEl('tr');
       const cells = [];
@@ -70,7 +92,17 @@ function makeEl(tag) {
         (child) => typeof child.contains === 'function' && child.contains(node)
       );
     },
-    classList: { add() {}, remove() {}, toggle() {} },
+    classList: {
+      add(...names) {
+        const classes = el.className ? el.className.split(/\s+/) : [];
+        for (const name of names) {
+          if (!classes.includes(name)) classes.push(name);
+        }
+        el.className = classes.join(' ');
+      },
+      remove() {},
+      toggle() {},
+    },
   };
   return el;
 }
@@ -85,10 +117,12 @@ function findDescendant(root, predicate) {
   return null;
 }
 
-function loadScript() {
+function loadScript({ href: pageHref = 'https://example.com/p?x=1#frag#b?y=2' } = {}) {
   const source = fs.readFileSync(sourcePath, 'utf8');
   const menuCommands = [];
   const docListeners = [];
+  // 导航事件按发生顺序记录：href 赋值与 reload 的先后是 v0.4.3 修复的契约
+  const navigation = { events: [] };
 
   const body = makeEl('body');
   const document = {
@@ -107,6 +141,20 @@ function loadScript() {
     body,
   };
 
+  const location = {
+    reload() {
+      navigation.events.push({ type: 'reload' });
+    },
+  };
+  Object.defineProperty(location, 'href', {
+    get() {
+      return pageHref;
+    },
+    set(value) {
+      navigation.events.push({ type: 'href', value });
+    },
+  });
+
   const sandbox = {
     console: { log() {}, error() {}, warn() {} },
     URL,
@@ -118,10 +166,7 @@ function loadScript() {
     },
     addEventListener() {},
     document,
-    location: {
-      href: 'https://example.com/p?x=1#frag#b?y=2',
-      reload() {},
-    },
+    location,
     __URL_VIEWER_TEST__: {},
   };
   sandbox.window = sandbox;
@@ -133,6 +178,7 @@ function loadScript() {
     body,
     document,
     docListeners,
+    navigation,
     openFromMenu: () => menuCommands[0].callback(),
     pressCtrlU: () => {
       const keydown = docListeners.find((entry) => entry.type === 'keydown');
@@ -197,4 +243,82 @@ test('点外部关闭后 click 监听器成对摘除', () => {
 
   assert.equal(viewer.popupCount(), 0);
   assert.equal(viewer.clickListeners(), 0);
+});
+
+test('裸 % 的 href：打开不抛 URIError，弹窗照常出现', () => {
+  const viewer = loadScript({ href: 'https://example.com/p?q=100%' });
+
+  viewer.openFromMenu();
+
+  assert.equal(viewer.popupCount(), 1);
+});
+
+// ==================== 编辑会话组合层 ====================
+// 纯函数（parseUrl/buildUrl/shouldReloadAfterNavigate）各自在 url.test 锁定，
+// 这里锁的是把它们串起来的 confirm/cancel 调用序列——v0.4.3 的 reload 竞态
+// 缺陷正出在这层。期望 URL 字面量取自 url.test 的 buildUrl 既有用例。
+
+function getPopup(viewer) {
+  return viewer.body.children.find(
+    (child) => child.id === '11ze-url-reader-popup'
+  );
+}
+
+function clickBarButton(popup, text) {
+  const button = findDescendant(
+    popup,
+    (el) => el.tagName === 'button' && el.textContent === text
+  );
+  button.onclick();
+}
+
+test('编辑→确定：采纳输入值，href 收到新串，search 变化不 reload', () => {
+  const viewer = loadScript();
+
+  viewer.openFromMenu();
+  const popup = getPopup(viewer);
+  clickBarButton(popup, '编辑');
+  const input = findDescendant(popup, (el) => el.tagName === 'input');
+  input.value = '9';
+  clickBarButton(popup, '确定');
+
+  assert.deepEqual(viewer.navigation.events, [
+    { type: 'href', value: 'https://example.com/p?x=9#frag#b?y=2' },
+  ]);
+});
+
+test('编辑→确定（值未变）：same-document 导航补 reload，href 赋值在前', () => {
+  const viewer = loadScript();
+
+  viewer.openFromMenu();
+  const popup = getPopup(viewer);
+  clickBarButton(popup, '编辑');
+  clickBarButton(popup, '确定');
+
+  assert.deepEqual(viewer.navigation.events, [
+    { type: 'href', value: 'https://example.com/p?x=1#frag#b?y=2' },
+    { type: 'reload' },
+  ]);
+});
+
+test('编辑→取消：不导航，input 换回 span 且按模型值渲染', () => {
+  const viewer = loadScript();
+
+  viewer.openFromMenu();
+  const popup = getPopup(viewer);
+  clickBarButton(popup, '编辑');
+  const input = findDescendant(popup, (el) => el.tagName === 'input');
+  input.value = 'zzz';
+  clickBarButton(popup, '取消');
+
+  assert.deepEqual(viewer.navigation.events, []);
+  assert.equal(findDescendant(popup, (el) => el.tagName === 'input'), null);
+  assert.notEqual(
+    findDescendant(popup, (el) => el.tagName === 'span' && el.textContent === '1'),
+    null
+  );
+  assert.equal(
+    findDescendant(popup, (el) => el.textContent === 'zzz'),
+    null
+  );
 });
