@@ -82,10 +82,20 @@ export function makeFakeEl() {
   };
 }
 
-/** 容器桩：children + 按 class/id 递归查找 + prepend/append/appendChild */
+/** 容器桩：children + 按 class/id 递归查找 + prepend/append/appendChild + classList */
 export function makeContainer(className = null) {
+  const containerClasses = new Set();
   const container = {
     className,
+    classList: {
+      add: (name) => containerClasses.add(name),
+      remove: (name) => containerClasses.delete(name),
+      contains: (name) => containerClasses.has(name),
+      toggle(name, force) {
+        if (force) containerClasses.add(name);
+        else containerClasses.delete(name);
+      },
+    },
     children: [],
     querySelector(selector) {
       const wanted = selector.slice(1);

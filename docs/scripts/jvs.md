@@ -18,7 +18,7 @@
 - **应用中心侧边栏收起**：与只看星标同一范式（body class + CSS 驱动）。坑：展开态 left 每 tick 按侧边栏右缘 rect 校准；收起态 `display:none` 后 rect 归零不可读，只能取固定值。
 - **应用中心地址栏同步**：用 `replaceState` 统一到 `#/wel/index`——不触发 hashchange/vue-router，衔接刷新后 `wel/index` 自动点击；轮询幂等，旧版天然不处理。
 - **模式读写分离**：`currentMode` 是读取统一入口——历史映射优先，采集值变才落库（同值不重写）；`collectAppName` 是写一次语义，应用改名不回写。
-- **幂等注入**：`ensureInjected` 是按钮判重注入统一出口，后续注入类按钮优先走此模块；mount 返回 null 为「移除后可不建」语义（复制设计名的 use 图标门依赖此）。
+- **幂等注入**：`ensureInjected` 是按钮判重注入统一出口，后续注入类按钮优先走此模块；mount 返回 null 为「移除后可不建」语义（复制设计名的 use 图标门依赖此）。曾评估让 `_injectCopyButton` 从 buttonOptions 推导 find（删调用方手写的 find 参数），因属无实证缺陷的防御性重构而否决——find 与产物身份逐字一致的隐含契约由三个调用点维持；出现第三个调用点或真失配 bug（每 tick 重建按钮）时再重开。
 - **日志查询**：`latestLogWhere` 是唯一内核，其余查询是单行包装；无跨 tick 缓存，同一 tick 内多次查询由调用方解析一次传入复用。
 - **日志弹窗**：document 外点关闭监听器注册/摘除必须成对——历史实现 toggle 路径只删弹窗不摘监听器，每次泄漏一个，多活到下一次任意点击才自愈。
 - **日志按钮模式换色**：模式前缀与「日志」同字号同色、6px 间距替代全角「｜」（前缀缩字号、黑色前缀两方案已被用户否决，勿改回）；模式变化走容器 remove+重建、不播 transition；表格行色与按钮换色同出自 `MODE_COLORS` 单一事实源。容器与按钮各带 data-mode（前者 ensureInjected 身份键、后者 `.button-11ze[data-mode]` 换色钩子），勿合并到一处。v0.8.18 前的存量容器无 data-mode，升级后首次执行必重建一次、拖拽位置重置——一次性迁移成本，已接受不修。

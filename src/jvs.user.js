@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.19
-// @description 2026-10-14 APP_NAME_SELECTORS 条目字段化（collectOnly/crossAnchor），getNewTabTitle/collectAppName 按字段遍历，删 i=1 与 i===3 下标魔法——插项调序不再静默错位；测试钩子块挪 IIFE 末尾，新增钩子登记不受定义顺序约束（TDZ 前科结构性消除），getStyles 删惰性箭头，ICONS 上移常量区
+// @version     0.8.20
+// @description 2026-10-25 测试钩子补装配层：operations 队列、saveCurrentLogOperation、changeTitle、嵌套逻辑梯子三入口进 hooks——真实队列首次可整体 tick（冒烟），唯一无配对测试的 keyed op、「点设计不点引用」不可逆保护、每 tick 模式采集契约均有断言；生产行为零变化；2026-10-14 APP_NAME_SELECTORS 条目字段化（collectOnly/crossAnchor），getNewTabTitle/collectAppName 按字段遍历，删 i=1 与 i===3 下标魔法——插项调序不再静默错位；测试钩子块挪 IIFE 末尾，新增钩子登记不受定义顺序约束（TDZ 前科结构性消除），getStyles 删惰性箭头，ICONS 上移常量区
 // ==/UserScript==
 
 (function () {
@@ -2785,6 +2785,13 @@ const JVS_STYLES = `
       setCanvasScroll: setCanvasScroll,
       canvasScrollOperation: canvasScrollOperation,
       updateLogButtonOperation: updateLogButtonOperation,
+      saveCurrentLogOperation: saveCurrentLogOperation,
+      changeTitle: changeTitle,
+      addButtonToOpenNewLogicDesignForNestedLogic:
+        addButtonToOpenNewLogicDesignForNestedLogic,
+      _openLogicDesignFromRuleList: _openLogicDesignFromRuleList,
+      _getSelectedLogicName: _getSelectedLogicName,
+      operations: operations,
       getStyles() {
         return JVS_STYLES + buildModeColorCss();
       },
