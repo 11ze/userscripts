@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.20
-// @description 2026-10-25 测试钩子补装配层：operations 队列、saveCurrentLogOperation、changeTitle、嵌套逻辑梯子三入口进 hooks——真实队列首次可整体 tick（冒烟），唯一无配对测试的 keyed op、「点设计不点引用」不可逆保护、每 tick 模式采集契约均有断言；生产行为零变化；2026-10-14 APP_NAME_SELECTORS 条目字段化（collectOnly/crossAnchor），getNewTabTitle/collectAppName 按字段遍历，删 i=1 与 i===3 下标魔法——插项调序不再静默错位；测试钩子块挪 IIFE 末尾，新增钩子登记不受定义顺序约束（TDZ 前科结构性消除），getStyles 删惰性箭头，ICONS 上移常量区
+// @version     0.8.21
+// @description 2026-10-26 修同名设计切换时漏记打开日志：调度键补应用 ID、设计 ID 与设计类型；2026-10-25 测试钩子补装配层：operations 队列、saveCurrentLogOperation、changeTitle、嵌套逻辑梯子三入口进 hooks——真实队列首次可整体 tick（冒烟），唯一无配对测试的 keyed op、「点设计不点引用」不可逆保护、每 tick 模式采集契约均有断言；生产行为零变化；2026-10-14 APP_NAME_SELECTORS 条目字段化（collectOnly/crossAnchor），getNewTabTitle/collectAppName 按字段遍历，删 i=1 与 i===3 下标魔法——插项调序不再静默错位；测试钩子块挪 IIFE 末尾，新增钩子登记不受定义顺序约束（TDZ 前科结构性消除），getStyles 删惰性箭头，ICONS 上移常量区
 // ==/UserScript==
 
 (function () {
@@ -1073,16 +1073,19 @@
   }
 
   /**
-   * 保存当前页面日志（designName 或 appName 变化时落库，由调度器的键对比控制）
+   * 保存当前页面日志（页面身份或名称变化时落库，由调度器的键对比控制）
    * payload 携带 probe 构建好的日志条目，apply 直存不再二次构建
    */
   const saveCurrentLogOperation = {
     name: 'saveCurrentLog',
     probe() {
       const newLog = buildLogForSave();
-      // \u0000 不会出现在页面名称里，用作组合键分隔符
+      // 名称相同也可能是不同设计；身份变化与改名都须触发记录
       return newLog
-        ? { key: newLog.designName + '\u0000' + newLog.appName, payload: newLog }
+        ? {
+            key: [newLog.jvsAppId, newLog.id, newLog.tabType, newLog.designName, newLog.appName].join('\u0000'),
+            payload: newLog,
+          }
         : null;
     },
     apply(newLog) {

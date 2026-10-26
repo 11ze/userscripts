@@ -36,6 +36,7 @@ function makeLogPopupEnv() {
     children: [],
     appendChild(node) {
       body.children.push(node);
+      node.parentElement = body;
       if (node.id) popups.set(node.id, node);
     },
   };
@@ -47,8 +48,12 @@ function makeLogPopupEnv() {
       getElementById: (id) => popups.get(id) ?? null,
       createElement: () => {
         const el = makeFakeEl();
-        el.remove = () => popups.delete(el.id);
-        el.contains = () => false;
+        const remove = el.remove.bind(el);
+        el.remove = () => {
+          popups.delete(el.id);
+          remove();
+        };
+        el.contains = (target) => target === el || el.children.some((child) => child.contains(target));
         el.closest = () => null;
         return el;
       },
@@ -61,7 +66,12 @@ function makeLogPopupEnv() {
       body,
     },
   });
-  return { hooks, popups, clickHandlers };
+  return {
+    hooks, popups, clickHandlers,
+    click(target) {
+      for (const handler of [...clickHandlers]) handler({ target });
+    },
+  };
 }
 
 test('日志弹窗：toggle 关闭时同步摘除 document 外点监听器', () => {
@@ -83,6 +93,20 @@ test('日志弹窗：外点关闭删弹窗并自摘监听器', () => {
   const handler = [...clickHandlers][0];
   handler({ target: { closest: () => null } });
 
+  assert.ok(!popups.has(POPUP_ID));
+  assert.equal(clickHandlers.size, 0);
+});
+
+test('日志弹窗：点击表格内部保持打开，随后点外部才关闭并摘除监听器', () => {
+  const { hooks, popups, clickHandlers, click } = makeLogPopupEnv();
+
+  hooks.showLogPopup();
+  const popup = popups.get(POPUP_ID);
+  click(popup.children[0]);
+  assert.equal(popups.get(POPUP_ID), popup);
+  assert.equal(clickHandlers.size, 1);
+
+  click({ closest: () => null });
   assert.ok(!popups.has(POPUP_ID));
   assert.equal(clickHandlers.size, 0);
 });

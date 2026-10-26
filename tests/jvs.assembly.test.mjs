@@ -14,7 +14,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { loadJvsHooks, makeFakeEl, makeContainer } from './jvs-harness.mjs';
+import { loadJvsHooks, makeFakeEl, makeContainer, makeStorageStub } from './jvs-harness.mjs';
 
 const LOGS_KEY = '__11ze_JVS_LOG_LOGS_';
 const APP_MODE_MAP_KEY = '__11ze_JVS_APP_MODE_MAP__';
@@ -114,8 +114,6 @@ test('saveCurrentLog operation：probe 采组合键与完整 payload，apply 直
 
   const probeResult = hooks.saveCurrentLogOperation.probe();
   assert.ok(probeResult, '五要素齐全时 probe 须返回条目');
-  // 组合键格式是 op 级行为：\u0000 分隔 designName 与 appName
-  assert.equal(probeResult.key, '订单逻辑\u0000订单应用');
   assert.equal(probeResult.payload.designName, '订单逻辑');
   assert.equal(probeResult.payload.appName, '订单应用');
 
@@ -126,6 +124,105 @@ test('saveCurrentLog operation：probe 采组合键与完整 payload，apply 直
   assert.equal(logs[0].type, '打开');
   assert.equal(logs[0].designName, '订单逻辑');
   assert.equal(logs[0].appName, '订单应用');
+});
+
+function makeLogRecordingEnv() {
+  const { localStorage } = makeStorageStub();
+  const logWrites = [];
+  const location = {
+    href: 'https://jvs.example.com/#/ruleDesign?id=d1&jvsAppId=j1',
+  };
+  const designName = { textContent: '订单逻辑' };
+  const appName = { textContent: '订单应用' };
+  const tabType = { textContent: '逻辑设计' };
+  const { hooks } = loadJvsHooks({
+    location,
+    localStorage: {
+      ...localStorage,
+      setItem(key, value) {
+        localStorage.setItem(key, value);
+        if (key === LOGS_KEY) logWrites.push(JSON.parse(value));
+      },
+    },
+    document: makeDocStub({
+      bySelector: {
+        '.design-header-box': makeFakeEl(),
+        '#tab-design > span': tabType,
+        '#app > div > div > div.design-header-box > div.header-left > span:nth-child(3)':
+          designName,
+      },
+      bySelectorAll: {
+        '#app > div > div > div.design-header-box > div.header-left': [appName],
+      },
+    }),
+  });
+  const errors = [];
+  const tick = hooks.createOperationRunner([hooks.saveCurrentLogOperation], (name, error) => {
+    errors.push({ name, message: error.message });
+  });
+  return { hooks, tick, errors, location, designName, appName, tabType, logWrites };
+}
+
+test('打开日志：同应用内切换同名但不同 id 的设计，两条都可查', () => {
+  const { hooks, tick, errors, location } = makeLogRecordingEnv();
+
+  tick();
+  location.href = 'https://jvs.example.com/#/ruleDesign?id=d2&jvsAppId=j1';
+  tick();
+
+  const logs = hooks.getLogs();
+  assert.deepEqual(Array.from(logs, (log) => log.id), ['d1', 'd2']);
+  assert.deepEqual(Array.from(logs, (log) => log.type), ['打开', '打开']);
+  assert.deepEqual(errors, []);
+});
+
+test('打开日志：跨同名应用切换，同名同 id 的设计仍记录当前应用', () => {
+  const { hooks, tick, errors, location } = makeLogRecordingEnv();
+
+  tick();
+  location.href = 'https://jvs.example.com/#/ruleDesign?id=d1&jvsAppId=j2';
+  tick();
+
+  assert.equal(hooks.getLogs().at(-1).jvsAppId, 'j2');
+  assert.deepEqual(errors, []);
+});
+
+test('打开日志：名称与 id 未变，切换设计类型仍记录当前类型', () => {
+  const { hooks, tick, errors, tabType } = makeLogRecordingEnv();
+
+  tick();
+  tabType.textContent = '表单设计';
+  tick();
+
+  assert.equal(hooks.getLogs().at(-1).tabType, '表单设计');
+  assert.deepEqual(errors, []);
+});
+
+test('打开日志：同页面连续 tick 不重复记录，改名仍记录，信息未就绪时等待', () => {
+  const { hooks, tick, errors, designName, appName, tabType, logWrites } = makeLogRecordingEnv();
+
+  tabType.textContent = '';
+  tick();
+  assert.equal(hooks.getLogs().length, 0);
+  assert.equal(logWrites.length, 0);
+
+  tabType.textContent = '逻辑设计';
+  tick();
+  tick();
+  tick();
+  assert.equal(hooks.getLogs().length, 1);
+  assert.equal(logWrites.length, 1, '历史去重可能掩盖重复写入，另核对存储写入次数');
+
+  designName.textContent = '订单查询';
+  tick();
+  assert.equal(hooks.getLogs().at(-1).designName, '订单查询');
+  assert.equal(logWrites.length, 2);
+
+  appName.textContent = '订单管理';
+  tick();
+  assert.equal(hooks.getLogs().at(-1).appName, '订单管理');
+  assert.equal(logWrites.length, 3);
+  assert.deepEqual(errors, []);
 });
 
 // ==================== C2：嵌套逻辑回退梯子 ====================
