@@ -199,7 +199,7 @@ test('extractTitle：自挂按钮文字不进标题（重跑防护）', () => {
     querySelector() {
       return null;
     },
-    textContent: '咒术回战 第二季🔍详情',
+    textContent: '咒术回战 第二季详情',
     childNodes: [{ nodeType: 3, textContent: '咒术回战 第二季' }, buttonNode],
   };
   assert.equal(extractTitle(element), '咒术回战 第二季');
@@ -320,12 +320,21 @@ test('createAgeSearchButton：当前域名 favicon 图标，点击开站内搜�
   ]);
 });
 
-test('createButtonPair：返回 🔍 与豆瓣 favicon 图标钮', () => {
+test('createButtonPair：返回聚合搜索 SVG 图标钮与豆瓣 favicon 图标钮', () => {
   const { createButtonPair } = loadScriptHooks();
   const [search, douban] = createButtonPair('咒术回战');
   assert.equal(search.tagName, 'button');
   assert.equal(douban.tagName, 'button');
-  assert.equal(search.textContent, '🔍');
+  assert.equal(search.textContent, '');
+  assert.equal(search.children.length, 1);
+  assert.equal(search.children[0].tagName, 'img');
+  assert.equal(
+    search.children[0].src,
+    'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22 fill=%22none%22 stroke=%22%230069ad%22 stroke-width=%221.5%22 stroke-linecap=%22round%22%3E%3Ccircle cx=%226%22 cy=%226%22 r=%224.3%22/%3E%3Cpath d=%22M10.2%2010.2%2014.2%2014.2%22/%3E%3C/svg%3E',
+  );
+  assert.equal(search.children[0].alt, '');
+  assert.equal(search.children[0].style.width, '14px');
+  assert.equal(search.children[0].style.height, '14px');
   assert.equal(douban.textContent, '');
   assert.equal(douban.children.length, 1);
   assert.equal(douban.children[0].tagName, 'img');
@@ -335,7 +344,7 @@ test('createButtonPair：返回 🔍 与豆瓣 favicon 图标钮', () => {
   assert.equal(douban.children[0].style.height, '14px');
 });
 
-test('createButtonPair：emoji 收紧行高并居中，防继承标题行高撑大按钮', () => {
+test('createButtonPair：图标钮收紧行高并居中，防继承标题行高撑大按钮', () => {
   const { createButtonPair } = loadScriptHooks();
   const [search] = createButtonPair('咒术回战');
   assert.equal(search.style.lineHeight, '1');
@@ -400,7 +409,8 @@ test('按钮挂载：首个命中的选择器挂一对按钮并停止', () => {
   assert.equal(sandbox.document.querySelectorCalls.length, 1, '命中后应停止，不查后续选择器');
   assert.equal(titleElement.appended.length, 2);
   assert.equal(titleElement.appended[0].tagName, 'button');
-  assert.equal(titleElement.appended[0].textContent, '🔍');
+  assert.equal(titleElement.appended[0].children[0].tagName, 'img');
+  assert.match(titleElement.appended[0].children[0].src, /^data:image\/svg\+xml,/);
   assert.equal(titleElement.appended[1].tagName, 'button');
   assert.equal(titleElement.appended[1].children[0].src, 'https://www.douban.com/favicon.ico');
 
@@ -413,7 +423,7 @@ test('按钮挂载：首个命中的选择器挂一对按钮并停止', () => {
   ]);
 });
 
-test('按钮挂载：AGE play 页四个按钮，顺序为 🔍/豆瓣/AGE/详情', () => {
+test('按钮挂载：AGE play 页四个按钮，顺序为聚合搜索/豆瓣/AGE/详情', () => {
   const titleElement = makeTitleElement('咒术回战 第二季');
   const sandbox = loadScriptSandbox({
     element: titleElement,
@@ -421,7 +431,7 @@ test('按钮挂载：AGE play 页四个按钮，顺序为 🔍/豆瓣/AGE/详情
   });
 
   assert.equal(titleElement.appended.length, 4, '搜索对 + AGE 站内搜索 + 详情');
-  assert.equal(titleElement.appended[0].textContent, '🔍');
+  assert.match(titleElement.appended[0].children[0].src, /^data:image\/svg\+xml,/);
   assert.equal(titleElement.appended[1].children[0].src, 'https://www.douban.com/favicon.ico');
   assert.equal(titleElement.appended[2].children[0].src, 'https://www.agedm.io/favicon.ico');
   const detailButton = titleElement.appended[3];

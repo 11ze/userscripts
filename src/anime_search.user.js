@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         搜索动漫
 // @namespace    https://github.com/11ze
-// @version      0.6.19
-// @description 2026-10-25 标题 encodeURIComponent 后拼搜索 URL——含 & / # 的标题不再截断查询串；站点标题选择器收进装配表条目，加站只改一处；2026-10-14 站点→按钮工厂序列收拢为装配表——加站/加按钮不再改主循环控制流；buildDetailHref 收进 AGE 条目，不再依赖其他站路径判定恰好排除 /play/
+// @version      0.6.20
+// @description 2026-10-29 聚合搜索按钮的 emoji 换成 #0069ad 内联 SVG 放大镜图标，各平台渲染一致；2026-10-25 标题 encodeURIComponent 后拼搜索 URL——含 & / # 的标题不再截断查询串；站点标题选择器收进装配表条目，加站只改一处；2026-10-14 站点→按钮工厂序列收拢为装配表——加站/加按钮不再改主循环控制流；buildDetailHref 收进 AGE 条目，不再依赖其他站路径判定恰好排除 /play/
 // @author       11ze
 // @match        *://*/*
 // @icon         data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItc2VhcmNoIj48Y2lyY2xlIGN4PSIxMSIgY3k9IjExIiByPSI4Ij48L2NpcmNsZT48cGF0aCBkPSJtMjEgMjEtNC4zNS00LjM1Ij48L3BhdGg+PC9zdmc+
@@ -145,6 +145,14 @@
 
   const doubanFavicon = 'https://www.douban.com/favicon.ico';
 
+  // 聚合搜索按钮图标：内联 SVG 放大镜，颜色不受 button 文字色影响，也不依赖 emoji 字体
+  const searchIcon =
+    'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22' +
+    ' viewBox=%220 0 16 16%22 fill=%22none%22 stroke=%22%230069ad%22' +
+    ' stroke-width=%221.5%22 stroke-linecap=%22round%22%3E' +
+    '%3Ccircle cx=%226%22 cy=%226%22 r=%224.3%22/%3E' +
+    '%3Cpath d=%22M10.2%2010.2%2014.2%2014.2%22/%3E%3C/svg%3E';
+
   // 按钮字号即图标边长：图标钮与文字钮同高的依据，单源防失配
   const fontSize = '14px';
 
@@ -185,7 +193,7 @@
   };
 
   /**
-   * 图标渲染：站点 favicon img，alt 留空使加载失败显示空白
+   * 图标渲染：favicon 或内联 SVG 的 img，alt 留空使加载失败显示空白
    */
   function createFaviconImg(src) {
     return createEl('img', ICON_STYLES, { src, alt: '' });
@@ -207,7 +215,7 @@
   }
 
   /**
-   * 按钮渲染：一对跨站搜索按钮（🔍 聚合搜索 / 豆瓣 favicon），点击新标签页打开 target + title
+   * 按钮渲染：一对跨站搜索按钮（聚合搜索 SVG 图标 / 豆瓣 favicon），点击新标签页打开 target + title
    */
   function createSearchButton(content, target, title) {
     return createButton(content, function () {
@@ -217,11 +225,11 @@
   }
 
   /**
-   * 按钮渲染：一对跨站搜索按钮（🔍 聚合搜索 / 豆瓣 favicon）
+   * 按钮渲染：一对跨站搜索按钮（聚合搜索 SVG 图标 / 豆瓣 favicon）
    */
   function createButtonPair(title) {
     return [
-      createSearchButton('🔍', targetWeb, title),
+      createSearchButton(createFaviconImg(searchIcon), targetWeb, title),
       createSearchButton(createFaviconImg(doubanFavicon), douban, title),
     ];
   }
