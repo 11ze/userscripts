@@ -21,12 +21,40 @@ const sourceText = fs.readFileSync(sourcePath, 'utf8');
 
 function createElementStub(tag) {
   const listeners = new Map();
+  const attributes = new Map();
+  const style = {
+    setProperty(name, value, priority = '') {
+      if (value === '') this.removeProperty(name);
+      else { this[name] = value; this[`${name}:priority`] = priority; }
+    },
+    getPropertyValue(name) { return this[name] ?? ''; },
+    getPropertyPriority(name) { return this[`${name}:priority`] ?? ''; },
+    removeProperty(name) { delete this[name]; delete this[`${name}:priority`]; },
+  };
   return {
     tagName: tag,
-    style: {},
+    nodeType: 1,
+    style,
     children: [],
+    isConnected: true,
+    setAttribute(name, value) { attributes.set(name, value); },
+    removeAttribute(name) { attributes.delete(name); },
+    getAttribute(name) {
+      return name === 'style' ? JSON.stringify(style) : attributes.get(name) ?? null;
+    },
+    matches(selector) {
+      return selector.split(',').some((name) => name.trim() === '*' || name.trim() === tag);
+    },
+    querySelectorAll(selector) {
+      return this.children.flatMap((child) => [
+        ...(child.matches(selector) ? [child] : []), ...child.querySelectorAll(selector),
+      ]);
+    },
+    querySelector(selector) { return this.querySelectorAll(selector)[0] ?? null; },
+    closest(selector) { return this.matches(selector) ? this : this.parentElement?.closest(selector) ?? null; },
     appendChild(child) {
       this.children.push(child);
+      child.parentElement = this;
     },
     addEventListener(type, handler) {
       listeners.set(type, handler);
@@ -50,7 +78,7 @@ function createStorageStub(initial = {}) {
   };
 }
 
-function loadScriptSandbox({ storage, readyState = 'complete' } = {}) {
+function loadScriptSandbox({ storage, readyState = 'complete', media = [] } = {}) {
   const domListeners = new Map();
   const sandbox = {
     console: {
@@ -68,7 +96,13 @@ function loadScriptSandbox({ storage, readyState = 'complete' } = {}) {
         return createElementStub(tag);
       },
       body: createElementStub('body'),
+      querySelectorAll(selector) { return this.body.querySelectorAll(selector); },
     },
+    getComputedStyle(element) {
+      const filter = element.style.filter === 'inherit' ? element.parentElement.style.filter : element.style.filter;
+      return { filter: filter ?? element.__filter ?? 'none', fill: element.__fill ?? 'rgb(0, 0, 0)', stroke: element.__stroke ?? 'none' };
+    },
+    __observers: [],
     __styleCalls: [],
     __styleRemovals: 0,
     GM_addStyle(css) {
@@ -87,6 +121,12 @@ function loadScriptSandbox({ storage, readyState = 'complete' } = {}) {
   };
   sandbox.window = sandbox;
   sandbox.__domListeners = domListeners;
+  sandbox.MutationObserver = class {
+    constructor(callback) { this.callback = callback; sandbox.__observers.push(this); }
+    observe() {}
+    disconnect() { this.disconnected = true; }
+  };
+  for (const element of media) sandbox.document.body.appendChild(element);
 
   vm.createContext(sandbox);
   vm.runInContext(sourceText, sandbox, { filename: 'color_mode_switch.user.js' });
@@ -100,6 +140,7 @@ function loadScriptHooks() {
 
 // 按 CSS Filter 的中性灰公式验收实际生成的滤镜；色相旋转不改变中性灰。
 function applyNeutralFilter(value, filter) {
+  filter = filter.replace(/var\(--11ze-original-filter,\s*\)/g, '');
   for (const [, name, amount] of filter.matchAll(/([\w-]+)\(([^)]+)\)/g)) {
     assert.ok(['invert', 'contrast', 'hue-rotate'].includes(name), `未支持的验收滤镜：${name}`);
     if (name === 'invert') value = value + (255 - 2 * value) * Number(amount);
@@ -112,8 +153,8 @@ function applyNeutralFilter(value, filter) {
 test('柔化亮暗端点：纯黑转柔白，纯白转近黑，中灰保持中灰', () => {
   const css = loadScriptHooks().buildReverseColorCss();
   const pageFilter = css.match(/html\s*\{\s*filter:\s*([^;]+)/)[1];
-  assert.ok(Math.abs(applyNeutralFilter(0, pageFilter) - 242.25) < 0.01);
-  assert.ok(Math.abs(applyNeutralFilter(255, pageFilter) - 12.75) < 0.01);
+  assert.ok(Math.abs(applyNeutralFilter(0, pageFilter) - 248.625) < 0.01);
+  assert.ok(Math.abs(applyNeutralFilter(255, pageFilter) - 6.375) < 0.01);
   assert.ok(Math.abs(applyNeutralFilter(127.5, pageFilter) - 127.5) < 0.01);
 });
 
@@ -125,6 +166,184 @@ test('媒体补偿：页面柔化后，照片与按钮的中间灰阶不随页�
     const result = applyNeutralFilter(applyNeutralFilter(value, mediaFilter), pageFilter);
     assert.ok(Math.abs(result - value) < 0.01, `灰阶 ${value} 不应改变，实际为 ${result}`);
   }
+});
+
+test('全屏视频：顶层内容只保留站点滤镜，不再叠加媒体补偿', () => {
+  const css = loadScriptHooks().buildReverseColorCss();
+  const fullscreenRule = css.match(/:fullscreen,[^{]+\{([^}]+)\}/);
+  assert.ok(fullscreenRule, '全屏内容脱离根滤镜后，必须撤掉反向补偿');
+  assert.match(fullscreenRule[0], /:fullscreen :is\(img, video, iframe, canvas, svg\)/, '覆盖全屏容器内的媒体');
+  assert.match(fullscreenRule[1], /filter:\s*var\(--11ze-original-filter, none\)\s*!important/);
+});
+
+test('原有媒体滤镜：启用时保留灰度，关闭时清理脚本属性且不改站点样式', () => {
+  const photo = createElementStub('img');
+  photo.style.filter = 'grayscale(1)';
+  const sandbox = loadScriptSandbox({ media: [photo] });
+  sandbox.__menuCommands['切换']();
+  assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), 'grayscale(1)');
+  const css = sandbox.__styleCalls[0];
+  assert.match(css, /filter:\s*var\(--11ze-original-filter,\s*\)\s+contrast\(/, '站点滤镜须先执行，再做媒体补偿');
+  sandbox.__menuCommands['切换']();
+  assert.equal(photo.style.filter, 'grayscale(1)');
+  assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), '');
+  assert.equal(sandbox.__observers[0].disconnected, true);
+});
+
+test('原有 important 滤镜：补偿生效且关闭后还原内联值与优先级', () => {
+  const photo = createElementStub('img');
+  photo.style.setProperty('filter', 'grayscale(1)', 'important');
+  const sandbox = loadScriptSandbox({ media: [photo] });
+  sandbox.__menuCommands['切换']();
+  assert.match(photo.style.filter, /var\(--11ze-original-filter,\s*\).*contrast\(/, '内联 important 不能挡住媒体补偿');
+  assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), 'grayscale(1)');
+  sandbox.__menuCommands['切换']();
+  assert.equal(photo.style.filter, 'grayscale(1)');
+  assert.equal(photo.style.getPropertyPriority('filter'), 'important');
+});
+
+test('样式表 important 滤镜：采集计算值并用内联补偿，关闭后不留 filter 声明', () => {
+  const photo = createElementStub('img');
+  photo.__filter = 'grayscale(1)';
+  const sandbox = loadScriptSandbox({ media: [photo] });
+  sandbox.__menuCommands['切换']();
+  assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), 'grayscale(1)');
+  assert.match(photo.style.filter, /var\(--11ze-original-filter,\s*\).*contrast\(/);
+  assert.equal(photo.style.getPropertyPriority('filter'), 'important');
+  sandbox.__menuCommands['切换']();
+  assert.equal(photo.style.getPropertyValue('filter'), '');
+});
+
+test('动态媒体：追加图片、修改滤镜及移除元素时同步并清理', () => {
+  const sandbox = loadScriptSandbox();
+  sandbox.__menuCommands['切换']();
+  const photo = createElementStub('img');
+  photo.style.filter = 'blur(2px)';
+  sandbox.document.body.appendChild(photo);
+  const observer = sandbox.__observers[0];
+  observer.callback([{ type: 'childList', target: sandbox.document.body, addedNodes: [photo] }]);
+  assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), 'blur(2px)');
+  photo.style.filter = 'grayscale(1)';
+  observer.callback([{ type: 'attributes', attributeName: 'style', target: photo }]);
+  assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), 'grayscale(1)');
+  photo.isConnected = false;
+  observer.callback([{ type: 'childList', target: sandbox.document.body, addedNodes: [] }]);
+  assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), '');
+  assert.equal(photo.style.filter, 'grayscale(1)');
+});
+
+test('动态 SVG：内部路径改为彩色后撤掉单色标记', () => {
+  const icon = createElementStub('svg');
+  const shape = createElementStub('path');
+  shape.__fill = 'rgb(255, 255, 255)';
+  icon.appendChild(shape);
+  const sandbox = loadScriptSandbox({ media: [icon] });
+  sandbox.__menuCommands['切换']();
+  assert.equal(icon.getAttribute('data-11ze-monochrome'), '');
+  shape.__fill = 'rgb(255, 0, 0)';
+  sandbox.__observers[0].callback([{ type: 'attributes', attributeName: 'fill', target: shape }]);
+  assert.equal(icon.getAttribute('data-11ze-monochrome'), null);
+});
+
+test('全屏切换：进入时撤掉补偿，退出时恢复，原有 important 滤镜保持不变', () => {
+  const video = createElementStub('video');
+  video.style.setProperty('filter', 'grayscale(1)', 'important');
+  const sandbox = loadScriptSandbox({ media: [video] });
+  sandbox.__menuCommands['切换']();
+  const normalFilter = video.style.filter;
+  sandbox.document.fullscreenElement = video;
+  sandbox.__domListeners.get('fullscreenchange')();
+  assert.equal(video.style.filter, 'var(--11ze-original-filter, none)');
+  assert.equal(video.style.getPropertyValue('--11ze-original-filter'), 'grayscale(1)');
+  sandbox.document.fullscreenElement = null;
+  sandbox.__domListeners.get('fullscreenchange')();
+  assert.equal(video.style.filter, normalFilter);
+  sandbox.__menuCommands['切换']();
+  assert.equal(video.style.filter, 'grayscale(1)');
+});
+
+test('滤镜更新：不采集自己的补偿，保留站点的新值和关闭前尚未处理的修改', () => {
+  const photo = createElementStub('img');
+  photo.style.setProperty('filter', 'grayscale(1)', 'important');
+  const sandbox = loadScriptSandbox({ media: [photo] });
+  sandbox.__menuCommands['切换']();
+  const observer = sandbox.__observers[0];
+  observer.callback([{ type: 'attributes', attributeName: 'style', target: photo }]);
+  assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), 'grayscale(1)');
+  photo.style.setProperty('filter', 'blur(2px)', 'important');
+  observer.callback([{ type: 'attributes', attributeName: 'style', target: photo }]);
+  assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), 'blur(2px)');
+  photo.style.setProperty('filter', 'sepia(1)', 'important');
+  sandbox.__menuCommands['切换']();
+  assert.equal(photo.style.filter, 'sepia(1)', '关闭不能覆盖站点刚写入的新值');
+  assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), '');
+});
+
+test('迟到的样式表：加载后重新采集站点滤镜', () => {
+  const photo = createElementStub('img');
+  const sandbox = loadScriptSandbox({ media: [photo] });
+  sandbox.__menuCommands['切换']();
+  photo.__filter = 'grayscale(1)';
+  sandbox.__domListeners.get('load')({ target: { tagName: 'LINK' } });
+  assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), 'grayscale(1)');
+});
+
+test('删除样式节点：重读 head 子树外的图片并撤掉已失效的灰度', () => {
+  const photo = createElementStub('img');
+  photo.__filter = 'grayscale(1)';
+  const sandbox = loadScriptSandbox({ media: [photo] });
+  sandbox.__menuCommands['切换']();
+  assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), 'grayscale(1)');
+  photo.__filter = 'none';
+  sandbox.__observers[0].callback([{
+    type: 'childList', target: createElementStub('head'),
+    addedNodes: [], removedNodes: [createElementStub('style')],
+  }]);
+  assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), 'initial');
+});
+
+test('相邻元素 class 改动：重读目标子树外新匹配滤镜的图片', () => {
+  const photo = createElementStub('img');
+  const sibling = createElementStub('div');
+  const sandbox = loadScriptSandbox({ media: [photo] });
+  sandbox.document.body.appendChild(sibling);
+  sandbox.__menuCommands['切换']();
+  assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), 'initial');
+  photo.__filter = 'blur(2px)';
+  sandbox.__observers[0].callback([{ type: 'attributes', attributeName: 'class', target: sibling }]);
+  assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), 'blur(2px)');
+  sandbox.__menuCommands['切换']();
+  assert.equal(photo.style.getPropertyValue('filter'), '');
+});
+
+test('全页重读：全屏容器本身的站点滤镜也必须更新', () => {
+  const container = createElementStub('div');
+  container.__filter = 'grayscale(1)';
+  container.appendChild(createElementStub('video'));
+  const sandbox = loadScriptSandbox({ media: [container] });
+  sandbox.__menuCommands['切换']();
+  sandbox.document.fullscreenElement = container;
+  sandbox.__domListeners.get('fullscreenchange')();
+  assert.equal(container.style.getPropertyValue('--11ze-original-filter'), 'grayscale(1)');
+  container.__filter = 'blur(2px)';
+  sandbox.__observers[0].callback([{ type: 'attributes', attributeName: 'class', target: container }]);
+  assert.equal(container.style.getPropertyValue('--11ze-original-filter'), 'blur(2px)');
+});
+
+test('嵌套媒体继承滤镜：先还原整批原始声明，再读取子元素计算值', () => {
+  const outer = createElementStub('svg');
+  outer.style.filter = 'grayscale(1)';
+  const inner = createElementStub('svg');
+  inner.style.filter = 'inherit';
+  outer.appendChild(inner);
+  const sandbox = loadScriptSandbox({ media: [outer] });
+  sandbox.__menuCommands['切换']();
+  assert.equal(inner.style.getPropertyValue('--11ze-original-filter'), 'grayscale(1)');
+  // 重新采集时也不能读到父元素已经挂上的脚本补偿。
+  sandbox.__observers[0].callback([{ type: 'attributes', attributeName: 'class', target: outer }]);
+  assert.equal(inner.style.getPropertyValue('--11ze-original-filter'), 'grayscale(1)');
+  sandbox.__menuCommands['切换']();
+  assert.equal(inner.style.filter, 'inherit');
 });
 
 test('测试钩子暴露状态模块函数', () => {
@@ -181,7 +400,7 @@ test('buildReverseColorCss：html 反转 + 媒体双反转 + 逃生舱', () => {
   assert.ok(css.includes('filter: invert(1) hue-rotate(180deg)'));
   assert.ok(css.includes('img'));
   assert.ok(css.includes('.reverse-color-mode-ignore'));
-  assert.ok(css.includes('filter: none'));
+  assert.ok(css.includes('var(--11ze-original-filter, none)'));
 });
 
 test('picture 图片保色：只给 img 抵消反转，不给 picture 包装层加滤镜', () => {
@@ -196,31 +415,35 @@ test('背景图容器可读：不对带文字的背景图容器整体抵消反�
   assert.doesNotMatch(css, /\[style\*=["']background-image["']\]/, '背景图选择器会连同正文一起抵消反转');
 });
 
-test('SVG 图标可读：currentColor 图标跟随页面，彩色 SVG 仍抵消反转', () => {
-  const css = loadScriptHooks().buildReverseColorCss();
-  assert.match(css, /\bsvg\s*,/, '彩色 SVG 默认保留媒体处理');
-  const iconRule = css.match(/svg:where\(\[fill="currentColor"\][^{]*\{([^}]+)\}/);
-  assert.ok(iconRule, 'currentColor SVG 必须单独处理');
-  assert.match(iconRule[0], /\[stroke="currentColor"\]/, '覆盖描边图标');
-  assert.match(iconRule[0], /:has\(\[fill="currentColor"\], \[stroke="currentColor"\]\)/, '覆盖内部路径指定 currentColor 的图标');
-  assert.match(iconRule[1], /filter:\s*none\s*!important/, '图标只受整页反转');
+test('SVG 图标可读：计算后的黑、白与灰色图标跟随页面变色', () => {
+  for (const paint of ['rgb(255, 255, 255)', 'rgb(0, 0, 0)', 'rgb(184, 184, 184)']) {
+    const icon = createElementStub('svg');
+    icon.__fill = paint;
+    const sandbox = loadScriptSandbox({ media: [icon] });
+    sandbox.__menuCommands['切换']();
+    assert.equal(icon.getAttribute('data-11ze-monochrome'), '', `单色图标 ${paint} 应跟随页面变色`);
+    sandbox.__menuCommands['切换']();
+    assert.equal(icon.getAttribute('data-11ze-monochrome'), null, '关闭时移除脚本标记');
+  }
 });
 
 test('混合 SVG 保色：含 currentColor 文字的彩色图表仍按媒体处理', () => {
-  const css = loadScriptHooks().buildReverseColorCss();
-  const colorRule = css.match(/svg:where\(\[fill\]:not\(\[fill="none"\], \[fill="currentColor"\]\)[^{]+\{([^}]+)\}/);
-  assert.ok(colorRule, '显式填色的图表须覆盖 currentColor 图标规则');
-  assert.match(colorRule[0], /\[stroke\]:not\(\[stroke="none"\], \[stroke="currentColor"\]\)/);
-  const mediaFilter = colorRule[1].match(/filter:\s*([^;]+)/)[1];
-  const pageFilter = css.match(/html\s*\{\s*filter:\s*([^;]+)/)[1];
-  assert.ok(Math.abs(applyNeutralFilter(applyNeutralFilter(64, mediaFilter), pageFilter) - 64) < 0.01);
-  assert.ok(css.indexOf(colorRule[0]) > css.indexOf('svg:where([fill="currentColor"]'), '同等特异性的保色规则须位于图标规则之后');
+  const chart = createElementStub('svg');
+  const label = createElementStub('text');
+  label.__fill = 'rgb(229, 229, 229)';
+  const bar = createElementStub('rect');
+  bar.__fill = 'rgb(66, 134, 96)';
+  chart.appendChild(label);
+  chart.appendChild(bar);
+  const sandbox = loadScriptSandbox({ media: [chart] });
+  sandbox.__menuCommands['切换']();
+  assert.equal(chart.getAttribute('data-11ze-monochrome'), null, '彩色图表不能按单色图标处理');
 });
 
 test('嵌套 SVG 保色：只让最外层 SVG 抵消反转', () => {
   const css = loadScriptHooks().buildReverseColorCss();
   assert.match(css, /\bsvg\s*,/);
-  assert.match(css, /svg svg\s*\{\s*filter:\s*none\s*!important/, '嵌套 SVG 不能再增加一层反转');
+  assert.match(css, /svg svg\s*\{\s*filter:\s*var\(--11ze-original-filter, none\)\s*!important/, '嵌套 SVG 只保留站点滤镜');
 });
 
 test('设计稿只保留改进后的 index.html，并运行当前脚本快照', () => {
@@ -255,7 +478,7 @@ test('buildReverseColorCss（图标三层反转回归）：容器内 img 豁免�
     (r) => r.selector === "[id='11ze-reverse-color-mode-toggle-container'] img",
   );
   assert.ok(exemption, '容器已带二次反转，容器内 img 再被媒体规则命中会叠成三层（奇数）反转');
-  assert.match(exemption.body, /filter:\s*none\s*!important/, '特异性 (0,1,1) 压过媒体规则 img (0,0,1)，图标只受 html+容器两层反转，fill 按原色渲染');
+  assert.match(exemption.body, /filter:\s*var\(--11ze-original-filter, none\)\s*!important/, '图标只保留站点滤镜，不再增加媒体补偿');
 });
 
 test('buildReverseColorCss（选择器合法性回归）：不含数字开头的 ID 选择器', () => {

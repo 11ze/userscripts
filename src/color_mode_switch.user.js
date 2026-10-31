@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         亮暗色切换
 // @namespace    https://github.com/11ze
-// @version      0.1.4
-// @description  2026-10-31 柔化亮暗端点并补偿媒体中间色，修正 picture、SVG 与背景图容器的反转范围
+// @version      0.1.5
+// @description  2026-10-31 对比度调整为 0.95，修复全屏视频偏色与固定黑白 SVG 隐身，保留站点原有媒体滤镜
 // @author       11ze
 // @match        *://*/*
 // @run-at       document-start
@@ -18,9 +18,11 @@
 
   const STORAGE_KEY = '11ze_color_mode_switch_reverse_color_mode';
   const TOGGLE_CONTAINER_ID = '11ze-reverse-color-mode-toggle-container';
-  const PAGE_FILTER = 'invert(1) hue-rotate(180deg) contrast(0.9)';
+  const PAGE_FILTER = 'invert(1) hue-rotate(180deg) contrast(0.95)';
   // 逆序补偿页面滤镜；极端高光与阴影受色域裁切限制，无法完全恢复。
-  const MEDIA_FILTER = 'contrast(1.1111111111) hue-rotate(180deg) invert(1)';
+  const MEDIA_FILTER = 'contrast(1.0526315789473684) hue-rotate(180deg) invert(1)';
+  const MEDIA_SELECTOR = 'img, video, iframe, canvas, svg';
+  const ORIGINAL_FILTER_PROPERTY = '--11ze-original-filter';
 
   /**
    * 状态存取：storage 由调用方注入，异常（隐私模式/配额）时读出关闭、写返回 false
@@ -54,37 +56,35 @@
 
       img, video, iframe, canvas, svg,
       [id='${TOGGLE_CONTAINER_ID}'] {
-        filter: ${MEDIA_FILTER} !important;
+        filter: var(--11ze-original-filter, ) ${MEDIA_FILTER} !important;
       }
 
       /* 容器已带二次反转，容器内 img 再被上面的媒体规则命中会叠成三层（奇数）反转，白色图标变黑底黑字 */
       [id='${TOGGLE_CONTAINER_ID}'] img {
-        filter: none !important;
+        filter: var(--11ze-original-filter, none) !important;
       }
 
-      /* currentColor 图标须随文字一起变色，否则换底色后可能隐身 */
-      svg:where([fill="currentColor"], [stroke="currentColor"],
-                :has([fill="currentColor"], [stroke="currentColor"])) {
-        filter: none !important;
-      }
-
-      /* 彩色图表可同时含 currentColor 标签，显式色值优先保色 */
-      svg:where([fill]:not([fill="none"], [fill="currentColor"]),
-                [stroke]:not([stroke="none"], [stroke="currentColor"]),
-                :has([fill]:not([fill="none"], [fill="currentColor"]),
-                     [stroke]:not([stroke="none"], [stroke="currentColor"]))) {
-        filter: ${MEDIA_FILTER} !important;
+      /* 单色 SVG 随文字变色；用计算后的颜色识别固定黑白和 currentColor */
+      svg[data-11ze-monochrome] {
+        filter: var(--11ze-original-filter, none) !important;
       }
 
       /* 嵌套 SVG 共享最外层的处理，不能逐层叠加滤镜 */
       svg svg {
-        filter: none !important;
+        filter: var(--11ze-original-filter, none) !important;
       }
 
       /* 逃生舱仅此类名：data-theme 之类的属性选择器特异性高于 html，会反杀整页反转；
          且 filter:none 无法让子树脱离反转，本就只对媒体二次反转有效 */
       .reverse-color-mode-ignore {
-        filter: none !important;
+        filter: var(--11ze-original-filter, none) !important;
+      }
+
+      /* 全屏内容进入顶层后不再受 html 滤镜影响，只保留站点原有滤镜 */
+      :fullscreen,
+      :fullscreen :is(img, video, iframe, canvas, svg),
+      :fullscreen [id='${TOGGLE_CONTAINER_ID}'] {
+        filter: var(--11ze-original-filter, none) !important;
       }
     `;
   }
@@ -198,12 +198,129 @@
   let isReverseColorMode = readState(localStorage);
   let reverseColorModeStyle = null;
   let toggleButtonElement = null;
+  let mediaObserver = null;
+  const mediaStyles = new Map();
+
+  function isMonochromeSvg(svg) {
+    // 图片、外部符号和渐变不能从当前绘制色判断，保留媒体处理。
+    if (svg.querySelector('image, foreignObject, use')) return false;
+    const shapes = [svg, ...svg.querySelectorAll('path, rect, circle, ellipse, line, polyline, polygon, text')];
+    return shapes.every(function (shape) {
+      const style = getComputedStyle(shape);
+      return [style.fill, style.stroke].every(function (paint) {
+        if (paint === 'none' || paint === 'transparent') return true;
+        const match = paint.match(/^rgba?\(([^)]+)\)$/);
+        if (!match) return false;
+        const channels = match[1].split(/[,\s/]+/).map(Number);
+        return channels[3] === 0 || (channels[0] === channels[1] && channels[1] === channels[2]);
+      });
+    });
+  }
+
+  function updateMediaStyles(root) {
+    const elements = new Set(root.querySelectorAll(MEDIA_SELECTOR));
+    if (root === document && document.fullscreenElement) elements.add(document.fullscreenElement);
+    if (root.nodeType === 1 && (root.matches(MEDIA_SELECTOR) || root === document.fullscreenElement)) {
+      elements.add(root);
+    }
+    for (let svg = root.closest?.('svg'); svg; svg = svg.parentElement?.closest('svg')) elements.add(svg);
+    if (!elements.size) return;
+
+    // 同步读取期间停用脚本样式，避免把自己的补偿重新采集为站点滤镜。
+    const disabled = reverseColorModeStyle.disabled;
+    reverseColorModeStyle.disabled = true;
+    try {
+      const originals = [];
+      for (const element of elements) {
+        if (!element.isConnected) continue;
+        const previous = mediaStyles.get(element);
+        let inlineFilter = element.style.getPropertyValue('filter');
+        let priority = element.style.getPropertyPriority('filter');
+        if (previous?.appliedFilter && inlineFilter === previous.appliedFilter && priority === 'important') {
+          inlineFilter = previous.inlineFilter;
+          priority = previous.priority;
+          element.style.setProperty('filter', inlineFilter, priority);
+        }
+        originals.push({ element, inlineFilter, priority });
+      }
+      // 先读取整批原值，防止 filter:inherit 读到父媒体刚挂上的补偿。
+      const captured = originals.map(function (original) {
+        const { element } = original;
+        return { ...original, filter: getComputedStyle(element).filter,
+          monochrome: element.matches('svg') && isMonochromeSvg(element) };
+      });
+      for (const { element, inlineFilter, priority, filter, monochrome } of captured) {
+        // initial 阻止私有属性从外层媒体继承，none 又不能与滤镜函数拼接。
+        element.style.setProperty(ORIGINAL_FILTER_PROPERTY, filter === 'none' ? 'initial' : filter);
+        if (element.matches('svg')) {
+          if (monochrome) element.setAttribute('data-11ze-monochrome', '');
+          else element.removeAttribute('data-11ze-monochrome');
+        }
+        // 内联 important 同时覆盖站点样式表中的 important，原值留待关闭时恢复。
+        const compensate = element.matches(MEDIA_SELECTOR) && !monochrome &&
+          element !== document.fullscreenElement &&
+          !element.matches('svg svg, .reverse-color-mode-ignore, :fullscreen *') &&
+          !(element.matches('img') && element.closest(`[id='${TOGGLE_CONTAINER_ID}']`));
+        const appliedFilter = compensate ? `var(--11ze-original-filter, ) ${MEDIA_FILTER}` : 'var(--11ze-original-filter, none)';
+        element.style.setProperty('filter', appliedFilter, 'important');
+        mediaStyles.set(element, { lastStyle: element.getAttribute('style'), inlineFilter, priority, appliedFilter });
+      }
+    } finally {
+      reverseColorModeStyle.disabled = disabled;
+    }
+  }
+
+  function clearMediaStyle(element) {
+    const previous = mediaStyles.get(element);
+    if (previous.appliedFilter && element.style.getPropertyValue('filter') === previous.appliedFilter &&
+        element.style.getPropertyPriority('filter') === 'important') {
+      element.style.setProperty('filter', previous.inlineFilter, previous.priority);
+    }
+    element.style.removeProperty(ORIGINAL_FILTER_PROPERTY);
+    element.removeAttribute('data-11ze-monochrome');
+    mediaStyles.delete(element);
+  }
+
+  function observeMedia() {
+    mediaObserver = new MutationObserver(function (records) {
+      let changed = false;
+      for (const record of records) {
+        if (record.type === 'attributes' && record.attributeName === 'style' &&
+            mediaStyles.get(record.target)?.lastStyle === record.target.getAttribute('style')) continue;
+        changed = true;
+      }
+      for (const element of mediaStyles.keys()) {
+        if (!element.isConnected) clearMediaStyle(element);
+      }
+      // 样式表删除、兄弟选择器和 :has() 都可能影响目标子树外的媒体。
+      if (changed) updateMediaStyles(document);
+    });
+    mediaObserver.observe(document, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ['style', 'class', 'fill', 'stroke', 'color'],
+    });
+    updateMediaStyles(document);
+  }
 
   /**
    * document-start 即执行：早注反转样式防加载期闪白，此时 body 未就绪不碰按钮
    */
   function init() {
     GM_registerMenuCommand('切换', toggleReverseColorMode);
+    document.addEventListener('fullscreenchange', function () {
+      if (!reverseColorModeStyle) return;
+      for (const element of mediaStyles.keys()) {
+        if (!element.matches(MEDIA_SELECTOR) && element !== document.fullscreenElement) clearMediaStyle(element);
+      }
+      updateMediaStyles(document.fullscreenElement || document);
+    });
+    // document-start 时外部样式表可能尚未加载，加载后重读站点滤镜。
+    document.addEventListener('load', function (event) {
+      if (reverseColorModeStyle && event.target.tagName === 'LINK') updateMediaStyles(document);
+    }, true);
 
     if (isReverseColorMode) {
       applyReverseColorMode();
@@ -277,12 +394,16 @@
     if (reverseColorModeStyle) return;
 
     reverseColorModeStyle = GM_addStyle(buildReverseColorCss());
+    observeMedia();
   }
 
   function removeReverseColorMode() {
     if (reverseColorModeStyle) {
+      mediaObserver.disconnect();
+      mediaObserver = null;
       reverseColorModeStyle.remove();
       reverseColorModeStyle = null;
+      for (const element of mediaStyles.keys()) clearMediaStyle(element);
     }
   }
 
