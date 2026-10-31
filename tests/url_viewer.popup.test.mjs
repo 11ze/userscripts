@@ -29,7 +29,6 @@ function makeEl(tag) {
     innerHTML: '',
     style: {},
     children: [],
-    rows: [],
     listeners: {},
     parentElement: null,
     appendChild(child) {
@@ -71,21 +70,6 @@ function makeEl(tag) {
       }
       return null;
     },
-    insertRow() {
-      const row = makeEl('tr');
-      const cells = [];
-      row.insertCell = (index) => {
-        const cell = makeEl('td');
-        cells.push(cell);
-        row.children.splice(Math.min(index, row.children.length), 0, cell);
-        cell.parentElement = row;
-        return cell;
-      };
-      el.children.push(row);
-      row.parentElement = el;
-      el.rows.push(row);
-      return row;
-    },
     contains(node) {
       if (el === node) return true;
       return el.children.some(
@@ -100,7 +84,10 @@ function makeEl(tag) {
         }
         el.className = classes.join(' ');
       },
-      remove() {},
+      remove(...names) {
+        const classes = el.className ? el.className.split(/\s+/) : [];
+        el.className = classes.filter((name) => !names.includes(name)).join(' ');
+      },
       toggle() {},
     },
   };
@@ -321,4 +308,82 @@ test('编辑→取消：不导航，input 换回 span 且按模型值渲染', ()
     findDescendant(popup, (el) => el.textContent === 'zzz'),
     null
   );
+});
+
+// ==================== 弹窗重设计（v0.5.0，定稿方向 C 极简） ====================
+// 锁 UI 结构决策：多段序号徽标、复制提示与值 span 同生命周期。
+// hover 底色/前景色与提示显隐是纯 CSS（GM_addStyle），DOM 桩测不到，不在此锁。
+
+function countDescendants(root, predicate) {
+  let count = 0;
+  const walk = (node) => {
+    for (const child of node.children) {
+      if (predicate(child)) count += 1;
+      walk(child);
+    }
+  };
+  walk(root);
+  return count;
+}
+
+function isSegNo(el) {
+  return (
+    typeof el.className === 'string' &&
+    el.className.split(/\s+/).includes('pv-seg-no')
+  );
+}
+
+test('多段 URL：每个段头显示序号徽标（1/2/3）', () => {
+  const viewer = loadScript(); // 默认 href 拆成 3 段
+
+  viewer.openFromMenu();
+  const popup = getPopup(viewer);
+
+  const badgeTexts = [];
+  const walk = (node) => {
+    for (const child of node.children) {
+      if (isSegNo(child)) badgeTexts.push(child.textContent);
+      walk(child);
+    }
+  };
+  walk(popup);
+
+  assert.deepEqual(badgeTexts, ['1', '2', '3']);
+});
+
+test('单段 URL：无序号徽标', () => {
+  const viewer = loadScript({ href: 'https://example.com/p?x=1' });
+
+  viewer.openFromMenu();
+  const popup = getPopup(viewer);
+
+  assert.equal(countDescendants(popup, isSegNo), 0);
+});
+
+test('「复制值」提示：查看模式存在，编辑模式随值 span 替换消失，取消后恢复', () => {
+  const viewer = loadScript();
+
+  viewer.openFromMenu();
+  const popup = getPopup(viewer);
+  const isValueHint = (el) =>
+    el.tagName === 'span' && el.textContent === '复制值';
+
+  assert.equal(countDescendants(popup, isValueHint) > 0, true);
+
+  clickBarButton(popup, '编辑');
+  // .editing 门控查看态 hover 底色（CSS），挂类时机在此锁
+  assert.ok(popup.className.split(/\s+/).includes('editing'));
+  assert.equal(countDescendants(popup, isValueHint), 0);
+  // 键名不可编辑：键名提示保留，键名仍可点击复制
+  assert.equal(
+    countDescendants(
+      popup,
+      (el) => el.tagName === 'span' && el.textContent === '复制键名'
+    ) > 0,
+    true
+  );
+
+  clickBarButton(popup, '取消');
+  assert.equal(countDescendants(popup, isValueHint) > 0, true);
+  assert.ok(!popup.className.split(/\s+/).includes('editing'));
 });

@@ -8,5 +8,8 @@
 - **编辑能力边界**：UI 只能改参数值，不能增删行、不能改键——段列表形状在会话内稳定；编辑值点「确定」才采纳进模型，「取消」直接按模型重渲染。
 - **导航决策**：`location.href` 赋值是异步导航，跨文档跳转后紧跟 reload 会取消跳转（v0.4.3 教训）；只有 same-document 导航需补 reload。
 - **开关收口**：openViewer/closeViewer 一对函数管 popup 生命周期——两个入口（菜单 / Ctrl+U）、三条关路径（关闭钮 / 点外部 / Ctrl+U）全走它；open 幂等（已开先关）、close 成对摘除 document click 监听器。新增关路径不得绕开 closeViewer 裸 remove（v0.4.5 前三条路径只有点外部摘监听器，其余空转到下次任意点击）。
+- **弹窗样式自带 text-align: left**（v0.5.0）：站点页面样式会透进弹窗（example.com 居中排版实测把参数行挤到居中），旧实现靠 host/table 上零散的 textAlign 抵抗，现在弹窗根上一处兜底。
+- **键/值 hover 分离与提示显隐全走 CSS 类**（v0.5.0）：`.pv-key-cell` / `.pv-val-cell` 各有 hover 底色与前景色；`:hover` 不得写成内联样式，**hint 元素的默认 `opacity: 0` 也必须在 GM_addStyle 里**——内联 opacity 会压死 hover 规则（内联样式只输给 `!important`）。「复制值」提示 span 挂在值 span 内部：编辑模式 `replaceWith(input)` 连带移除、取消重建 span 时一并恢复，提示没有残留盖住输入框的路径。编辑态弹窗挂 `.editing` 类，门控编辑态不出现查看态 hover 底色。
+- **段序号徽标只在多段时渲染**（v0.5.0）：单段弹窗的序号没有信息量，多段（iframe 嵌套）场景才需要序号标层级。
 
-验证：`node --test tests/url_viewer.url.test.mjs tests/url_viewer.popup.test.mjs`。
+验证：`node --test tests/url_viewer.url.test.mjs tests/url_viewer.popup.test.mjs`。UI 定稿设计稿：`designs/url-viewer/`（方向 C 极简，四方向对比稿已删减到只留定稿）。

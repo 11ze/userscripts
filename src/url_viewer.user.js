@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         查看网址
 // @namespace    https://github.com/11ze
-// @version      0.4.6
-// @description  2026-10-25 打开时 decode 包 try/catch——SPA pushState 写入的裸 % href 不再抛 URIError 致弹窗打不开；2026-10-14 popup 开关收口 open/close 一对函数——菜单连点不再叠层，三条关路径（关闭钮/点外部/Ctrl+U）都成对摘除 document 监听器，删除恒假的菜单项 ID 判断
+// @version      0.5.0
+// @description  2026-10-31 弹窗重设计（designs/url-viewer 方向 C 极简）：毛玻璃面板、黑色主按钮、分段式底栏；表格改网格行，键/值 hover 分离各带复制提示，多段显示序号徽标；2026-10-25 打开时 decode 包 try/catch——SPA pushState 写入的裸 % href 不再抛 URIError 致弹窗打不开
 // @author       11ze
 // @license      MIT
 // @match        *://*/*
@@ -23,20 +23,26 @@
     timing: 'cubic-bezier(0.4, 0, 0.2, 1)',
   };
 
+  // 方向 C（极简）：毛玻璃面板、黑主色、灰阶 hover——取自 designs/url-viewer 定稿
   const COLORS = {
-    bg: '#ffffff',
-    border: '#e2e8f0',
-    borderLight: 'rgba(0,0,0,0.06)',
-    textPrimary: '#0f172a',
-    textSecondary: '#475569',
-    textMuted: '#64748b',
-    textHost: '#1e3a8a',
-    blue: '#3b82f6',
-    blueHover: '#2563eb',
-    blueBg: '#eff6ff',
-    blueBgLight: '#f8fafc',
-    success: '#10b981',
-    error: '#ef4444',
+    bg: 'rgba(250, 250, 252, 0.92)',
+    border: 'rgba(0, 0, 0, 0.06)',
+    borderLight: 'rgba(0, 0, 0, 0.06)',
+    textSecondary: '#3f3f46',
+    textMuted: '#71717a',
+    textHost: '#18181b',
+    keyText: '#52525b',
+    valText: '#27272a',
+    keyHoverBg: 'rgba(0, 0, 0, 0.07)',
+    keyHoverFg: '#000000',
+    valHoverBg: 'rgba(0, 0, 0, 0.045)',
+    valHoverFg: '#18181b',
+    accent: '#18181b',
+    accentHover: '#000000',
+    accentSoft: 'rgba(0, 0, 0, 0.05)',
+    inputBg: '#ffffff',
+    success: '#18181b',
+    error: '#dc2626',
   };
 
   // ==================== 工具函数 ====================
@@ -83,108 +89,158 @@
     display: 'flex',
     flexDirection: 'column',
     width: '520px',
-    fontSize: '14px',
-    borderRadius: '12px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 8px 30px rgba(0,0,0,0.12), 0 20px 60px rgba(0,0,0,0.08)',
+    fontSize: '13.5px',
+    textAlign: 'left',
+    borderRadius: '18px',
+    backdropFilter: 'blur(24px) saturate(1.6)',
+    WebkitBackdropFilter: 'blur(24px) saturate(1.6)',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.06), 0 22px 60px rgba(0,0,0,0.18)',
     border: `1px solid ${COLORS.borderLight}`,
   };
 
   const fullUrlStyles = {
     overflowWrap: 'break-word',
-    padding: '16px',
-    backgroundColor: '#f8fafc',
-    borderRadius: '10px',
-    border: '1px solid rgba(148, 163, 184, 0.2)',
-    fontSize: '13px',
-    lineHeight: '1.6',
-    color: '#334155',
+    wordBreak: 'break-all',
+    maxHeight: '96px',
+    overflowY: 'auto',
+    padding: '6px 0 0',
+    backgroundColor: 'transparent',
+    border: 'none',
+    fontSize: '12.5px',
+    lineHeight: '1.65',
+    color: COLORS.textSecondary,
     fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace',
-    marginBottom: '16px',
+    marginBottom: '0',
+  };
+
+  const fullUrlLabelStyles = {
+    fontSize: '11px',
+    fontWeight: '600',
+    letterSpacing: '0.08em',
+    color: COLORS.textMuted,
+    marginBottom: '7px',
   };
 
   const separatorStyles = {
     height: '1px',
     backgroundColor: COLORS.border,
-    margin: '12px 0',
+    margin: '14px 0',
     width: '100%',
   };
 
-  const hostDivStyles = {
+  const hostSegHeadStyles = {
     display: 'flex',
-    marginBottom: '12px',
-    padding: '14px 16px',
-    backgroundColor: COLORS.blueBg,
-    borderRadius: '8px',
-    borderLeft: `3px solid ${COLORS.blue}`,
+    alignItems: 'center',
+    gap: '9px',
+    marginBottom: '10px',
+    padding: '2px 2px 0',
+    backgroundColor: 'transparent',
   };
 
   const hostSpanStyles = {
-    textAlign: 'left',
-    fontSize: '15px',
+    fontSize: '14px',
     fontWeight: '600',
     color: COLORS.textHost,
+    overflowWrap: 'anywhere',
   };
 
-  const tableStyles = {
-    minWidth: '400px',
-    border: `1px solid ${COLORS.border}`,
-    borderRadius: '8px',
-    textAlign: 'left',
-    fontSize: '13px',
-    borderCollapse: 'separate',
-    borderSpacing: '0',
-    overflow: 'hidden',
-  };
-
-  const cellStyles = {
-    padding: '14px 16px',
-    cursor: 'pointer',
-    borderBottom: '1px solid #f1f5f9',
-    transition: 'background-color 0.15s ease',
-  };
-
-  const keySpanStyles = {
-    cursor: 'pointer',
-    padding: '6px 10px',
-    borderRadius: '6px',
+  const segNoStyles = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '19px',
+    height: '19px',
+    flex: 'none',
+    borderRadius: '50%',
+    backgroundColor: COLORS.bg,
+    border: `1px solid ${COLORS.borderLight}`,
+    color: COLORS.textMuted,
+    fontSize: '11px',
     fontWeight: '600',
-    fontSize: '13px',
-    transition: 'color 0.15s ease',
+  };
+
+  const rowsStyles = {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
+    padding: '4px',
+    margin: '-4px',
+  };
+
+  const rowStyles = {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 38%) minmax(0, 1fr)',
+    alignItems: 'baseline',
+    padding: '3px 6px',
+  };
+
+  const keyCellStyles = {
+    position: 'relative',
+    padding: '8px 10px',
+    borderRadius: '7px',
+    cursor: 'pointer',
+    overflowWrap: 'anywhere',
+    transition: 'background-color 0.15s ease, color 0.15s ease',
+  };
+
+  const valCellStyles = {
+    ...keyCellStyles,
+    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace',
+    fontSize: '12.5px',
+    lineHeight: '1.55',
   };
 
   const valueSpanStyles = {
-    cursor: 'pointer',
-    padding: '6px 10px',
+    display: 'block',
+    position: 'relative',
+    overflowWrap: 'anywhere',
+  };
+
+  const hintStyles = {
+    position: 'absolute',
+    right: '6px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    fontSize: '11px',
+    fontWeight: '600',
+    color: COLORS.textMuted,
+    backgroundColor: 'transparent',
+    border: 'none',
     borderRadius: '6px',
-    fontSize: '13px',
-    transition: 'color 0.15s ease',
+    padding: '2px 4px',
+    pointerEvents: 'none',
+    whiteSpace: 'nowrap',
   };
 
   const valueInputStyles = {
     width: '100%',
     border: `1px solid ${COLORS.border}`,
-    borderRadius: '6px',
+    borderRadius: '7px',
     padding: '6px 10px',
-    fontSize: '13px',
+    fontSize: '12.5px',
     fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace',
-    color: COLORS.textSecondary,
-    backgroundColor: COLORS.blueBgLight,
+    color: COLORS.valText,
+    backgroundColor: COLORS.inputBg,
     outline: 'none',
     cursor: 'text',
-    transition: 'border-color 0.15s ease, background-color 0.15s ease',
+    transition: 'border-color 0.15s ease',
     boxSizing: 'border-box',
   };
 
+  // 分段式底栏：胶囊底由 bar 提供，两组按钮共用
   const buttonBarStyles = {
     display: 'flex',
-    gap: '8px',
-    marginTop: '8px',
+    gap: '4px',
+    marginTop: '20px',
     width: '100%',
+    backgroundColor: COLORS.accentSoft,
+    padding: '4px',
+    borderRadius: '999px',
+    boxSizing: 'border-box',
   };
 
   const modeGroupStyles = {
-    flexDirection: 'column',
-    gap: '8px',
+    gap: '4px',
     width: '100%',
   };
 
@@ -192,14 +248,13 @@
     padding: '12px 16px',
     cursor: 'pointer',
     fontSize: '13px',
-    background: COLORS.blue,
+    background: COLORS.accent,
     border: 'none',
-    borderRadius: '8px',
+    borderRadius: '999px',
     color: '#ffffff',
     fontWeight: '600',
     transition: 'all 0.2s ease',
-    height: '42px',
-    boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
+    height: '40px',
     flex: '1',
   };
 
@@ -207,36 +262,66 @@
     padding: '12px 16px',
     cursor: 'pointer',
     fontSize: '13px',
-    background: COLORS.bg,
-    border: `1px solid ${COLORS.border}`,
-    borderRadius: '8px',
-    color: COLORS.textMuted,
+    background: 'transparent',
+    border: 'none',
+    borderRadius: '999px',
+    color: COLORS.textSecondary,
     fontWeight: '600',
     transition: 'all 0.2s ease',
-    height: '42px',
-    boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
-    width: '100%',
+    height: '40px',
+    flex: '1',
   };
 
   let toastZIndex = 10000;
 
   const toastStyles = {
     position: 'fixed',
-    padding: '10px 16px',
+    padding: '9px 15px',
     borderRadius: '8px',
-    fontSize: '13px',
-    fontWeight: '500',
+    fontSize: '12.5px',
+    fontWeight: '600',
     color: '#ffffff',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+    boxShadow: '0 6px 20px rgba(0,0,0,0.18)',
     pointerEvents: 'none',
     whiteSpace: 'nowrap',
   };
 
   // ==================== 动画样式 ====================
+  // 键/值 hover 分离与复制提示显隐走 CSS：查看态才出 hover 底色（编辑态输入框
+  // 占位后仍会触发 :hover，用 .editing 门控关掉），提示随单元格 hover 显隐
   GM_addStyle(`
+    .pv-key-cell {
+      color: ${COLORS.keyText};
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .pv-val-cell {
+      color: ${COLORS.valText};
+    }
+
+    .popup:not(.editing) .pv-key-cell:hover {
+      background-color: ${COLORS.keyHoverBg};
+      color: ${COLORS.keyHoverFg};
+    }
+
+    .popup:not(.editing) .pv-val-cell:hover {
+      background-color: ${COLORS.valHoverBg};
+      color: ${COLORS.valHoverFg};
+    }
+
+    .pv-copy {
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    .pv-key-cell:hover .pv-copy,
+    .pv-val-cell:hover .pv-copy {
+      opacity: 1;
+    }
+
     input.param-input:focus {
-      border-color: ${COLORS.blue};
-      background-color: ${COLORS.blueBg};
+      border-color: ${COLORS.accent};
     }
 
     @keyframes ${ANIM.slideIn} {
@@ -380,9 +465,16 @@
     return createEl('div', separatorStyles);
   }
 
-  function createHostDiv(host, level = 0) {
-    const hostDiv = createEl('div', hostDivStyles);
-    hostDiv.style.marginLeft = `${level * 24}px`;
+  function createHostDiv(host, level = 0, badgeIndex = null) {
+    const hostDiv = createEl('div', hostSegHeadStyles);
+    hostDiv.style.marginLeft = `${level * 20}px`;
+
+    if (badgeIndex !== null) {
+      hostDiv.appendChild(createEl('span', segNoStyles, {
+        textContent: String(badgeIndex + 1),
+        className: 'pv-seg-no',
+      }));
+    }
 
     const hostSpan = createEl('span', hostSpanStyles);
     hostSpan.textContent = host;
@@ -391,48 +483,46 @@
     return hostDiv;
   }
 
-  function createTable(level = 0) {
-    const table = createEl('table', tableStyles);
-    table.style.marginLeft = `${level * 24}px`;
-    return table;
+  // 值提示挂在值 span 内部：编辑模式 replaceWith(input) 连带移除，
+  // 取消重建 span 时一并恢复——提示没有残留盖住输入框的路径
+  function createValueSpan(param) {
+    const span = createEl('span', valueSpanStyles, { textContent: param.value });
+    span.appendChild(createEl('span', hintStyles, { textContent: '复制值', className: 'pv-copy' }));
+    return span;
   }
 
-  function addParamRow(table, param) {
-    const row = table.insertRow();
-    const cell1 = row.insertCell(0);
-    const cell2 = row.insertCell(1);
+  function addParamRow(rows, param) {
+    const row = createEl('div', rowStyles, { className: 'pv-row' });
 
-    // 参数名单元格
-    const keySpan = createEl('span', keySpanStyles, { textContent: param.key });
-    keySpan.title = '点击复制参数名';
-    cell1.onclick = (e) => copyToClipboard(param.key, e.clientX, e.clientY);
-    setStyles(cell1, { ...cellStyles, color: COLORS.textPrimary });
-    setHover(cell1, { backgroundColor: COLORS.blueBg }, { backgroundColor: '' });
-    setHover(keySpan, { color: COLORS.blueHover }, { color: '' });
-    cell1.appendChild(keySpan);
+    // 参数名单元格：hover 底色/前景色与提示显隐由 .pv-key-cell CSS 接管
+    const keyCell = createEl('div', keyCellStyles, {
+      className: 'pv-cell pv-key-cell',
+      title: '点击复制参数名',
+    });
+    keyCell.appendChild(createEl('span', {}, { textContent: param.key }));
+    keyCell.appendChild(createEl('span', hintStyles, { textContent: '复制键名', className: 'pv-copy' }));
+    keyCell.onclick = (e) => copyToClipboard(param.key, e.clientX, e.clientY);
 
     // 参数值单元格
-    const valueSpan = createEl('span', valueSpanStyles, { textContent: param.value });
-    valueSpan.title = '点击复制参数值';
-    cell2.onclick = (e) => copyToClipboard(param.value, e.clientX, e.clientY);
-    setStyles(cell2, { ...cellStyles, color: COLORS.textSecondary });
-    setHover(cell2, { backgroundColor: COLORS.blueBg }, { backgroundColor: '' });
-    setHover(valueSpan, { color: COLORS.blueHover }, { color: '' });
-    cell2.appendChild(valueSpan);
+    const valCell = createEl('div', valCellStyles, {
+      className: 'pv-cell pv-val-cell',
+      title: '点击复制参数值',
+    });
+    const valueSpan = createValueSpan(param);
+    valCell.appendChild(valueSpan);
+    valCell.onclick = (e) => copyToClipboard(param.value, e.clientX, e.clientY);
 
-    // 第一行添加顶部圆角
-    if (table.rows.length === 1) {
-      cell1.style.borderRadius = '8px 0 0 0';
-      cell2.style.borderRadius = '0 8px 0 0';
-    }
+    row.appendChild(keyCell);
+    row.appendChild(valCell);
+    rows.appendChild(row);
 
-    row.style.transition = 'none';
-
-    return { cell: cell2, span: valueSpan, param: param, input: null };
+    return { cell: valCell, span: valueSpan, param: param, input: null };
   }
 
   // ==================== 模式切换 ====================
-  function switchToEditMode(bindings, bar) {
+  function switchToEditMode(bindings, bar, popup) {
+    popup.classList.add('editing');
+
     for (const binding of bindings) {
       const input = createEl('input', valueInputStyles, {
         value: binding.param.value,
@@ -450,14 +540,12 @@
     bar.querySelector('.edit-mode').style.display = 'flex';
   }
 
-  function switchToViewMode(bindings, bar) {
+  function switchToViewMode(bindings, bar, popup) {
+    popup.classList.remove('editing');
+
     // 编辑值只在点「确定」时采纳，取消直接按模型重渲染
     for (const binding of bindings) {
-      const span = createEl('span', valueSpanStyles, {
-        textContent: binding.param.value,
-      });
-      span.title = '点击复制参数值';
-      setHover(span, { color: COLORS.blueHover }, { color: '' });
+      const span = createValueSpan(binding.param);
 
       binding.cell.onclick = (e) => copyToClipboard(binding.param.value, e.clientX, e.clientY);
       binding.cell.style.cursor = 'pointer';
@@ -496,15 +584,13 @@
 
     const closeButton = createEl('button', closeButtonStyles, { textContent: '关闭（Ctrl + U）' });
     closeButton.onclick = closeViewer;
-    setHover(closeButton, { borderColor: COLORS.textMuted }, { borderColor: COLORS.border });
+    setHover(closeButton, { background: COLORS.accentSoft });
 
     if (hasParams) {
       const editButton = createEl('button', primaryButtonStyles, { textContent: '编辑' });
-      editButton.onclick = () => switchToEditMode(session.bindings, bar);
-      setHover(editButton, { background: COLORS.blueHover }, { background: COLORS.blue });
+      editButton.onclick = () => switchToEditMode(session.bindings, bar, popup);
+      setHover(editButton, { background: COLORS.accentHover }, { background: COLORS.accent });
       viewModeGroup.appendChild(editButton);
-    } else {
-      closeButton.style.flex = '1';
     }
 
     viewModeGroup.appendChild(closeButton);
@@ -525,11 +611,11 @@
         window.location.reload();
       }
     };
-    setHover(confirmButton, { background: COLORS.blueHover }, { background: COLORS.blue });
+    setHover(confirmButton, { background: COLORS.accentHover }, { background: COLORS.accent });
 
     const cancelButton = createEl('button', closeButtonStyles, { textContent: '取消' });
-    cancelButton.onclick = () => switchToViewMode(session.bindings, bar);
-    setHover(cancelButton, { borderColor: COLORS.textMuted }, { borderColor: COLORS.border });
+    cancelButton.onclick = () => switchToViewMode(session.bindings, bar, popup);
+    setHover(cancelButton, { background: COLORS.accentSoft });
 
     editModeGroup.appendChild(confirmButton);
     editModeGroup.appendChild(cancelButton);
@@ -577,6 +663,9 @@
     });
 
     // 完整 URL 显示
+    const fullUrlLabel = createEl('div', fullUrlLabelStyles, { textContent: '完整 URL' });
+    popup.appendChild(fullUrlLabel);
+
     const fullUrlDiv = createEl('div', fullUrlStyles, {
       textContent: decodedHref,
     });
@@ -584,26 +673,26 @@
 
     popup.appendChild(createSeparator());
 
-    // 构建参数列表；出现过表之后，每个 host 段前都加分隔线
-    let separatorNeeded = false;
+    // 构建参数列表；多段时段与段之间加分隔线，段序号徽标也只在多段时出现
     const bindings = [];
+    const multi = segments.length > 1;
 
     segments.forEach((segment, index) => {
-      if (separatorNeeded) {
+      if (index > 0 && multi) {
         popup.appendChild(createSeparator());
       }
 
-      popup.appendChild(createHostDiv(segment.host, index));
+      popup.appendChild(createHostDiv(segment.host, index, multi ? index : null));
 
       if (segment.params.length === 0) return;
 
-      const table = createTable(index);
-      popup.appendChild(table);
+      const rows = createEl('div', rowsStyles);
+      // -4 抵消 rows 自身 padding，行内容与段头文字左对齐，hover 底向外溢 4px
+      rows.style.marginLeft = `${index * 20 - 4}px`;
+      popup.appendChild(rows);
       for (const param of segment.params) {
-        bindings.push(addParamRow(table, param));
+        bindings.push(addParamRow(rows, param));
       }
-
-      separatorNeeded = true;
     });
 
     // 底部按钮栏

@@ -1,0 +1,779 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>查看网址 · 弹窗重设计 — 可交互原型</title>
+<!--
+  查看网址（src/url_viewer.user.js）弹窗重设计 · 可交互原型
+
+  定稿方向：C 极简——半透明毛玻璃面板，去边框底色，黑色主按钮，分段式底栏。
+  四方向对比阶段已结束，A/B/D 已删减，本文件即 C 的落地规格。
+
+  背景与假设：
+  - 功能保持不变：顶部完整 URL、host 段（# 拆段，带层级缩进）、段内参数表、
+    点参数名/值复制、查看/编辑双模式（编辑只能改值）、确定后模拟导航、
+    关闭路径三条（按钮 / 点外部 / Ctrl+U）。
+  - 设计上下文来自现有脚本：等宽字体值、圆角语言；C 换黑色主色与毛玻璃底。
+
+  键名与参数值 hover 分开：两个单元格各有自己的底色、前景色与提示
+  （复制键名 / 复制值），悬停即示意点击后复制的是什么。
+
+  场景（覆盖 parseUrl 的关键分支）：简单后台 / 多段嵌套（iframe 场景）/
+  中文参数（decode）/ 无参数（无编辑按钮，关闭占满）。
+  确定为模拟导航：更新假地址栏并关弹窗，重开可见 buildUrl 归一化结果。
+-->
+<style>
+  :root {
+    --font-sans: -apple-system, "SF Pro Text", "PingFang SC", "Noto Sans SC", sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: #f2f4f8;
+    font-family: var(--font-sans);
+    color: #0f172a;
+    min-height: 100vh;
+  }
+
+  .hidden { display: none !important; }
+
+  /* ==================== 原型页头 ==================== */
+  .proto-head {
+    text-align: center;
+    padding: 22px 16px 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    align-items: center;
+  }
+  .proto-head strong { font-size: 15px; font-weight: 700; }
+  .proto-head span { font-size: 12.5px; color: #667085; }
+  .proto-head kbd {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: #fff;
+    border: 1px solid #d7dce3;
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    padding: 1px 5px;
+  }
+
+  /* ==================== 假浏览器 ==================== */
+  .browser {
+    max-width: 940px;
+    margin: 18px auto 110px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #e4e7ec;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+    background: #fff;
+  }
+  .chrome {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #f7f8fa;
+    border-bottom: 1px solid #e9ebf0;
+  }
+  .dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+  .dot.red { background: #ff5f57; }
+  .dot.yellow { background: #febc2e; }
+  .dot.green { background: #28c840; }
+  .addr {
+    flex: 1;
+    margin-left: 10px;
+    background: #fff;
+    border: 1px solid #e9ebf0;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: #475467;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .page {
+    padding: 30px 34px 44px;
+    display: grid;
+    gap: 13px;
+    min-height: 46vh;
+    align-content: start;
+  }
+  .ph { background: #eef0f4; border-radius: 6px; }
+  .ph-title { height: 22px; width: 46%; }
+  .ph-line { height: 10px; }
+  .ph-img { height: 150px; border-radius: 10px; margin-top: 8px; }
+
+  /* ==================== 弹窗令牌（方向 C 极简） ==================== */
+  body {
+    --pv-width: 520px;
+    --pv-bg: rgba(250, 250, 252, 0.92);
+    --pv-fg: #18181b;
+    --pv-secondary: #3f3f46;
+    --pv-muted: #71717a;
+    --pv-border: rgba(0, 0, 0, 0.06);
+    --pv-hairline: rgba(0, 0, 0, 0.06);
+    --pv-accent: #18181b;
+    --pv-accent-hover: #000000;
+    --pv-accent-fg: #ffffff;
+    --pv-accent-soft: rgba(0, 0, 0, 0.05);
+    --pv-host-color: #18181b;
+    --pv-key-color: #52525b;
+    --pv-val-color: #27272a;
+    --pv-url-bg: transparent;
+    --pv-input-bg: #ffffff;
+    --pv-key-hover-bg: rgba(0, 0, 0, 0.07);
+    --pv-key-hover-fg: #000000;
+    --pv-val-hover-bg: rgba(0, 0, 0, 0.045);
+    --pv-val-hover-fg: #18181b;
+    --pv-ok: #18181b;
+    --pv-ok-fg: #ffffff;
+    --pv-err: #dc2626;
+    --pv-radius: 18px;
+    --pv-cell-pad: 8px 10px;
+    --pv-btn-h: 40px;
+    --pv-shadow: 0 2px 6px rgba(0, 0, 0, 0.06), 0 22px 60px rgba(0, 0, 0, 0.18);
+  }
+
+  /* ==================== 弹窗骨架 ==================== */
+  .pv {
+    position: fixed;
+    top: calc(50vh - 40%);
+    left: calc(50vw - var(--pv-width) / 2);
+    width: var(--pv-width);
+    max-height: 80vh;
+    overflow-y: auto;
+    background: var(--pv-bg);
+    color: var(--pv-fg);
+    border-radius: var(--pv-radius);
+    border: 1px solid var(--pv-border);
+    box-shadow: var(--pv-shadow);
+    padding: 24px;
+    z-index: 9500;
+    font-size: 13.5px;
+    animation: pv-in 0.2s var(--ease);
+    backdrop-filter: blur(24px) saturate(1.6);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  }
+  .pv.closing { animation: pv-out 0.18s var(--ease) forwards; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    @keyframes pv-in {
+      from { opacity: 0; transform: translateY(-16px) scale(0.985); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes pv-out {
+      from { opacity: 1; transform: translateY(0) scale(1); }
+      to { opacity: 0; transform: translateY(14px) scale(0.985); }
+    }
+  }
+
+  /* ---- URL 头 ---- */
+  .pv-head {
+    border-bottom: 1px solid var(--pv-hairline);
+    padding-bottom: 14px;
+    margin-bottom: 16px;
+  }
+  .pv-label {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--pv-muted);
+    font-weight: 600;
+    margin-bottom: 7px;
+  }
+  .pv-url {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: var(--pv-secondary);
+    background: var(--pv-url-bg);
+    padding: 6px 0 0;
+    border: none;
+    overflow-wrap: break-word;
+    word-break: break-all;
+    max-height: 96px;
+    overflow-y: auto;
+    margin-bottom: 0;
+  }
+
+  /* ---- host 段 ---- */
+  .pv-seg { margin-bottom: 4px; }
+  .pv-sep { height: 1px; background: var(--pv-hairline); margin: 14px 0; }
+
+  .pv-seg-head {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 10px;
+    padding: 2px 2px 0;
+    background: transparent;
+    border-left: none;
+  }
+  .pv-seg-no {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 19px;
+    height: 19px;
+    border-radius: 50%;
+    background: var(--pv-bg);
+    border: 1px solid var(--pv-border);
+    color: var(--pv-muted);
+    font-size: 11px;
+    font-weight: 600;
+    flex: none;
+    font-family: var(--font-sans);
+  }
+  .pv.multi .pv-seg-no { display: flex; }
+  .pv-host {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--pv-host-color);
+    overflow-wrap: anywhere;
+  }
+
+  /* ---- 参数行 ---- */
+  .pv-rows {
+    border: none;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px;
+    margin: -4px;
+  }
+  .pv-row {
+    display: grid;
+    grid-template-columns: minmax(0, 38%) minmax(0, 1fr);
+    align-items: baseline;
+    padding: 3px 6px;
+    border-radius: 10px;
+  }
+
+  /* 键 / 值分开 hover：各自底色与前景色，悬停即示意点击后复制的是什么 */
+  .pv-key, .pv-val {
+    position: relative;
+    border-radius: 7px;
+    padding: var(--pv-cell-pad);
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+  .pv-key {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--pv-key-color);
+    overflow-wrap: anywhere;
+  }
+  .pv-val {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--pv-val-color);
+    overflow-wrap: anywhere;
+    line-height: 1.55;
+  }
+  .pv-row.can-copy .pv-key, .pv-row.can-copy .pv-val { cursor: pointer; }
+  .pv-row.can-copy .pv-key:hover { background: var(--pv-key-hover-bg); color: var(--pv-key-hover-fg); }
+  .pv-row.can-copy .pv-val:hover { background: var(--pv-val-hover-bg); color: var(--pv-val-hover-fg); }
+
+  .pv-copy {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--pv-muted);
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    padding: 2px 4px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+  .pv-key:hover .pv-copy, .pv-val:hover .pv-copy { opacity: 1; }
+
+  .pv-input {
+    width: 100%;
+    border: 1px solid var(--pv-border);
+    background: var(--pv-input-bg);
+    border-radius: 7px;
+    padding: 6px 10px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--pv-val-color);
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+  .pv-input:focus { border-color: var(--pv-accent); }
+
+  /* ---- 底栏：分段式 ---- */
+  .pv-foot {
+    display: flex;
+    gap: 4px;
+    margin-top: 20px;
+    background: rgba(0, 0, 0, 0.05);
+    padding: 4px;
+    border-radius: 999px;
+  }
+  .pv-btn {
+    flex: 1;
+    height: var(--pv-btn-h);
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    border: none;
+    font-family: inherit;
+  }
+  .pv-btn.primary { background: var(--pv-accent); color: var(--pv-accent-fg); }
+  .pv-btn.primary:hover { background: var(--pv-accent-hover); }
+  .pv-btn.ghost { background: transparent; color: var(--pv-secondary); }
+  .pv-btn.ghost:hover { background: rgba(0, 0, 0, 0.05); }
+
+  /* ---- toast ---- */
+  .toast {
+    position: fixed;
+    padding: 9px 15px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--pv-ok-fg);
+    background: var(--pv-ok);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 9900;
+    animation: pv-in 0.2s var(--ease);
+    font-family: var(--font-sans);
+  }
+  .toast.err { background: var(--pv-err); color: #ffffff; }
+  .toast.out { animation: pv-out 0.18s var(--ease) forwards; }
+  .toast.center { left: 0; right: 0; bottom: 84px; margin: 0 auto; width: fit-content; }
+
+  /* ==================== 底部控制面板 ==================== */
+  .panel {
+    position: fixed;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #ffffff;
+    border: 1px solid #e4e7ec;
+    border-radius: 999px;
+    padding: 7px 10px 7px 7px;
+    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.14);
+    z-index: 9000;
+  }
+  .panel-label { font-size: 12px; color: #98a2b3; font-weight: 600; }
+  .panel select {
+    border: 1px solid #e4e7ec;
+    border-radius: 8px;
+    padding: 6px 8px;
+    font-size: 12.5px;
+    color: #344054;
+    background: #ffffff;
+    font-family: inherit;
+  }
+  .open-btn {
+    background: #3b82f6;
+    color: #ffffff;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .open-btn:hover { background: #2563eb; }
+</style>
+</head>
+<body>
+
+  <header class="proto-head" id="proto-head">
+    <strong>查看网址 · 弹窗重设计</strong>
+    <span>可交互原型 — 点参数名/值复制 · <kbd>Ctrl</kbd>+<kbd>U</kbd> 开关弹窗 · 点外部关闭 · 「确定」为模拟导航</span>
+  </header>
+
+  <div class="browser">
+    <div class="chrome">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <div class="addr" id="addr" title="当前地址（decode 后显示）"></div>
+    </div>
+    <div class="page">
+      <div class="ph ph-title"></div>
+      <div class="ph ph-line" style="width: 96%"></div>
+      <div class="ph ph-line" style="width: 88%"></div>
+      <div class="ph ph-line" style="width: 92%"></div>
+      <div class="ph ph-line" style="width: 58%"></div>
+      <div class="ph ph-img"></div>
+      <div class="ph ph-line" style="width: 90%"></div>
+      <div class="ph ph-line" style="width: 74%"></div>
+    </div>
+  </div>
+
+  <div id="popup-root"></div>
+
+  <div class="panel" id="panel">
+    <label class="panel-label" for="scenario-sel">场景</label>
+    <select id="scenario-sel"></select>
+    <button class="open-btn hidden" id="open-btn">打开弹窗</button>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ==================== 场景数据 ====================
+  var SCENARIOS = [
+    { label: '简单后台', url: 'https://admin.example.com/dashboard?tab=overview&range=7d&refresh=30' },
+    { label: '多段嵌套', url: 'https://bi.example.com/app#https://charts.example.com/render?type=line&from=2026-10-01&to=2026-10-31#https://tables.example.com/grid?sort=amount&dir=desc' },
+    { label: '中文参数', url: 'https://docs.example.com/search?q=%E6%9F%A5%E7%9C%8B%E7%BD%91%E5%9D%80&lang=zh&page=2' },
+    { label: '无参数', url: 'https://news.example.com/articles/2026/url-viewer-redesign' },
+  ];
+
+  var state = {
+    scenario: 0,
+    customUrl: null,   // 「确定」后的模拟地址
+    popupOpen: false,
+    mode: 'view',      // 'view' | 'edit'
+    segments: [],
+    baseUrl: '',
+    decoded: '',
+    outsideHandler: null,
+  };
+
+  function currentUrl() {
+    return state.customUrl !== null ? state.customUrl : SCENARIOS[state.scenario].url;
+  }
+
+  // ==================== 工具 ====================
+  function el(tag, cls, text) {
+    var node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text !== undefined && text !== null) node.textContent = text;
+    return node;
+  }
+
+  function $(sel) { return document.querySelector(sel); }
+
+  var toastZ = 9900;
+  function toast(msg, type, x, y) {
+    var t = el('div', 'toast' + (type === 'err' ? ' err' : ''));
+    t.textContent = msg;
+    if (x === undefined) {
+      t.classList.add('center');
+    } else {
+      t.style.left = (x + 16) + 'px';
+      t.style.top = (y + 16) + 'px';
+    }
+    t.style.zIndex = String(toastZ++);
+    document.body.appendChild(t);
+    setTimeout(function () {
+      t.classList.add('out');
+      setTimeout(function () { t.remove(); }, 200);
+    }, 1000);
+  }
+
+  function copyText(text, x, y) {
+    function ok() { toast('已复制', 'ok', x, y); }
+    function fail() { toast('复制失败', 'err', x, y); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(ok, fail);
+      return;
+    }
+    var area = document.createElement('textarea');
+    area.value = text;
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    try {
+      if (document.execCommand('copy')) ok(); else fail();
+    } catch (err) {
+      fail();
+    } finally {
+      area.remove();
+    }
+  }
+
+  // ==================== URL 解析（与 src/url_viewer.user.js 同逻辑） ====================
+  function parseUrl(url) {
+    if (typeof url !== 'string' || !url) return [];
+    var segments = [];
+    var parts = url.split('#');
+    for (var i = 0; i < parts.length; i++) {
+      var part = parts[i];
+      if (!part) continue;
+      var qIdx = part.indexOf('?');
+      var host = qIdx === -1 ? part : part.slice(0, qIdx);
+      var queryString = qIdx === -1 ? '' : part.slice(qIdx + 1);
+      var params = [];
+      if (queryString) {
+        var search = new URLSearchParams(queryString);
+        search.forEach(function (value, key) {
+          params.push({ key: key, value: value });
+        });
+      }
+      segments.push({ host: host, params: params });
+    }
+    return segments;
+  }
+
+  function buildUrl(baseUrl, segments) {
+    var url = new URL(baseUrl);
+    var main = segments[0];
+    var hashSegments = segments.slice(1);
+    if (main && main.params.length > 0) {
+      var params = new URLSearchParams();
+      main.params.forEach(function (p) { params.append(p.key, p.value); });
+      url.search = params.toString();
+    }
+    if (hashSegments.length > 0) {
+      url.hash = hashSegments.map(function (segment) {
+        var params = new URLSearchParams();
+        segment.params.forEach(function (p) { params.append(p.key, p.value); });
+        var qs = params.toString();
+        return segment.host + (qs ? '?' + qs : '');
+      }).join('#');
+    }
+    return url.toString();
+  }
+
+  // ==================== 渲染 ====================
+  var POPUP_ROOT_ID = 'popup-root';
+
+  function renderPopup() {
+    var root = $('#' + POPUP_ROOT_ID);
+    root.innerHTML = '';
+
+    var pv = el('div', 'pv');
+    pv.id = 'pv';
+
+    // URL 头
+    var head = el('div', 'pv-head');
+    head.appendChild(el('div', 'pv-label', '完整 URL'));
+    var urlBox = el('div', 'pv-url');
+    urlBox.textContent = state.decoded;
+    head.appendChild(urlBox);
+    pv.appendChild(head);
+
+    // 段列表
+    var hasParams = state.segments.some(function (s) { return s.params.length > 0; });
+    if (state.segments.length > 1) pv.classList.add('multi');
+
+    state.segments.forEach(function (segment, segIdx) {
+      if (segIdx > 0) pv.appendChild(el('div', 'pv-sep'));
+
+      var seg = el('div', 'pv-seg');
+      seg.style.marginLeft = (segIdx * 20) + 'px';
+
+      var segHead = el('div', 'pv-seg-head');
+      segHead.appendChild(el('span', 'pv-seg-no', String(segIdx + 1)));
+      segHead.appendChild(el('span', 'pv-host', segment.host));
+      seg.appendChild(segHead);
+
+      if (segment.params.length > 0) {
+        var rows = el('div', 'pv-rows');
+        segment.params.forEach(function (param, paramIdx) {
+          var row = el('div', 'pv-row');
+          if (state.mode === 'view') row.classList.add('can-copy');
+
+          // 键单元格：点击复制参数名
+          var keyCell = el('span', 'pv-key');
+          keyCell.appendChild(el('span', 'pv-key-text', param.key));
+          if (state.mode === 'view') {
+            keyCell.appendChild(el('span', 'pv-copy', '复制键名'));
+            keyCell.addEventListener('click', function (e) {
+              copyText(param.key, e.clientX, e.clientY);
+            });
+          }
+          row.appendChild(keyCell);
+
+          // 值单元格：点击复制参数值；编辑模式换输入框
+          if (state.mode === 'edit') {
+            var cellVal = el('span', 'pv-val');
+            var input = el('input', 'pv-input');
+            input.type = 'text';
+            input.value = param.value;
+            input.dataset.seg = String(segIdx);
+            input.dataset.idx = String(paramIdx);
+            input.addEventListener('focus', function () { input.select(); });
+            cellVal.appendChild(input);
+            row.appendChild(cellVal);
+          } else {
+            var valCell = el('span', 'pv-val', param.value);
+            valCell.appendChild(el('span', 'pv-copy', '复制值'));
+            valCell.addEventListener('click', function (e) {
+              copyText(param.value, e.clientX, e.clientY);
+            });
+            row.appendChild(valCell);
+          }
+
+          rows.appendChild(row);
+        });
+        seg.appendChild(rows);
+      }
+
+      pv.appendChild(seg);
+    });
+
+    // 底栏
+    var foot = el('div', 'pv-foot');
+    if (state.mode === 'edit') {
+      var confirmBtn = el('button', 'pv-btn primary', '确定');
+      confirmBtn.type = 'button';
+      confirmBtn.addEventListener('click', confirmEdit);
+      var cancelBtn = el('button', 'pv-btn ghost', '取消');
+      cancelBtn.type = 'button';
+      cancelBtn.addEventListener('click', function () {
+        state.mode = 'view';
+        renderPopup();
+      });
+      foot.appendChild(confirmBtn);
+      foot.appendChild(cancelBtn);
+    } else {
+      if (hasParams) {
+        var editBtn = el('button', 'pv-btn primary', '编辑');
+        editBtn.type = 'button';
+        editBtn.addEventListener('click', function () {
+          state.mode = 'edit';
+          renderPopup();
+          var first = $('#' + POPUP_ROOT_ID + ' .pv-input');
+          if (first) first.focus();
+        });
+        foot.appendChild(editBtn);
+      }
+      var closeBtn = el('button', 'pv-btn ghost', '关闭（Ctrl + U）');
+      closeBtn.type = 'button';
+      if (!hasParams) closeBtn.style.flex = '1';
+      closeBtn.addEventListener('click', closeViewer);
+      foot.appendChild(closeBtn);
+    }
+    pv.appendChild(foot);
+
+    root.appendChild(pv);
+  }
+
+  // ==================== 开关收口 ====================
+  function closeViewer() {
+    var pv = $('#' + POPUP_ROOT_ID + ' .pv');
+    state.popupOpen = false;
+    refreshOpenBtn();
+    if (state.outsideHandler) {
+      document.removeEventListener('click', state.outsideHandler);
+      state.outsideHandler = null;
+    }
+    if (pv) {
+      pv.classList.add('closing');
+      setTimeout(function () { pv.remove(); }, 180);
+    }
+  }
+
+  function openViewer() {
+    closeViewer();
+
+    var raw = currentUrl();
+    var decoded = raw;
+    try {
+      decoded = decodeURIComponent(raw);
+    } catch (err) {
+      // 裸 % 回退原串
+    }
+    state.baseUrl = raw;
+    state.decoded = decoded;
+    state.segments = parseUrl(decoded);
+    state.mode = 'view';
+    state.popupOpen = true;
+    renderPopup();
+
+    state.outsideHandler = function (e) {
+      var pv = $('#' + POPUP_ROOT_ID + ' .pv');
+      if (!pv) return;
+      // 模式切换会整树重渲染：本事件的目标已是脱离 DOM 的旧节点，不算点外部
+      if (pv.contains(e.target) || !e.target.isConnected) return;
+      closeViewer();
+    };
+    document.addEventListener('click', state.outsideHandler);
+    refreshOpenBtn();
+  }
+
+  // ==================== 编辑会话 ====================
+  function confirmEdit() {
+    var inputs = document.querySelectorAll('.pv-input');
+    inputs.forEach(function (input) {
+      var seg = state.segments[Number(input.dataset.seg)];
+      var param = seg && seg.params[Number(input.dataset.idx)];
+      if (param) param.value = input.value;
+    });
+    var next = buildUrl(state.baseUrl, state.segments);
+    state.customUrl = next;
+    updateAddr();
+    closeViewer();
+    toast('已应用 · 模拟导航到新地址', 'ok');
+  }
+
+  // ==================== 原型页控制 ====================
+  function updateAddr() {
+    var raw = currentUrl();
+    var decoded = raw;
+    try {
+      decoded = decodeURIComponent(raw);
+    } catch (err) { /* 保持原串 */ }
+    var addr = $('#addr');
+    addr.textContent = decoded;
+    addr.title = raw;
+  }
+
+  function refreshOpenBtn() {
+    $('#open-btn').classList.toggle('hidden', state.popupOpen);
+  }
+
+  // 面板与页头是原型外壳，点击不应关闭弹窗
+  $('#panel').addEventListener('click', function (e) { e.stopPropagation(); });
+  $('#proto-head').addEventListener('click', function (e) { e.stopPropagation(); });
+
+  var sel = $('#scenario-sel');
+  SCENARIOS.forEach(function (scenario, i) {
+    var opt = document.createElement('option');
+    opt.value = String(i);
+    opt.textContent = scenario.label;
+    sel.appendChild(opt);
+  });
+  sel.addEventListener('change', function () {
+    state.scenario = Number(sel.value);
+    state.customUrl = null;
+    updateAddr();
+    openViewer();
+  });
+
+  $('#open-btn').addEventListener('click', function () {
+    openViewer();
+    refreshOpenBtn();
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.ctrlKey && e.key === 'u') {
+      e.preventDefault();
+      if (state.popupOpen) closeViewer(); else openViewer();
+    }
+  });
+
+  // 初始：地址栏 + 自动打开弹窗
+  updateAddr();
+  openViewer();
+})();
+</script>
+</body>
+</html>
