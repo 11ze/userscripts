@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         亮暗色切换
 // @namespace    https://github.com/11ze
-// @version      0.1.2
-// @description  2026-10-15 @icon 回退 currentColor 修面板不可见；按钮黑底白月配反转后亮页，图标内联重置站点边框防方框
+// @version      0.1.3
+// @description  2026-10-31 定稿墨盘：黑底加发丝描边补暗页隐身，hover 上浮描边亮并浮出「还原配色」，常态全不透明
 // @author       11ze
 // @match        *://*/*
 // @run-at       document-start
@@ -77,33 +77,45 @@
   const ICON_SUN_DATA_URI =
     'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSIjZmZmIiBkPSJNMTIgMjJjNS41MjMgMCAxMC00LjQ3NyAxMC0xMGMwLS40NjMtLjY5NC0uNTQtLjkzMy0uMTQzYTYuNSA2LjUgMCAxIDEtOC45MjQtOC45MjRDMTIuNTQgMi42OTMgMTIuNDYzIDIgMTIgMkM2LjQ3NyAyIDIgNi40NzcgMiAxMnM0LjQ3NyAxMCAxMCAxMCIvPjwvc3ZnPg==';
 
+  // 定稿「墨盘」（designs/color-mode-switch/ 方向 A，2026-10-31）：
+  // 黑底发丝描边补暗页隐身（黑底唯一隐身场景是反转后暗页——亮站转暗，罕用），
+  // hover 三联动（上浮/描边亮/浮字），常态全不透明（0.7 会把描边压没）
   const STYLES = {
     container: {
       position: 'fixed',
       top: '20px',
       right: '20px',
       zIndex: '9999',
-      opacity: '0.7',
-      transition: 'opacity 0.3s ease',
-    },
-    containerHover: {
-      opacity: '1',
-    },
-    containerNormal: {
-      opacity: '0.7',
     },
     button: {
       width: '40px',
       height: '40px',
       borderRadius: '50%',
-      border: 'none',
-      // 按钮只在反转开启时显示，主场景暗转亮——反转后的亮页上黑底白月对比度最高，无需阴影补偿
+      border: '1px solid rgba(255, 255, 255, 0.22)',
+      // 按钮只在反转开启时显示，主场景暗转亮——反转后的亮页上黑底白月对比度最高
       backgroundColor: '#000',
+      // 描边只保暗页下限，阴影保反转后亮页上不悬空；描边 hover 变亮是主反馈
+      boxShadow: '0 2px 10px rgba(0, 0, 0, 0.28)',
       cursor: 'pointer',
+      // tooltip 的定位锚点（挂 button 内：display:none 级联隐藏、随按钮位移）
+      position: 'relative',
+      // 站点全局 button/overflow 样式会裁掉探出按钮左侧的 tooltip
+      overflow: 'visible',
       fontSize: '20px',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
+      transition: 'transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',
+    },
+    buttonHover: {
+      transform: 'translateY(-2px)',
+      borderColor: 'rgba(255, 255, 255, 0.55)',
+      boxShadow: '0 6px 18px rgba(0, 0, 0, 0.32)',
+    },
+    buttonNormal: {
+      transform: 'none',
+      borderColor: 'rgba(255, 255, 255, 0.22)',
+      boxShadow: '0 2px 10px rgba(0, 0, 0, 0.28)',
     },
     icon: {
       width: '24px',
@@ -114,19 +126,47 @@
       padding: '0',
       background: 'none',
     },
+    tooltip: {
+      // 挂 button 内：关闭态 display:none 级联隐藏，无需单独同步显隐
+      position: 'absolute',
+      top: '50%',
+      right: 'calc(100% + 10px)',
+      transform: 'translateY(-50%) translateX(4px)',
+      // 暗页上黑底气泡无描边则边界不可见，与按钮描边同理
+      background: 'rgba(20, 20, 20, 0.92)',
+      border: '1px solid rgba(255, 255, 255, 0.25)',
+      color: '#fff',
+      fontSize: '12px',
+      lineHeight: '1',
+      padding: '7px 9px',
+      borderRadius: '6px',
+      whiteSpace: 'nowrap',
+      opacity: '0',
+      // 不参与 hover：鼠标扫过 tooltip 不算离开容器，防连击抖动
+      pointerEvents: 'none',
+      transition: 'opacity 0.16s ease, transform 0.16s ease',
+    },
+    tooltipHover: {
+      opacity: '1',
+      transform: 'translateY(-50%) translateX(0)',
+    },
+    tooltipNormal: {
+      opacity: '0',
+      transform: 'translateY(-50%) translateX(4px)',
+    },
   };
 
   function setStyles(el, styles) {
     Object.assign(el.style, styles);
   }
 
-  function setHover(el, hoverStyles, normalStyles = {}) {
-    // mouseenter/mouseleave 不冒泡；mouseover/mouseout 会在容器与子按钮间连击导致透明度抖动
+  function setHover(el, applyHover) {
+    // mouseenter/mouseleave 不冒泡；mouseover/mouseout 会在容器与子按钮间连击导致样式抖动
     el.addEventListener('mouseenter', function () {
-      setStyles(this, hoverStyles);
+      applyHover(true);
     });
     el.addEventListener('mouseleave', function () {
-      setStyles(this, normalStyles);
+      applyHover(false);
     });
   }
 
@@ -167,12 +207,21 @@
       alt: 'sun',
     });
 
+    const tooltip = createEl('span', STYLES.tooltip, {
+      textContent: '还原配色',
+    });
+
     const toggleButton = createEl('button', STYLES.button, {
       id: '11ze-reverse-color-mode-toggle-button',
     });
     toggleButton.appendChild(icon);
+    toggleButton.appendChild(tooltip);
 
-    setHover(buttonContainer, STYLES.containerHover, STYLES.containerNormal);
+    // hover 三联动作用于 button 与 tooltip，容器本身无样式变化
+    setHover(buttonContainer, function (hovered) {
+      setStyles(toggleButton, hovered ? STYLES.buttonHover : STYLES.buttonNormal);
+      setStyles(tooltip, hovered ? STYLES.tooltipHover : STYLES.tooltipNormal);
+    });
     toggleButton.addEventListener('click', toggleReverseColorMode);
 
     buttonContainer.appendChild(toggleButton);

@@ -311,20 +311,6 @@ test('按钮显隐：初始开启时显示', () => {
   assert.equal(getToggleButton(sandbox).button.style.display, 'flex');
 });
 
-test('按钮交互：hover 切换透明度（enter/leave 不冒泡）', () => {
-  const sandbox = loadScriptSandbox();
-  const { container } = getToggleButton(sandbox);
-
-  container.fire('mouseenter');
-  assert.equal(container.style.opacity, '1');
-  container.fire('mouseleave');
-  assert.equal(container.style.opacity, '0.7');
-
-  // mouseover 冒泡会在容器与子按钮间连击抖动，修复后容器不再监听它
-  container.fire('mouseover');
-  assert.equal(container.style.opacity, '0.7');
-});
-
 test('按钮交互：点击按钮等同菜单切换', () => {
   const sandbox = loadScriptSandbox();
   const { button } = getToggleButton(sandbox);
@@ -357,8 +343,71 @@ test('图标颜色（同底隐形回归）：按钮图标 #fff 黑底可见，@i
     '#000',
     '按钮只在反转开启时显示；主场景暗转亮，反转后的亮页上黑底白月对比度最高',
   );
-  assert.ok(!button.style.boxShadow, '阴影是白底方案在亮页勾边的补偿，黑底不需要');
 });
+
+test('按钮样式（暗页隐身回归）：黑底加发丝描边与阴影，hover 有过渡', () => {
+  const { button } = getToggleButton(loadScriptSandbox());
+
+  // v0.1.2 黑底唯一隐身场景是反转后暗页（亮站转暗，罕用），v0.1.3 定稿墨盘：
+  // 描边让黑钮在暗页上勾出边界，阴影让黑钮在反转后亮页上不悬空
+  assert.equal(
+    button.style.border,
+    '1px solid rgba(255, 255, 255, 0.22)',
+    '发丝描边是暗页存活的唯一手段，删掉即回归隐身',
+  );
+  assert.ok(button.style.boxShadow);
+  assert.match(button.style.transition, /transform/, 'hover 上浮需要过渡');
+});
+
+test('按钮交互：hover 三联动（上浮/描边亮），替代旧透明度契约', () => {
+  const sandbox = loadScriptSandbox();
+  const { container, button } = getToggleButton(sandbox);
+
+  container.fire('mouseenter');
+  assert.equal(button.style.transform, 'translateY(-2px)');
+  assert.equal(button.style.borderColor, 'rgba(255, 255, 255, 0.55)');
+  container.fire('mouseleave');
+  assert.equal(button.style.transform, 'none');
+  assert.equal(button.style.borderColor, 'rgba(255, 255, 255, 0.22)');
+
+  // 旧契约（常态 0.7 透明度）已随定稿移除：0.7 会把发丝描边压没，暗页存活失效
+  assert.equal(container.style.opacity, undefined);
+
+  // mouseover 冒泡会在容器与子按钮间连击抖动，容器不监听它
+  container.fire('mouseover');
+  assert.equal(button.style.transform, 'none');
+});
+
+test('按钮交互：tooltip 挂 button 内，hover 浮出「还原配色」', () => {
+  const sandbox = loadScriptSandbox();
+  const { button } = getToggleButton(sandbox);
+
+  const tooltip = button.children[1];
+  assert.ok(tooltip, 'tooltip 应在 button 内（display:none 级联隐藏、随按钮位移）');
+  assert.equal(tooltip.tagName, 'span');
+  assert.equal(tooltip.textContent, '还原配色');
+  assert.equal(tooltip.style.opacity, '0', '常态隐藏');
+  assert.equal(tooltip.style.pointerEvents, 'none', '不参与 hover，防容器间连击');
+
+  containerFire(sandbox, 'mouseenter');
+  assert.equal(tooltip.style.opacity, '1');
+  containerFire(sandbox, 'mouseleave');
+  assert.equal(tooltip.style.opacity, '0');
+});
+
+test('tooltip 样式（暗页可读回归）：黑底气泡自带描边', () => {
+  const { button } = getToggleButton(loadScriptSandbox());
+  const tooltip = button.children[1];
+  assert.ok(
+    tooltip.style.border,
+    '反转后暗页上黑底气泡无描边则边界不可见（与按钮描边同理）',
+  );
+});
+
+function containerFire(sandbox, type) {
+  const { container } = getToggleButton(sandbox);
+  container.fire(type);
+}
 
 test('图标形状锁：@icon 与 ICON_SUN_DATA_URI 剥 fill 后逐字节一致', () => {
   const { ICON_SUN_DATA_URI } = loadScriptHooks();
