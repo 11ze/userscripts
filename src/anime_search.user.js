@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         搜索动漫
 // @namespace    https://github.com/11ze
-// @version      0.6.20
-// @description 2026-10-29 聚合搜索按钮的 emoji 换成 #0069ad 内联 SVG 放大镜图标，各平台渲染一致；2026-10-25 标题 encodeURIComponent 后拼搜索 URL——含 & / # 的标题不再截断查询串；站点标题选择器收进装配表条目，加站只改一处；2026-10-14 站点→按钮工厂序列收拢为装配表——加站/加按钮不再改主循环控制流；buildDetailHref 收进 AGE 条目，不再依赖其他站路径判定恰好排除 /play/
+// @version      0.6.21
+// @description 2026-10-31 统一采用紧凑图标按钮，加入用途提示和键盘焦点样式；2026-10-29 聚合搜索按钮的 emoji 换成 #0069ad 内联 SVG 放大镜图标，各平台渲染一致；2026-10-25 标题 encodeURIComponent 后拼搜索 URL——含 & / # 的标题不再截断查询串；站点标题选择器收进装配表条目，加站只改一处；2026-10-14 站点→按钮工厂序列收拢为装配表——加站/加按钮不再改主循环控制流；buildDetailHref 收进 AGE 条目，不再依赖其他站路径判定恰好排除 /play/
 // @author       11ze
 // @match        *://*/*
 // @icon         data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItc2VhcmNoIj48Y2lyY2xlIGN4PSIxMSIgY3k9IjExIiByPSI4Ij48L2NpcmNsZT48cGF0aCBkPSJtMjEgMjEtNC4zNS00LjM1Ij48L3BhdGg+PC9zdmc+
@@ -113,10 +113,13 @@
     buttonBg: '#ffffff',
     buttonBorder: '#e1e5e9',
     buttonText: '#495057',
-    buttonHoverBg: '#f8f9fa',
-    buttonHoverBorder: '#ced4da',
-    shadowRest: '0 1px 2px rgba(0,0,0,0.05)',
-    shadowHover: '0 2px 4px rgba(0,0,0,0.08)',
+    buttonHoverBg: '#f0f4f7',
+    buttonHoverBorder: '#b7c5cf',
+    shadowRest: 'none',
+    shadowHover: 'none',
+    focus: '#0069ad',
+    tooltipBg: '#292d32',
+    tooltipText: '#ffffff',
   };
 
   function setStyles(el, styles) {
@@ -157,10 +160,15 @@
   const fontSize = '14px';
 
   const BUTTON_STYLES = {
-    marginLeft: '6px',
-    padding: '6px 10px',
+    margin: '12px 6px 0 0',
+    padding: '0 8px',
+    height: '30px',
+    minWidth: '30px',
+    boxSizing: 'border-box',
+    position: 'relative',
+    overflow: 'visible',
     border: `1px solid ${COLORS.buttonBorder}`,
-    borderRadius: '6px',
+    borderRadius: '5px',
     background: COLORS.buttonBg,
     color: COLORS.buttonText,
     fontSize,
@@ -171,7 +179,7 @@
     justifyContent: 'center',
     verticalAlign: 'middle',
     cursor: 'pointer',
-    transition: 'all 0.2s ease',
+    transition: 'background-color 0.15s ease, border-color 0.15s ease',
     boxShadow: COLORS.shadowRest,
   };
 
@@ -202,8 +210,12 @@
   /**
    * 按钮渲染：内容为文字或 favicon img，统一挂 hover 与点击回调
    */
-  function createButton(content, onClick) {
-    const button = createEl('button', BUTTON_STYLES);
+  function createButton(content, onClick, label) {
+    const button = createEl('button', BUTTON_STYLES, {
+      type: 'button',
+      className: 'anime-search-button',
+      ariaLabel: label,
+    });
     if (typeof content === 'string') {
       button.textContent = content;
     } else {
@@ -217,11 +229,11 @@
   /**
    * 按钮渲染：一对跨站搜索按钮（聚合搜索 SVG 图标 / 豆瓣 favicon），点击新标签页打开 target + title
    */
-  function createSearchButton(content, target, title) {
+  function createSearchButton(content, target, title, label) {
     return createButton(content, function () {
       // 标题编码后拼 URL：& / # 未编码会被解析为参数分隔符或 fragment，截断查询串
       window.open(target + encodeURIComponent(title), '_blank');
-    });
+    }, label);
   }
 
   /**
@@ -229,8 +241,8 @@
    */
   function createButtonPair(title) {
     return [
-      createSearchButton(createFaviconImg(searchIcon), targetWeb, title),
-      createSearchButton(createFaviconImg(doubanFavicon), douban, title),
+      createSearchButton(createFaviconImg(searchIcon), targetWeb, title, '聚合搜索'),
+      createSearchButton(createFaviconImg(doubanFavicon), douban, title, '豆瓣搜索'),
     ];
   }
 
@@ -248,7 +260,7 @@
   function createDetailButton(href) {
     return createButton('详情', function () {
       window.open(href, '_blank');
-    });
+    }, '打开番剧详情');
   }
 
   /**
@@ -259,6 +271,7 @@
       createFaviconImg(`${origin}/favicon.ico`),
       `${origin}/search?query=`,
       title,
+      'AGE 站内搜索',
     );
   }
 
@@ -307,6 +320,36 @@
     },
   };
 
+  GM_addStyle(`
+    .anime-search-button:focus-visible {
+      outline: 2px solid ${COLORS.focus};
+      outline-offset: 3px;
+    }
+    .anime-search-button::after {
+      content: attr(aria-label);
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 6px 8px;
+      border-radius: 4px;
+      background: ${COLORS.tooltipBg};
+      color: ${COLORS.tooltipText};
+      font: 11px/1.4 sans-serif;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      z-index: 2147483647;
+    }
+    .anime-search-button:hover::after,
+    .anime-search-button:focus-visible::after {
+      opacity: 1;
+    }
+    :has(> .anime-search-button:focus-visible) > .anime-search-button:hover:not(:focus-visible)::after {
+      opacity: 0;
+    }
+  `);
+
   const setup = SITE_SETUP[site];
   if (setup.css) {
     GM_addStyle(setup.css);
@@ -319,6 +362,9 @@
     }
 
     const title = extractTitle(hDom);
+    // 统一在标题下方显示操作，解除站点标题的截断，保证按钮与提示可见。
+    setStyles(hDom, { display: 'block', overflow: 'visible', maxHeight: 'none' });
+    hDom.appendChild(document.createElement('br'));
     for (const button of setup.buildButtons(title)) {
       hDom.appendChild(button);
     }

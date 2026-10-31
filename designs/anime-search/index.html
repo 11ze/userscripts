@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="design_doc_mode" content="canvas">
+<title>搜索动漫 · 按钮方案</title>
+<!-- 设计范围：只探索现有四项操作的外观，不增加业务功能。网站上下文来自用户提供的三个页面及其 CSS；下方为标题区域的重绘片段，不是整站截图。无外部设计系统。已选定 A 紧凑图标，所有站点共用按钮样式；脚本以此为设计基准。 -->
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;color:#25272b}button,a{font:inherit}a{color:inherit} .intro{position:fixed;inset:0 0 auto;z-index:10;background:#fafaf9;border-bottom:1px solid #dededb;padding:18px 28px;display:flex;align-items:center;gap:24px}.intro h1{font-size:19px;margin:0 0 5px;letter-spacing:-.4px}.intro p{font-size:12px;color:#686b70;margin:0}.intro aside{margin-left:auto;font-size:12px;color:#686b70;max-width:350px;line-height:1.6}.sheet{height:100%;background:#fff;padding:28px}.heading{display:flex;align-items:baseline;gap:10px}.heading b{font-size:25px;letter-spacing:-.7px}.heading em{font-size:11px;font-style:normal;color:#0069ad;background:#edf6fb;padding:4px 7px;border-radius:4px}.summary{font-size:13px;color:#697078;line-height:1.7;margin:10px 0 22px}.scene-label{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#777f87;margin:22px 0 9px;letter-spacing:.3px}.scene-label a{text-decoration:none}.scene-label a:hover{text-decoration:underline}.scene{padding:22px;background:#f8f9fa;border:1px solid #e4e7ea;border-radius:5px}.age{font-family:Optima,"PingFang SC",sans-serif}.title{font-size:20px;font-weight:500;line-height:1.7;margin:0 0 15px;overflow-wrap:anywhere}.play .title{font-size:18px}.meta{font-size:11px;color:#8a9097;margin-top:16px;line-height:1.9}.bili{background:#fff}.bili .title{font-size:18px;line-height:25px;font-weight:500}.rule{height:1px;background:#e7e9ec;margin-top:18px}.toolbar{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle}.action{height:30px;min-width:30px;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 9px;border:1px solid #e1e5e9;border-radius:5px;color:#495057;background:#fff;text-decoration:none;font-size:14px;font-weight:500;line-height:1;transition:background .15s,border-color .15s;position:relative}.action svg{width:14px;height:14px;color:#0069ad;flex:none}.brand{font-size:13px;line-height:16px;font-weight:700;color:#278b42}.brand.age-mark{color:#bd4b40;font-size:9px;letter-spacing:-.5px}.action:hover{background:#f0f4f7;border-color:#b7c5cf}.action:focus-visible{outline:2px solid #0069ad;outline-offset:3px}.action:active{background:#e1ebf2}.icon .action{padding:0 8px}.icon .action::after{content:attr(aria-label);position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);padding:6px 8px;background:#292d32;color:white;border-radius:4px;font-size:11px;white-space:nowrap;pointer-events:none;opacity:0;z-index:3}.icon .action:hover::after,.icon .action:focus-visible::after{opacity:1}.note{font-size:11px;line-height:1.8;color:#7a8086;margin:22px 0 0;padding-top:16px;border-top:1px solid #e7e9ec}.small{margin-top:18px;padding:15px;background:#f8f9fa;width:320px;max-width:100%;border:1px dashed #dce1e5}.small .title{font-size:16px;line-height:1.6;margin-bottom:10px}.small .meta{margin-top:10px}.caption{font-size:11px;color:#7a8086;margin-top:8px}
+</style>
+</head>
+<body>
+<header class="intro"><div><h1>搜索动漫 / 按钮样式</h1><p>已选定 A · 所有站点共用样式 · 标题区域重绘预览</p></div><aside>悬停显示反馈，Tab 检查焦点。按钮会在新标签页打开真实搜索地址。画板右上角可放大。</aside></header>
+<div id="root"></div>
+<script>
+// 首次打开时完整展示所选画板；后续保留用户的缩放位置。
+const viewportKey = 'dc-viewport:' + location.pathname;
+if (!localStorage.getItem('anime-search-selected-a-v1')) {
+  const scale = Math.max(.2, Math.min(1, (innerHeight - 220) / 1000));
+  localStorage.setItem(viewportKey, JSON.stringify({x:0,y:0,scale}));
+  localStorage.setItem('anime-search-selected-a-v1', '1');
+}
+</script>
+<script src="assets/react.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="assets/react-dom.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="assets/babel.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="assets/design-canvas.jsx"></script>
+<script type="text/babel">
+const animeTitle = '飙马野郎 JOJO的奇妙冒险';
+function SearchIcon(){return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.5"></circle><path d="m10 10 4 4"></path></svg>}
+function Actions({scene,title}){
+  const q=encodeURIComponent(title);
+  return <div className="toolbar" role="group" aria-label="搜索与详情">
+    <a className="action" href={'https://so.wangze.tech?q='+q} target="_blank" rel="noopener noreferrer" aria-label="聚合搜索"><SearchIcon></SearchIcon></a>
+    <a className="action" href={'https://www.douban.com/search?q='+q} target="_blank" rel="noopener noreferrer" aria-label="豆瓣搜索"><span className="brand" aria-hidden="true">豆</span></a>
+    {scene !== 'bili' && <a className="action" href={'https://www.agedm.io/search?query='+q} target="_blank" rel="noopener noreferrer" aria-label="AGE 站内搜索"><span className="brand age-mark" aria-hidden="true">AGE</span></a>}
+    {scene === 'play' && <a className="action" href="https://www.agedm.io/detail/20260139" target="_blank" rel="noopener noreferrer" aria-label="打开番剧详情">详情</a>}
+  </div>
+}
+function Preview(){return <>
+  <div className="scene-label"><span>01 / AGE 详情页</span><a href="https://www.agedm.io/detail/20260139" target="_blank" rel="noopener noreferrer">原页面 ↗</a></div>
+  <div className="scene age icon"><h2 className="title">{animeTitle}</h2><Actions scene="detail" title={animeTitle}></Actions><div className="meta">基本信息　 /　 动漫介绍</div></div>
+  <div className="scene-label"><span>02 / AGE 播放页</span><a href="https://www.agedm.io/play/20260139/1/1" target="_blank" rel="noopener noreferrer">原页面 ↗</a></div>
+  <div className="scene age play icon"><h2 className="title">{animeTitle}</h2><Actions scene="play" title={animeTitle}></Actions><div className="meta">第01集</div></div>
+  <div className="scene-label"><span>03 / BILIBILI 番剧页</span><a href="https://www.bilibili.com/bangumi/play/ep173287" target="_blank" rel="noopener noreferrer">原页面 ↗</a></div>
+  <div className="scene bili icon"><h2 className="title">紫罗兰永恒花园</h2><Actions scene="bili" title="紫罗兰永恒花园"></Actions><div className="rule"></div><div className="meta">番剧信息</div></div>
+  <div className="small icon"><h2 className="title">{animeTitle}</h2><Actions scene="play" title={animeTitle}></Actions></div><div className="caption">320px 窄容器 / 长标题换行</div>
+</>}
+function App(){return <DesignCanvas style={{top:88,height:"calc(100vh - 88px)"}}><DCSection id="buttons" title="按钮方案" subtitle="A · 紧凑图标 · 已选定" gap={32}>
+  <DCArtboard id="a" label="A · 紧凑图标（已选定）" width={470} height={1000}><article className="sheet" data-screen-label="A 紧凑图标"><div className="heading"><b>紧凑图标</b><em>已选定</em></div><p className="summary">保留熟悉的图标和按钮尺寸。<br></br>降低边框存在感，悬停或聚焦时显示用途。</p><Preview></Preview><p className="note">适合已熟悉三个搜索入口的使用者。<br></br>图标为占位字标；实施时沿用脚本现有 favicon。</p></article></DCArtboard>
+</DCSection></DesignCanvas>}
+ReactDOM.createRoot(document.getElementById('root')).render(<App></App>);
+</script>
+</body>
+</html>

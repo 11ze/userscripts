@@ -48,13 +48,14 @@ function makeTitleElement(text = '咒术回战 第二季') {
   const childNodes = [{ nodeType: 3, textContent: text }];
   return {
     appended,
+    style: {},
     childNodes,
     querySelector() {
       return null;
     },
     textContent: text,
     appendChild(child) {
-      appended.push(child);
+      if (child.tagName === 'button') appended.push(child);
       childNodes.push(child);
     },
   };
@@ -357,13 +358,13 @@ test('createButtonPair：按钮绑定 hover 样式切换', () => {
   const { createButtonPair } = loadScriptHooks();
   const [search] = createButtonPair('咒术回战');
   search.fire('mouseover');
-  assert.equal(search.style.backgroundColor, '#f8f9fa');
-  assert.equal(search.style.borderColor, '#ced4da');
-  assert.equal(search.style.boxShadow, '0 2px 4px rgba(0,0,0,0.08)');
+  assert.equal(search.style.backgroundColor, '#f0f4f7');
+  assert.equal(search.style.borderColor, '#b7c5cf');
+  assert.equal(search.style.boxShadow, 'none');
   search.fire('mouseout');
   assert.equal(search.style.backgroundColor, '#ffffff');
   assert.equal(search.style.borderColor, '#e1e5e9');
-  assert.equal(search.style.boxShadow, '0 1px 2px rgba(0,0,0,0.05)');
+  assert.equal(search.style.boxShadow, 'none');
 });
 
 test('createButtonPair：点击分别打开聚合搜索与豆瓣搜索', () => {
@@ -503,10 +504,41 @@ test('装配表：AGE play 页序列四个按钮，CSS 屏蔽只在 AGE 条目',
   assert.equal(SITE_SETUP.bilibili.css, undefined);
 });
 
-test('CSS 注入：AGE 站注入屏蔽样式，豆瓣站不注入', () => {
+test('CSS 注入：所有站点共用按钮样式，AGE 另有屏蔽样式', () => {
   const ageSandbox = loadScriptSandbox({ href: 'https://www.agedm.io/detail/20260212' });
-  assert.equal(ageSandbox.__styleInjections.length, 1);
+  assert.equal(ageSandbox.__styleInjections.length, 2);
 
   const doubanSandbox = loadScriptSandbox({ href: 'https://www.douban.com/subject/26363254/' });
-  assert.equal(doubanSandbox.__styleInjections.length, 0);
+  assert.equal(doubanSandbox.__styleInjections.length, 1);
+});
+
+test('紧凑按钮：各搜索入口有可访问名称和用途提示，详情保留文字', () => {
+  const { createButtonPair, createAgeSearchButton, createDetailButton } = loadScriptHooks();
+  const buttons = [
+    ...createButtonPair('咒术回战'),
+    createAgeSearchButton('https://www.agedm.io', '咒术回战'),
+    createDetailButton('https://www.agedm.io/detail/20260139'),
+  ];
+  assert.deepEqual(buttons.map(button => button.ariaLabel), [
+    '聚合搜索', '豆瓣搜索', 'AGE 站内搜索', '打开番剧详情',
+  ]);
+  assert.equal(buttons[3].textContent, '详情');
+});
+
+
+test('统一外观：三个站点使用相同按钮 CSS，操作位于标题换行之后', () => {
+  const urls = [
+    'https://www.agedm.io/detail/20260139',
+    'https://www.agedm.io/play/20260139/1/1',
+    'https://www.bilibili.com/bangumi/play/ep173287',
+  ];
+  const styles = urls.map(href => {
+    const element = makeTitleElement();
+    const sandbox = loadScriptSandbox({ element, href });
+    assert.equal(element.childNodes[1].tagName, 'br');
+    assert.equal(element.childNodes[2].tagName, 'button');
+    return sandbox.__styleInjections[0];
+  });
+  assert.equal(styles[0], styles[1]);
+  assert.equal(styles[1], styles[2]);
 });

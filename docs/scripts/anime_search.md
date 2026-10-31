@@ -7,3 +7,5 @@
 - **搜索标题编码**：拼搜索 URL 前对标题 encodeURIComponent——含 `&` / `#` 的标题未编码会被解析为参数分隔符或 fragment，截断查询串（v0.6.19 前科）。
 
 验证：`node --test tests/anime_search.test.mjs`。
+
+- **统一按钮外观**：所有站点共用 A「紧凑图标」方案，设计基准为 `designs/anime-search/index.html`；不维护站点专属按钮主题。操作放在标题下方，解除标题截断以显示按钮和用途提示。图标沿用现有 SVG / favicon，详情保留文字。
