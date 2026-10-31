@@ -98,6 +98,35 @@ function loadScriptHooks() {
   return loadScriptSandbox().__COLOR_MODE_SWITCH_TEST__.hooks;
 }
 
+// 按 CSS Filter 的中性灰公式验收实际生成的滤镜；色相旋转不改变中性灰。
+function applyNeutralFilter(value, filter) {
+  for (const [, name, amount] of filter.matchAll(/([\w-]+)\(([^)]+)\)/g)) {
+    assert.ok(['invert', 'contrast', 'hue-rotate'].includes(name), `未支持的验收滤镜：${name}`);
+    if (name === 'invert') value = value + (255 - 2 * value) * Number(amount);
+    if (name === 'contrast') value = (value - 127.5) * Number(amount) + 127.5;
+    value = Math.max(0, Math.min(255, value));
+  }
+  return value;
+}
+
+test('柔化亮暗端点：纯黑转柔白，纯白转近黑，中灰保持中灰', () => {
+  const css = loadScriptHooks().buildReverseColorCss();
+  const pageFilter = css.match(/html\s*\{\s*filter:\s*([^;]+)/)[1];
+  assert.ok(Math.abs(applyNeutralFilter(0, pageFilter) - 242.25) < 0.01);
+  assert.ok(Math.abs(applyNeutralFilter(255, pageFilter) - 12.75) < 0.01);
+  assert.ok(Math.abs(applyNeutralFilter(127.5, pageFilter) - 127.5) < 0.01);
+});
+
+test('媒体补偿：页面柔化后，照片与按钮的中间灰阶不随页面变灰', () => {
+  const css = loadScriptHooks().buildReverseColorCss();
+  const pageFilter = css.match(/html\s*\{\s*filter:\s*([^;]+)/)[1];
+  const mediaFilter = css.match(/img, video[^{}]+\{\s*filter:\s*([^;]+)/)[1];
+  for (const value of [32, 64, 128, 192, 224]) {
+    const result = applyNeutralFilter(applyNeutralFilter(value, mediaFilter), pageFilter);
+    assert.ok(Math.abs(result - value) < 0.01, `灰阶 ${value} 不应改变，实际为 ${result}`);
+  }
+});
+
 test('测试钩子暴露状态模块函数', () => {
   const hooks = loadScriptHooks();
   assert.equal(typeof hooks.readState, 'function');
@@ -153,6 +182,55 @@ test('buildReverseColorCss：html 反转 + 媒体双反转 + 逃生舱', () => {
   assert.ok(css.includes('img'));
   assert.ok(css.includes('.reverse-color-mode-ignore'));
   assert.ok(css.includes('filter: none'));
+});
+
+test('picture 图片保色：只给 img 抵消反转，不给 picture 包装层加滤镜', () => {
+  const css = loadScriptHooks().buildReverseColorCss();
+  assert.match(css, /\bimg\s*,/, '实际承载图片的 img 仍须抵消整页反转');
+  assert.doesNotMatch(css, /\bpicture\s*[,\{]/, 'picture 与 img 同时反转会让图片再次变成负片');
+});
+
+test('背景图容器可读：不对带文字的背景图容器整体抵消反转', () => {
+  const css = loadScriptHooks().buildReverseColorCss();
+  assert.match(css, /html\s*\{\s*filter:/, '整页仍执行反转');
+  assert.doesNotMatch(css, /\[style\*=["']background-image["']\]/, '背景图选择器会连同正文一起抵消反转');
+});
+
+test('SVG 图标可读：currentColor 图标跟随页面，彩色 SVG 仍抵消反转', () => {
+  const css = loadScriptHooks().buildReverseColorCss();
+  assert.match(css, /\bsvg\s*,/, '彩色 SVG 默认保留媒体处理');
+  const iconRule = css.match(/svg:where\(\[fill="currentColor"\][^{]*\{([^}]+)\}/);
+  assert.ok(iconRule, 'currentColor SVG 必须单独处理');
+  assert.match(iconRule[0], /\[stroke="currentColor"\]/, '覆盖描边图标');
+  assert.match(iconRule[0], /:has\(\[fill="currentColor"\], \[stroke="currentColor"\]\)/, '覆盖内部路径指定 currentColor 的图标');
+  assert.match(iconRule[1], /filter:\s*none\s*!important/, '图标只受整页反转');
+});
+
+test('混合 SVG 保色：含 currentColor 文字的彩色图表仍按媒体处理', () => {
+  const css = loadScriptHooks().buildReverseColorCss();
+  const colorRule = css.match(/svg:where\(\[fill\]:not\(\[fill="none"\], \[fill="currentColor"\]\)[^{]+\{([^}]+)\}/);
+  assert.ok(colorRule, '显式填色的图表须覆盖 currentColor 图标规则');
+  assert.match(colorRule[0], /\[stroke\]:not\(\[stroke="none"\], \[stroke="currentColor"\]\)/);
+  const mediaFilter = colorRule[1].match(/filter:\s*([^;]+)/)[1];
+  const pageFilter = css.match(/html\s*\{\s*filter:\s*([^;]+)/)[1];
+  assert.ok(Math.abs(applyNeutralFilter(applyNeutralFilter(64, mediaFilter), pageFilter) - 64) < 0.01);
+  assert.ok(css.indexOf(colorRule[0]) > css.indexOf('svg:where([fill="currentColor"]'), '同等特异性的保色规则须位于图标规则之后');
+});
+
+test('嵌套 SVG 保色：只让最外层 SVG 抵消反转', () => {
+  const css = loadScriptHooks().buildReverseColorCss();
+  assert.match(css, /\bsvg\s*,/);
+  assert.match(css, /svg svg\s*\{\s*filter:\s*none\s*!important/, '嵌套 SVG 不能再增加一层反转');
+});
+
+test('设计稿只保留改进后的 index.html，并运行当前脚本快照', () => {
+  const previewPath = path.join(currentDir, '../designs/color-mode-switch/index.html');
+  const preview = fs.readFileSync(previewPath, 'utf8');
+  const snapshot = preview.match(/<script id="script-source" type="application\/json">([^]*?)<\/script>/);
+  assert.ok(snapshot, 'index.html 应运行实际脚本');
+  assert.equal(JSON.parse(snapshot[1]), sourceText, '脚本变更后必须同步设计稿');
+  const drafts = fs.readdirSync(path.dirname(previewPath)).filter((name) => /\.(html|jsx)$/.test(name));
+  assert.deepEqual(drafts, ['index.html'], '移除旧稿、对照稿及不再使用的画布文件');
 });
 
 test('buildReverseColorCss（死规则回归）：不含子集冗余的带冒号选择器', () => {

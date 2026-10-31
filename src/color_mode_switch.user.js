@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         亮暗色切换
 // @namespace    https://github.com/11ze
-// @version      0.1.3
-// @description  2026-10-31 定稿墨盘：黑底加发丝描边补暗页隐身，hover 上浮描边亮并浮出「还原配色」，常态全不透明
+// @version      0.1.4
+// @description  2026-10-31 柔化亮暗端点并补偿媒体中间色，修正 picture、SVG 与背景图容器的反转范围
 // @author       11ze
 // @match        *://*/*
 // @run-at       document-start
@@ -18,6 +18,9 @@
 
   const STORAGE_KEY = '11ze_color_mode_switch_reverse_color_mode';
   const TOGGLE_CONTAINER_ID = '11ze-reverse-color-mode-toggle-container';
+  const PAGE_FILTER = 'invert(1) hue-rotate(180deg) contrast(0.9)';
+  // 逆序补偿页面滤镜；极端高光与阴影受色域裁切限制，无法完全恢复。
+  const MEDIA_FILTER = 'contrast(1.1111111111) hue-rotate(180deg) invert(1)';
 
   /**
    * 状态存取：storage 由调用方注入，异常（隐私模式/配额）时读出关闭、写返回 false
@@ -46,12 +49,12 @@
   function buildReverseColorCss() {
     return `
       html {
-        filter: invert(1) hue-rotate(180deg) !important;
+        filter: ${PAGE_FILTER} !important;
       }
 
-      img, video, iframe, canvas, svg, picture,
+      img, video, iframe, canvas, svg,
       [id='${TOGGLE_CONTAINER_ID}'] {
-        filter: invert(1) hue-rotate(180deg) !important;
+        filter: ${MEDIA_FILTER} !important;
       }
 
       /* 容器已带二次反转，容器内 img 再被上面的媒体规则命中会叠成三层（奇数）反转，白色图标变黑底黑字 */
@@ -59,8 +62,23 @@
         filter: none !important;
       }
 
-      [style*="background-image"] {
-        filter: invert(1) hue-rotate(180deg) !important;
+      /* currentColor 图标须随文字一起变色，否则换底色后可能隐身 */
+      svg:where([fill="currentColor"], [stroke="currentColor"],
+                :has([fill="currentColor"], [stroke="currentColor"])) {
+        filter: none !important;
+      }
+
+      /* 彩色图表可同时含 currentColor 标签，显式色值优先保色 */
+      svg:where([fill]:not([fill="none"], [fill="currentColor"]),
+                [stroke]:not([stroke="none"], [stroke="currentColor"]),
+                :has([fill]:not([fill="none"], [fill="currentColor"]),
+                     [stroke]:not([stroke="none"], [stroke="currentColor"]))) {
+        filter: ${MEDIA_FILTER} !important;
+      }
+
+      /* 嵌套 SVG 共享最外层的处理，不能逐层叠加滤镜 */
+      svg svg {
+        filter: none !important;
       }
 
       /* 逃生舱仅此类名：data-theme 之类的属性选择器特异性高于 html，会反杀整页反转；

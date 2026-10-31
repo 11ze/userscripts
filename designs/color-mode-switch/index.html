@@ -1,79 +1,124 @@
 <!doctype html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>亮暗色切换 · 按钮定稿基准</title>
-<style>
-  * { box-sizing: border-box; }
-  html, body { margin: 0; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Noto Sans SC', sans-serif;
-  }
-
-  /* ───────────── artboard 页面骨架（按钮的场景语境） ───────────── */
-  .pgm { position: absolute; inset: 0; overflow: hidden; }
-  .pgm-nav { display: flex; align-items: center; gap: 10px; padding: 0 16px; height: 38px; }
-  .pgm-logo { width: 20px; height: 20px; border-radius: 6px; flex-shrink: 0; }
-  .pgm-navitem { width: 34px; height: 8px; border-radius: 4px; }
-  .pgm-body { display: flex; gap: 14px; padding: 16px 16px 0; }
-  .pgm-main { flex: 1; min-width: 0; }
-  .pgm-head { height: 16px; border-radius: 5px; width: 62%; margin-bottom: 12px; }
-  .pgm-line { height: 8px; border-radius: 4px; margin-bottom: 8px; }
-  .pgm-side { width: 128px; height: 118px; border-radius: 8px; flex-shrink: 0; }
-  .pgm-body2 { padding: 14px 16px 0; }
-
-  .pgm--light { background: #f7f6f3; }
-  .pgm--light .pgm-logo { background: rgba(0,0,0,.32); }
-  .pgm--light .pgm-navitem { background: rgba(0,0,0,.12); }
-  .pgm--light .pgm-head { background: rgba(0,0,0,.30); }
-  .pgm--light .pgm-line { background: rgba(0,0,0,.12); }
-  .pgm--light .pgm-side { background: linear-gradient(135deg, #c8d3e2, #93a7c2); }
-
-  .pgm--dark { background: #14161a; }
-  .pgm--dark .pgm-logo { background: rgba(255,255,255,.4); }
-  .pgm--dark .pgm-navitem { background: rgba(255,255,255,.14); }
-  .pgm--dark .pgm-head { background: rgba(255,255,255,.36); }
-  .pgm--dark .pgm-line { background: rgba(255,255,255,.14); }
-  .pgm--dark .pgm-side { background: linear-gradient(135deg, #2b3444, #45546e); }
-
-  /* ───────────── 按钮公共：fixed 右上 20px 的替身 ───────────── */
-  .cmw { position: absolute; top: 20px; right: 20px; z-index: 5; }
-
-  .cm-tip {
-    position: absolute; top: 50%; right: calc(100% + 10px);
-    transform: translateY(-50%) translateX(4px);
-    /* 描边对齐 v0.1.3 实现：暗页上黑底气泡无描边则边界不可见 */
-    background: rgba(20,20,20,.92); color: #fff;
-    border: 1px solid rgba(255,255,255,.25);
-    font-size: 12px; line-height: 1; padding: 7px 9px; border-radius: 6px;
-    white-space: nowrap; opacity: 0; pointer-events: none;
-    transition: opacity .16s ease, transform .16s ease;
-  }
-  .cmw:hover .cm-tip { opacity: 1; transform: translateY(-50%) translateX(0); }
-
-  /* ───────────── 定稿 · 墨盘：黑圆 + 发丝描边（= v0.1.3 实现） ───────────── */
-  .cma-btn {
-    width: 40px; height: 40px; border-radius: 50%;
-    background: #000; border: 1px solid rgba(255,255,255,.22);
-    cursor: pointer; padding: 0;
-    display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 2px 10px rgba(0,0,0,.28);
-    transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
-  }
-  .cmw-a:hover .cma-btn {
-    transform: translateY(-2px);
-    border-color: rgba(255,255,255,.55);
-    box-shadow: 0 6px 18px rgba(0,0,0,.32);
-  }
-</style>
-<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>亮暗色切换 · 改进设计</title>
+  <!-- 两个画板均运行当前脚本。亮页来自暗色内容，暗页来自亮色内容；未另画一套转换后的颜色。 -->
+  <style>
+    :root { color-scheme: light; --paper:#eeeee9; --ink:#292d29; --muted:#5d655d; --line:#d1d5cc; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--paper); color:var(--ink); font:14px/1.75 -apple-system,"SF Pro Text","PingFang SC","Noto Sans SC",sans-serif; }
+    main { max-width:1280px; margin:auto; padding:30px clamp(18px,4vw,48px) 24px; }
+    .heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; margin-bottom:26px; }
+    h1 { font-size:26px; font-weight:650; letter-spacing:-.04em; line-height:1.3; margin:0 0 6px; }
+    .heading p { color:var(--muted); margin:0; }
+    button { font:inherit; color:var(--ink); background:#f9faf6; border:1px solid var(--line); border-radius:6px; min-height:42px; padding:7px 14px; cursor:pointer; }
+    button:hover { border-color:#6b7f6c; }
+    button:focus-visible,a:focus-visible { outline:3px solid #52795d; outline-offset:3px; }
+    .screens { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; gap:26px; }
+    article { min-width:0; }
+    .label { display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin:0 0 10px; }
+    h2 { margin:0; font-size:16px; font-weight:620; }
+    .label span { color:var(--muted); font-size:12px; }
+    iframe { display:block; width:100%; height:1120px; border:1px solid #c9cec4; border-radius:8px; background:#fff; box-shadow:0 4px 18px #242c2410; }
+    footer { display:flex; flex-wrap:wrap; gap:8px 22px; color:var(--muted); font-size:12px; margin-top:18px; }
+    footer a { color:inherit; text-underline-offset:3px; }
+    @media (max-width:760px) { .screens { grid-template-columns:1fr; gap:28px; } main { padding-top:22px; } iframe { height:1180px; } }
+    @media (prefers-reduced-motion:reduce) { * { scroll-behavior:auto !important; } }
+  </style>
 </head>
 <body>
-<div id="root"></div>
-<script type="text/babel" src="design-canvas.jsx"></script>
-<script type="text/babel" src="directions.jsx"></script>
+<main>
+  <header class="heading">
+    <div><h1>亮暗色切换</h1><p>柔化明暗两端，保留文字层次与媒体中间色。</p></div>
+    <button id="reload" type="button">重新预览</button>
+  </header>
+  <section class="screens" aria-label="改进后的亮暗设计">
+    <article data-screen-label="改进后的亮色">
+      <div class="label"><h2>亮色</h2><span>暗页 → 亮页</span></div>
+      <iframe id="light-preview" title="改进后的亮色页面"></iframe>
+    </article>
+    <article data-screen-label="改进后的暗色">
+      <div class="label"><h2>暗色</h2><span>亮页 → 暗页</span></div>
+      <iframe id="dark-preview" title="改进后的暗色页面"></iframe>
+    </article>
+  </section>
+  <footer><span>点击画板中的月亮可还原配色。</span><a href="https://images.unsplash.com/photo-1441974231531-c6227db76b6e" target="_blank" rel="noreferrer">照片：Unsplash</a><a href="https://unsplash.com/license" target="_blank" rel="noreferrer">素材许可</a></footer>
+</main>
+<template id="reading-page">
+  <header class="navigation"><strong>阅读样例</strong><nav aria-label="页内导航"><a href="#reading">正文</a><a href="#photo">图片</a></nav></header>
+  <main class="reading" id="reading">
+    <div class="eyebrow">文字与颜色</div>
+    <h1>清楚阅读，保留颜色</h1>
+    <p class="lead">明暗切换后，页面依然有清楚的层次。</p>
+    <p>正文需要足够的对比度。<strong>重点文字</strong>应能快速辨识，<a href="#details">链接</a>应与正文区分。背景不必纯白，暗色页面也不必使用纯黑。</p>
+    <p class="secondary">次要信息降低视觉强度，仍保持可读。</p>
+    <div class="icon-row"><svg id="fill-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-label="书签图标"><path d="M5 3h14v19l-7-5-7 5Z"></path></svg><svg id="stroke-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-label="时钟图标"><circle cx="12" cy="12" r="8"></circle><path d="M12 7v5l3 2"></path></svg><span>图标与文字保持一致</span></div>
+    <figure id="photo"><picture><source srcset="assets/forest.jpg" type="image/jpeg"><img src="assets/forest.jpg" width="960" height="639" alt="阳光穿过森林，照亮绿色树叶与林间小路"></picture><figcaption>林间的绿、阳光与阴影，保留自然的颜色关系。</figcaption></figure>
+    <section class="details" id="details" aria-labelledby="detail-title">
+      <h2 id="detail-title">阅读层次</h2>
+      <div class="detail-row"><strong>正文</strong><span>清楚，易读</span></div>
+      <div class="detail-row"><strong>次要信息</strong><span class="secondary">减弱强调，保留辨识度</span></div>
+      <div class="detail-row"><strong>分隔与边界</strong><span class="secondary">帮助区分内容</span></div>
+    </section>
+    <section class="colors" aria-labelledby="colors-title">
+      <h2 id="colors-title">图表与颜色</h2>
+      <svg id="chart" viewBox="0 0 420 96" role="img" aria-label="红绿蓝色条样例"><rect width="420" height="96" rx="5" fill="#f5f5f5"></rect><text x="14" y="24" fill="currentColor" font-size="12">示例颜色</text><rect x="14" y="39" width="100" height="16" fill="#bb4c4c"></rect><rect x="14" y="65" width="160" height="16" fill="#458561"></rect><svg id="nested-svg" x="248" y="25" width="145" height="55" viewBox="0 0 145 55"><rect x="0" y="14" width="135" height="24" fill="#476caf"></rect></svg></svg>
+    </section>
+    <section class="search" aria-labelledby="search-title">
+      <h2 id="search-title">输入与代码</h2>
+      <label for="query">输入文字</label>
+      <div class="form-row"><input id="query" placeholder="检查输入文字的可读性"><button type="button" id="confirm">检查</button></div>
+      <p class="secondary" id="search-result" aria-live="polite">输入内容后点击检查。</p>
+      <pre><code>const theme = 'readable';</code></pre>
+    </section>
+  </main>
+</template>
+<script id="script-source" type="application/json">"// ==UserScript==\n// @name         亮暗色切换\n// @namespace    https://github.com/11ze\n// @version      0.1.4\n// @description  2026-10-31 柔化亮暗端点并补偿媒体中间色，修正 picture、SVG 与背景图容器的反转范围\n// @author       11ze\n// @match        *://*/*\n// @run-at       document-start\n// @noframes\n// @icon         data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0xMiAyMmM1LjUyMyAwIDEwLTQuNDc3IDEwLTEwYzAtLjQ2My0uNjk0LS41NC0uOTMzLS4xNDNhNi41IDYuNSAwIDEgMS04LjkyNC04LjkyNEMxMi41NCAyLjY5MyAxMi40NjMgMiAxMiAyQzYuNDc3IDIgMiA2LjQ3NyAyIDEyczQuNDc3IDEwIDEwIDEwIi8+PC9zdmc+\n// @grant        GM_addStyle\n// @grant        GM_registerMenuCommand\n// @license      MIT\n// ==/UserScript==\n\n(function () {\n  'use strict';\n\n  const STORAGE_KEY = '11ze_color_mode_switch_reverse_color_mode';\n  const TOGGLE_CONTAINER_ID = '11ze-reverse-color-mode-toggle-container';\n  const PAGE_FILTER = 'invert(1) hue-rotate(180deg) contrast(0.9)';\n  // 逆序补偿页面滤镜；极端高光与阴影受色域裁切限制，无法完全恢复。\n  const MEDIA_FILTER = 'contrast(1.1111111111) hue-rotate(180deg) invert(1)';\n\n  /**\n   * 状态存取：storage 由调用方注入，异常（隐私模式/配额）时读出关闭、写返回 false\n   */\n  function readState(storage) {\n    try {\n      return storage.getItem(STORAGE_KEY) === 'true';\n    } catch {\n      return false;\n    }\n  }\n\n  function writeState(storage, reverseColorMode) {\n    try {\n      storage.setItem(STORAGE_KEY, reverseColorMode.toString());\n      return true;\n    } catch {\n      return false;\n    }\n  }\n\n  /**\n   * 反转样式表：整页反转、媒体与自挂按钮二次反转抵消、\n   * 逃生舱元素仅清除自身 filter（CSS filter 下子树无法脱离整页反转）\n   */\n  function buildReverseColorCss() {\n    return `\n      html {\n        filter: ${PAGE_FILTER} !important;\n      }\n\n      img, video, iframe, canvas, svg,\n      [id='${TOGGLE_CONTAINER_ID}'] {\n        filter: ${MEDIA_FILTER} !important;\n      }\n\n      /* 容器已带二次反转，容器内 img 再被上面的媒体规则命中会叠成三层（奇数）反转，白色图标变黑底黑字 */\n      [id='${TOGGLE_CONTAINER_ID}'] img {\n        filter: none !important;\n      }\n\n      /* currentColor 图标须随文字一起变色，否则换底色后可能隐身 */\n      svg:where([fill=\"currentColor\"], [stroke=\"currentColor\"],\n                :has([fill=\"currentColor\"], [stroke=\"currentColor\"])) {\n        filter: none !important;\n      }\n\n      /* 彩色图表可同时含 currentColor 标签，显式色值优先保色 */\n      svg:where([fill]:not([fill=\"none\"], [fill=\"currentColor\"]),\n                [stroke]:not([stroke=\"none\"], [stroke=\"currentColor\"]),\n                :has([fill]:not([fill=\"none\"], [fill=\"currentColor\"]),\n                     [stroke]:not([stroke=\"none\"], [stroke=\"currentColor\"]))) {\n        filter: ${MEDIA_FILTER} !important;\n      }\n\n      /* 嵌套 SVG 共享最外层的处理，不能逐层叠加滤镜 */\n      svg svg {\n        filter: none !important;\n      }\n\n      /* 逃生舱仅此类名：data-theme 之类的属性选择器特异性高于 html，会反杀整页反转；\n         且 filter:none 无法让子树脱离反转，本就只对媒体二次反转有效 */\n      .reverse-color-mode-ignore {\n        filter: none !important;\n      }\n    `;\n  }\n\n  // 与 @icon 分家：按钮底 #000 需白月（img 独立文档 currentColor 回落黑，黑底不可见）；\n  // @icon 底是油猴浅色面板需 currentColor（回落黑）。两份 base64 人肉同步，\n  // 形状一致性（剥 fill 后逐字节一致）由测试锁定，改月亮路径须两处同改\n  const ICON_SUN_DATA_URI =\n    'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSIjZmZmIiBkPSJNMTIgMjJjNS41MjMgMCAxMC00LjQ3NyAxMC0xMGMwLS40NjMtLjY5NC0uNTQtLjkzMy0uMTQzYTYuNSA2LjUgMCAxIDEtOC45MjQtOC45MjRDMTIuNTQgMi42OTMgMTIuNDYzIDIgMTIgMkM2LjQ3NyAyIDIgNi40NzcgMiAxMnM0LjQ3NyAxMCAxMCAxMCIvPjwvc3ZnPg==';\n\n  // 定稿「墨盘」（designs/color-mode-switch/ 方向 A，2026-10-31）：\n  // 黑底发丝描边补暗页隐身（黑底唯一隐身场景是反转后暗页——亮站转暗，罕用），\n  // hover 三联动（上浮/描边亮/浮字），常态全不透明（0.7 会把描边压没）\n  const STYLES = {\n    container: {\n      position: 'fixed',\n      top: '20px',\n      right: '20px',\n      zIndex: '9999',\n    },\n    button: {\n      width: '40px',\n      height: '40px',\n      borderRadius: '50%',\n      border: '1px solid rgba(255, 255, 255, 0.22)',\n      // 按钮只在反转开启时显示，主场景暗转亮——反转后的亮页上黑底白月对比度最高\n      backgroundColor: '#000',\n      // 描边只保暗页下限，阴影保反转后亮页上不悬空；描边 hover 变亮是主反馈\n      boxShadow: '0 2px 10px rgba(0, 0, 0, 0.28)',\n      cursor: 'pointer',\n      // tooltip 的定位锚点（挂 button 内：display:none 级联隐藏、随按钮位移）\n      position: 'relative',\n      // 站点全局 button/overflow 样式会裁掉探出按钮左侧的 tooltip\n      overflow: 'visible',\n      fontSize: '20px',\n      display: 'flex',\n      alignItems: 'center',\n      justifyContent: 'center',\n      transition: 'transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',\n    },\n    buttonHover: {\n      transform: 'translateY(-2px)',\n      borderColor: 'rgba(255, 255, 255, 0.55)',\n      boxShadow: '0 6px 18px rgba(0, 0, 0, 0.32)',\n    },\n    buttonNormal: {\n      transform: 'none',\n      borderColor: 'rgba(255, 255, 255, 0.22)',\n      boxShadow: '0 2px 10px rgba(0, 0, 0, 0.28)',\n    },\n    icon: {\n      width: '24px',\n      height: '24px',\n      // 站点全局 img 样式会命中此图标打出方框，四项内联重置挡住\n      border: 'none',\n      outline: 'none',\n      padding: '0',\n      background: 'none',\n    },\n    tooltip: {\n      // 挂 button 内：关闭态 display:none 级联隐藏，无需单独同步显隐\n      position: 'absolute',\n      top: '50%',\n      right: 'calc(100% + 10px)',\n      transform: 'translateY(-50%) translateX(4px)',\n      // 暗页上黑底气泡无描边则边界不可见，与按钮描边同理\n      background: 'rgba(20, 20, 20, 0.92)',\n      border: '1px solid rgba(255, 255, 255, 0.25)',\n      color: '#fff',\n      fontSize: '12px',\n      lineHeight: '1',\n      padding: '7px 9px',\n      borderRadius: '6px',\n      whiteSpace: 'nowrap',\n      opacity: '0',\n      // 不参与 hover：鼠标扫过 tooltip 不算离开容器，防连击抖动\n      pointerEvents: 'none',\n      transition: 'opacity 0.16s ease, transform 0.16s ease',\n    },\n    tooltipHover: {\n      opacity: '1',\n      transform: 'translateY(-50%) translateX(0)',\n    },\n    tooltipNormal: {\n      opacity: '0',\n      transform: 'translateY(-50%) translateX(4px)',\n    },\n  };\n\n  function setStyles(el, styles) {\n    Object.assign(el.style, styles);\n  }\n\n  function setHover(el, applyHover) {\n    // mouseenter/mouseleave 不冒泡；mouseover/mouseout 会在容器与子按钮间连击导致样式抖动\n    el.addEventListener('mouseenter', function () {\n      applyHover(true);\n    });\n    el.addEventListener('mouseleave', function () {\n      applyHover(false);\n    });\n  }\n\n  function createEl(tag, styles = {}, props = {}) {\n    const el = document.createElement(tag);\n    setStyles(el, styles);\n    Object.assign(el, props);\n    return el;\n  }\n\n  let isReverseColorMode = readState(localStorage);\n  let reverseColorModeStyle = null;\n  let toggleButtonElement = null;\n\n  /**\n   * document-start 即执行：早注反转样式防加载期闪白，此时 body 未就绪不碰按钮\n   */\n  function init() {\n    GM_registerMenuCommand('切换', toggleReverseColorMode);\n\n    if (isReverseColorMode) {\n      applyReverseColorMode();\n    }\n  }\n\n  function mountToggleButton() {\n    createToggleButton();\n    updateToggleButton();\n  }\n\n  function createToggleButton() {\n    const buttonContainer = createEl('div', STYLES.container, {\n      id: TOGGLE_CONTAINER_ID,\n    });\n\n    const icon = createEl('img', STYLES.icon, {\n      src: ICON_SUN_DATA_URI,\n      alt: 'sun',\n    });\n\n    const tooltip = createEl('span', STYLES.tooltip, {\n      textContent: '还原配色',\n    });\n\n    const toggleButton = createEl('button', STYLES.button, {\n      id: '11ze-reverse-color-mode-toggle-button',\n    });\n    toggleButton.appendChild(icon);\n    toggleButton.appendChild(tooltip);\n\n    // hover 三联动作用于 button 与 tooltip，容器本身无样式变化\n    setHover(buttonContainer, function (hovered) {\n      setStyles(toggleButton, hovered ? STYLES.buttonHover : STYLES.buttonNormal);\n      setStyles(tooltip, hovered ? STYLES.tooltipHover : STYLES.tooltipNormal);\n    });\n    toggleButton.addEventListener('click', toggleReverseColorMode);\n\n    buttonContainer.appendChild(toggleButton);\n    document.body.appendChild(buttonContainer);\n\n    toggleButtonElement = toggleButton;\n  }\n\n  function updateToggleButton() {\n    if (!toggleButtonElement) {\n      return;\n    }\n\n    toggleButtonElement.style.display = isReverseColorMode ? 'flex' : 'none';\n  }\n\n  function toggleReverseColorMode() {\n    const nextMode = !isReverseColorMode;\n\n    // 写入失败（配额/禁用）时短路，内存态、存储态、视觉态保持一致\n    if (!writeState(localStorage, nextMode)) return;\n\n    isReverseColorMode = nextMode;\n\n    updateToggleButton();\n\n    if (isReverseColorMode) {\n      applyReverseColorMode();\n    } else {\n      removeReverseColorMode();\n    }\n  }\n\n  function applyReverseColorMode() {\n    if (reverseColorModeStyle) return;\n\n    reverseColorModeStyle = GM_addStyle(buildReverseColorCss());\n  }\n\n  function removeReverseColorMode() {\n    if (reverseColorModeStyle) {\n      reverseColorModeStyle.remove();\n      reverseColorModeStyle = null;\n    }\n  }\n\n  // 测试钩子：浏览器中 __COLOR_MODE_SWITCH_TEST__ 不存在，此分支永不执行\n  if (window.__COLOR_MODE_SWITCH_TEST__) {\n    window.__COLOR_MODE_SWITCH_TEST__.hooks = {\n      readState,\n      writeState,\n      buildReverseColorCss,\n      ICON_SUN_DATA_URI,\n      STORAGE_KEY,\n    };\n  }\n\n  init();\n\n  if (document.readyState === 'loading') {\n    document.addEventListener('DOMContentLoaded', mountToggleButton);\n  } else {\n    mountToggleButton();\n  }\n})();\n"</script>
+<script>
+  'use strict';
+  const source = JSON.parse(document.getElementById('script-source').textContent);
+  const baseUrl = new URL('.', location.href).href;
+  const pageStyles = `
+    * { box-sizing:border-box; } html,body { margin:0; background:var(--bg); color:var(--fg); }
+    :root { color-scheme:dark; --bg:#161616; --fg:#e5e5e5; --secondary:#b8b8b8; --surface:#242424; --line:#555; --link:#a8c7fa; }
+    :root[data-theme="light"] { color-scheme:light; --bg:#fafafa; --fg:#262626; --secondary:#626262; --surface:#eee; --line:#aaa; --link:#1759ac; }
+    body { font:15px/1.8 -apple-system,"SF Pro Text","PingFang SC","Noto Sans SC",sans-serif; }
+    .navigation { display:flex; align-items:center; flex-wrap:wrap; gap:20px; padding:18px 78px 18px 26px; border-bottom:1px solid var(--line); font-size:12px; }
+    nav { display:flex; gap:14px; } nav a { color:var(--secondary); text-decoration:none; }
+    .reading { padding:26px; max-width:620px; margin:auto; }
+    .eyebrow { color:var(--secondary); font-size:11px; letter-spacing:.08em; }
+    h1 { font-size:clamp(25px,5.5vw,32px); line-height:1.35; letter-spacing:-.04em; margin:8px 0 15px; font-weight:650; }
+    h2 { font-size:14px; margin:0 0 12px; font-weight:620; } p { margin:10px 0; } .lead { font-size:17px; }
+    a { color:var(--link); text-underline-offset:4px; } .secondary { color:var(--secondary); font-size:12px; }
+    .icon-row { display:flex; gap:12px; align-items:center; margin-top:18px; color:var(--secondary); font-size:12px; }
+    figure { margin:24px 0; } figure img { display:block; width:100%; height:190px; object-fit:cover; border-radius:5px; }
+    figcaption { font-size:11px; color:var(--secondary); margin-top:8px; }
+    .details { background:var(--surface); padding:16px 18px; border:1px solid var(--line); border-radius:5px; }
+    .detail-row { display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px 12px; font-size:12px; padding:8px 0; border-top:1px solid var(--line); }
+    .detail-row strong { font-weight:500; } .colors,.search { margin-top:24px; }
+    #chart { display:block; width:100%; color:#28332d; }
+    label { display:block; font-size:12px; margin-bottom:6px; }
+    .form-row { display:flex; gap:8px; } input,button { font:inherit; border:1px solid var(--line); border-radius:4px; background:var(--surface); color:var(--fg); padding:7px 10px; }
+    input { min-width:0; width:100%; } input::placeholder { color:var(--secondary); } button { flex-shrink:0; cursor:pointer; }
+    :focus-visible { outline:2px solid var(--link); outline-offset:3px; }
+    pre { white-space:pre-wrap; overflow-wrap:anywhere; margin:12px 0 0; padding:11px 13px; background:var(--surface); border-radius:4px; font:12px/1.8 ui-monospace,monospace; }
+    @media (max-width:360px) { .reading { padding:20px; } .navigation { padding-left:20px; gap:14px; } figure img { height:165px; } }
+  `;
+  function render() {
+    for (const [frameId, theme] of [['light-preview', 'dark'], ['dark-preview', 'light']]) {
+      const shim = `let state = 'true';
+        Object.defineProperty(window, 'localStorage', { value: { getItem() { return state; }, setItem(key, value) { state = value; } } });
+        window.GM_addStyle = function (css) { const style = document.createElement('style'); style.dataset.reverseColor = ''; style.textContent = css; document.head.appendChild(style); return style; };
+        window.GM_registerMenuCommand = function () {};`;
+      const interactions = `document.querySelectorAll('a[href^="#"]').forEach(link => link.addEventListener('click', event => { event.preventDefault(); document.querySelector(link.getAttribute('href')).scrollIntoView(); }));
+        document.getElementById('confirm').addEventListener('click', () => { document.getElementById('search-result').textContent = document.getElementById('query').value ? '输入文字清晰可读。' : '请先输入文字。'; });`;
+      document.getElementById(frameId).srcdoc = '<!doctype html><html lang="zh-CN" data-theme="' + theme + '"><head><meta charset="utf-8"><base href="' + baseUrl + '"><style>' + pageStyles + '</style><script>' + shim + source + '<\/script></head><body>' + document.getElementById('reading-page').innerHTML + '<script>' + interactions + '<\/script></body></html>';
+    }
+  }
+  document.getElementById('reload').addEventListener('click', render);
+  render();
+</script>
 </body>
 </html>
