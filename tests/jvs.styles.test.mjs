@@ -218,12 +218,12 @@ test('应用中心星标：悬停浮现空心星，悬停星标变金放大，�
   assertDeclaration(
     styles,
     '.application:has(.ze-star-btn)',
-    'border: 1.5px solid transparent !important'
+    'border: 2px solid transparent !important'
   );
   assertDeclaration(
     styles,
     '.application:has(.ze-star-btn.ze-marked)',
-    'border-color: #FAAD14 !important'
+    'border-color: #F5D995 !important'
   );
 
   // 星标按钮钉在卡片右上角，平时隐藏，200ms 过渡浮现（缓动曲线是调参，不锁）
@@ -247,6 +247,9 @@ test('应用中心星标：悬停浮现空心星，悬停星标变金放大，�
 
   // 已标记卡片星标常驻，实心星标金（CSS 覆盖 SVG 的 fill="none" 属性，
   // fill 与 stroke 都走 currentColor 跟随按钮 color）
+  assertDeclaration(styles, '.application:has(.ze-star-btn.ze-marked)', 'background: #FFFDF8 !important');
+  assert.doesNotMatch(getBlock(styles, '.application:has(.ze-star-btn.ze-marked)'), /inset|border-left|::after/);
+  assertDeclaration(styles, '.ze-star-btn.ze-marked svg', 'width: 22px');
   assertDeclaration(styles, '.ze-star-btn.ze-marked', 'opacity: 1');
   assertDeclaration(styles, '.ze-star-btn.ze-marked svg', 'fill: currentColor');
 });
@@ -437,4 +440,14 @@ test('表单设计组件名悬停不消失：盖掉站点 hover 藏名字的规�
     '.active-formitem2 .handle-btn .type-name',
     'display: block !important'
   );
+});
+
+test('日志定稿：连续表格、整行悬停与紧贴把手的分段按钮', () => {
+  const styles = loadScriptHooks().getStyles();
+  assertDeclaration(styles, '.table-11ze', 'border-collapse: collapse !important');
+  assertDeclaration(styles, '.log-11ze-table-tr > th', 'top: 0');
+  assertDeclaration(styles, '.log-11ze-table-tr > th', 'border-right: none !important');
+  assertDeclaration(styles, '.log-11ze-table-tr:hover > td', 'background-color: #F5F9FF !important');
+  assertDeclaration(styles, '#ze-jvs-log-button', 'border-radius: 7px 0 0 7px !important');
+  assert.match(styles, /\.drag-handle-11ze\s*\{[^}]*border-left:\s*none !important/);
 });

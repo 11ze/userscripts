@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.21
-// @description 2026-10-26 修同名设计切换时漏记打开日志：调度键补应用 ID、设计 ID 与设计类型；2026-10-25 测试钩子补装配层：operations 队列、saveCurrentLogOperation、changeTitle、嵌套逻辑梯子三入口进 hooks——真实队列首次可整体 tick（冒烟），唯一无配对测试的 keyed op、「点设计不点引用」不可逆保护、每 tick 模式采集契约均有断言；生产行为零变化；2026-10-14 APP_NAME_SELECTORS 条目字段化（collectOnly/crossAnchor），getNewTabTitle/collectAppName 按字段遍历，删 i=1 与 i===3 下标魔法——插项调序不再静默错位；测试钩子块挪 IIFE 末尾，新增钩子登记不受定义顺序约束（TDZ 前科结构性消除），getStyles 删惰性箭头，ICONS 上移常量区
+// @version     0.8.22
+// @description 2026-10-31 更新日志浮窗样式：简化表格分隔、整行悬停、表头吸顶，日志按钮与拖拽把手拼接；应用中心星标卡片改为浅金底、2px 浅金边框和 22px 实心星形图标；2026-10-26 修同名设计切换时漏记打开日志：调度键补应用 ID、设计 ID 与设计类型；2026-10-25 测试钩子补装配层：operations 队列、saveCurrentLogOperation、changeTitle、嵌套逻辑梯子三入口进 hooks——真实队列首次可整体 tick（冒烟），唯一无配对测试的 keyed op、「点设计不点引用」不可逆保护、每 tick 模式采集契约均有断言；生产行为零变化；2026-10-14 APP_NAME_SELECTORS 条目字段化（collectOnly/crossAnchor），getNewTabTitle/collectAppName 按字段遍历，删 i=1 与 i===3 下标魔法——插项调序不再静默错位；测试钩子块挪 IIFE 末尾，新增钩子登记不受定义顺序约束（TDZ 前科结构性消除），getStyles 删惰性箭头，ICONS 上移常量区
 // ==/UserScript==
 
 (function () {
@@ -940,7 +940,6 @@
 
     const logTable = document.createElement('table');
     logTable.className = 'table-11ze';
-    logTable.style.marginTop = '10px';
     logTable.innerHTML = buildLogTableHtml(logs, appModeMap);
 
     popup.appendChild(logTable);
@@ -2421,61 +2420,62 @@ const JVS_STYLES = `
 
   /* 自己加的组件 */
 
-  /* 日志弹窗 */
+  /* 日志弹窗：无标题栏，名称整格可点 */
   .popup-11ze {
-    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    border: 1px solid #DCE3EB !important;
     border-radius: 10px !important;
-    box-shadow:
-      0 4px 12px rgba(0, 0, 0, 0.1),
-      0 8px 24px rgba(0, 0, 0, 0.15) !important;
+    box-shadow: 0 12px 40px #263B5026, 0 2px 8px #263B500D !important;
     background-color: #fff !important;
     position: fixed;
     /* 定位唯一归 JS：positionLogPopup 以 CONFIG.LOG_BAR 兜底 */
     z-index: 9999;
-    padding: 0 10px 10px 10px;
-    max-height: 800px;
-    overflow-y: auto;
+    max-width: calc(100vw - 32px);
+    max-height: min(800px, calc(100vh - 100px));
+    overflow: auto;
   }
 
   .table-11ze {
-    font-size: 14px !important;
+    width: 100% !important;
     min-width: 600px !important;
-    border-bottom: 1px solid #dddddd !important;
+    border-collapse: collapse !important;
+    font-size: 13px !important;
+    white-space: nowrap !important;
     text-align: left !important;
   }
 
-  /* 日志弹窗的表格 */
-  .log-11ze-table-tr > td,
-  .log-11ze-table-tr > th {
-    padding: 4px 4px !important;
-    border-bottom: 1px solid #e5e7eb !important;
-    border-right: 1px solid #e5e7eb !important;
+  .log-11ze-table-tr > th,
+  .log-11ze-table-tr > td {
+    padding: 13px 14px !important;
+    border-bottom: 1px solid #F0F2F5 !important;
+    border-right: none !important;
   }
 
-  /* 表头样式 */
   .log-11ze-table-tr > th {
-    background-color: #f8fafc !important;
-    border-bottom: 2px solid #e2e8f0 !important;
+    padding: 11px 14px !important;
+    background-color: #F8FAFC !important;
+    color: #909399 !important;
+    font-size: 12px !important;
+    font-weight: normal !important;
+    border-right: none !important;
     position: sticky !important;
+    top: 0;
     z-index: 1 !important;
   }
 
-  /* 最后一行不显示分割线 */
+  .log-11ze-table-tr > td:first-child {
+    color: #909399;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+
   .log-11ze-table-tr:last-child > td {
     border-bottom: none !important;
   }
 
-  /* 最后一列不显示分割线 */
-  .log-11ze-table-tr > td:last-child,
-  .log-11ze-table-tr > th:last-child {
-    border-right: none !important;
+  .log-11ze-table-tr:hover > td {
+    background-color: #F5F9FF !important;
   }
 
-  .log-11ze-table-tr > td:hover {
-    background-color: #E8F4FF; /* 悬停时的背景颜色 */
-  }
-
-  /* 名称列鼠标变为小手 */
   .log-design-name-11ze {
     cursor: pointer;
   }
@@ -2509,10 +2509,13 @@ const JVS_STYLES = `
   /* 日志按钮紧贴拖拽把手，去除中间间距 */
   #ze-jvs-log-button {
     margin-right: 0 !important;
+    border-radius: 7px 0 0 7px !important;
   }
 
   .drag-handle-11ze {
     margin: 2px 0 !important;
+    border-radius: 0 7px 7px 0 !important;
+    border-left: none !important;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2555,12 +2558,13 @@ const JVS_STYLES = `
      边框与定位由 :has() 驱动，只有注入了星标的卡片命中 */
   .application:has(.ze-star-btn) {
     position: relative !important;
-    border: 1.5px solid transparent !important;
+    border: 2px solid transparent !important;
   }
 
-  /* 特异性高于透明占位规则，只覆盖颜色，宽度样式继承上一条 */
+  /* 星标卡片保持统一边框宽度，切换状态不改变布局；无竖线和文字徽标 */
   .application:has(.ze-star-btn.ze-marked) {
-    border-color: #FAAD14 !important;
+    border-color: #F5D995 !important;
+    background: #FFFDF8 !important;
   }
 
   .ze-star-btn {
@@ -2601,11 +2605,13 @@ const JVS_STYLES = `
 
   .ze-star-btn.ze-marked {
     opacity: 1;
-    color: #FAAD14;
+    color: #E7BD62;
   }
 
   /* fill 覆盖 svg 属性 fill="none" 实心化；fill 与 stroke 都走 currentColor 跟随 color */
   .ze-star-btn.ze-marked svg {
+    width: 22px;
+    height: 22px;
     fill: currentColor;
   }
 

@@ -1,0 +1,22 @@
+{
+  "type": "design",
+  "designSystems": [],
+  "primaryDesignSystem": null,
+  "assets": {
+    "JVS 应用中心": {
+      "versions": [
+        {
+          "path": "app-center.html",
+          "createdAt": "2026-10-31T14:16:18.187Z",
+          "status": "needs-review",
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          }
+        }
+      ]
+    }
+  },
+  "createdAt": "2026-10-31T14:09:08.890Z",
+  "updatedAt": "2026-10-31T14:23:55.170Z"
+}
