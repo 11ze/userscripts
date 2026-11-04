@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>媒体补偿浏览器验证</title>
+  <style>
+    body { font: 14px/1.7 sans-serif; padding: 24px; }
+    img, video, svg { width: 120px; height: 64px; }
+    #photo { filter: grayscale(1) !important; }
+    body.changed #photo { filter: blur(2px) !important; }
+    #screen { padding: 20px; background: white; filter: sepia(1); }
+    #result, #fullscreen-result { white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>媒体补偿浏览器验证</h1>
+  <p>测试真实 CSS 级联、MutationObserver 和全屏。状态只保存在内存。</p>
+  <button id="run" type="button" disabled>运行媒体验证</button>
+  <button id="fullscreen" type="button" disabled>运行全屏验证</button>
+  <pre id="result">等待运行</pre>
+  <pre id="fullscreen-result">等待全屏验证</pre>
+  <img id="photo" alt="原滤镜图片" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='64'%3E%3Cpath fill='red' d='M0 0h60v64H0z'/%3E%3Cpath fill='blue' d='M60 0h60v64H60z'/%3E%3C/svg%3E">
+  <img id="ignored" class="reverse-color-mode-ignore" alt="逃生舱图片">
+  <svg id="icon"><path id="icon-path" fill="white" d="M0 0h50v50H0z"></path></svg>
+  <svg id="outer" style="filter: grayscale(1)"><path fill="red" d="M0 0h50v50H0z"></path><svg id="inner" style="filter: inherit"><path fill="blue" d="M0 0h20v20H0z"></path></svg></svg>
+  <div id="screen"><video id="video" style="filter: grayscale(0.7)"></video></div>
+  <script>
+    'use strict';
+    let toggle;
+    let enabled = false;
+    Object.defineProperty(window, 'localStorage', { value: {
+      getItem: () => null,
+      setItem() {},
+    } });
+    window.GM_registerMenuCommand = (label, callback) => { toggle = callback; };
+    window.GM_addStyle = (css) => {
+      const style = document.createElement('style');
+      style.textContent = css;
+      document.head.appendChild(style);
+      return style;
+    };
+    async function checkEventually(condition, label, passed) {
+      const deadline = performance.now() + 2000;
+      while (!condition()) {
+        if (performance.now() > deadline) throw new Error(label);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+      passed.push('PASS ' + label);
+    }
+    function setMode(next) {
+      if (enabled !== next) { toggle(); enabled = next; }
+    }
+    function check(condition, label, passed) {
+      if (!condition) throw new Error(label);
+      passed.push('PASS ' + label);
+    }
+    function showResult(element, passed, error) {
+      element.textContent = [...passed, error ? 'FAIL ' + error.message : 'PASS 全部通过'].join('\n');
+      element.dataset.status = error ? 'fail' : 'pass';
+    }
+    const source = document.createElement('script');
+    source.src = '../src/color_mode_switch.user.js?verify=' + Date.now();
+    source.onload = () => {
+      document.getElementById('run').disabled = false;
+      document.getElementById('fullscreen').disabled = false;
+    };
+    document.head.appendChild(source);
+
+    document.getElementById('run').addEventListener('click', async () => {
+      const result = document.getElementById('result');
+      const passed = [];
+      const photo = document.getElementById('photo');
+      const icon = document.getElementById('icon');
+      const path = document.getElementById('icon-path');
+      let failure;
+      try {
+        setMode(true);
+        check(getComputedStyle(photo).filter.includes('grayscale(1)') && getComputedStyle(photo).filter.includes('contrast('), '样式表 important 滤镜先于补偿', passed);
+        check(getComputedStyle(document.getElementById('ignored')).filter === 'none', '逃生舱图片不叠加补偿', passed);
+        check(icon.hasAttribute('data-11ze-monochrome') && getComputedStyle(icon).filter === 'none', '单色 SVG 跟随页面变色', passed);
+        check(getComputedStyle(document.getElementById('inner')).filter === 'grayscale(1)', '嵌套 SVG 只保留继承的站点滤镜', passed);
+        check(getComputedStyle(document.querySelector("[id='11ze-reverse-color-mode-toggle-container'] img")).filter === 'none', '按钮内图片不重复抵消', passed);
+        path.setAttribute('fill', 'red');
+        await checkEventually(() => !icon.hasAttribute('data-11ze-monochrome') &&
+          getComputedStyle(icon).filter.includes('contrast('), 'SVG 从单色转彩色后自动补偿', passed);
+        document.body.classList.add('changed');
+        await checkEventually(() => getComputedStyle(photo).filter.includes('blur(2px)'),
+          '外部 class 更新后重读跨子树滤镜', passed);
+        photo.style.setProperty('filter', 'sepia(1)', 'important');
+        setMode(false);
+        check(photo.style.filter === 'sepia(1)' && photo.style.getPropertyPriority('filter') === 'important', '关闭前站点刚写入的滤镜不被覆盖', passed);
+        photo.style.removeProperty('filter');
+        document.body.classList.remove('changed');
+        path.setAttribute('fill', 'white');
+        setMode(true);
+        setMode(false);
+        check(getComputedStyle(photo).filter === 'grayscale(1)', '再次启停后恢复样式表原滤镜', passed);
+        check(document.querySelectorAll('[data-11ze-monochrome]').length === 0, '关闭后清除 SVG 标记', passed);
+        check([...document.querySelectorAll('*')].every((element) => !element.style.getPropertyValue('--11ze-original-filter')), '关闭后清除私有滤镜属性', passed);
+        path.setAttribute('fill', 'red');
+        await new Promise((resolve) => queueMicrotask(resolve));
+        check(!icon.hasAttribute('data-11ze-monochrome') && icon.style.filter === '', '关闭后观察器不再写入', passed);
+      } catch (error) { failure = error; }
+      finally {
+        setMode(false);
+        document.body.classList.remove('changed');
+        photo.style.removeProperty('filter');
+        path.setAttribute('fill', 'white');
+      }
+      showResult(result, passed, failure);
+    });
+
+    document.getElementById('fullscreen').addEventListener('click', async () => {
+      const result = document.getElementById('fullscreen-result');
+      const passed = [];
+      const screen = document.getElementById('screen');
+      const video = document.getElementById('video');
+      let failure;
+      try {
+        setMode(true);
+        await screen.requestFullscreen();
+        check(document.fullscreenElement === screen, '进入真实全屏', passed);
+        await checkEventually(() => getComputedStyle(screen).filter === 'sepia(1)',
+          '全屏容器保留站点滤镜', passed);
+        await checkEventually(() => getComputedStyle(video).filter === 'grayscale(0.7)',
+          '全屏后代撤掉补偿', passed);
+        await document.exitFullscreen();
+        await checkEventually(() => getComputedStyle(video).filter.includes('contrast('),
+          '退出全屏恢复补偿', passed);
+        setMode(false);
+        check(video.style.filter === 'grayscale(0.7)' && screen.style.filter === '' &&
+          getComputedStyle(screen).filter === 'sepia(1)', '关闭后恢复容器与视频原滤镜', passed);
+      } catch (error) { failure = error; }
+      finally {
+        if (document.fullscreenElement) await document.exitFullscreen();
+        setMode(false);
+      }
+      showResult(result, passed, failure);
+    });
+  </script>
+</body>
+</html>

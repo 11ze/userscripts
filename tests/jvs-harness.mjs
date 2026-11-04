@@ -68,6 +68,10 @@ export function makeFakeEl() {
       child.parentElement = this;
       return child;
     },
+    prepend(...nodes) {
+      for (const node of nodes) node.parentElement = this;
+      this.children.unshift(...nodes);
+    },
     remove() {
       const parent = this.parentElement;
       if (parent) {

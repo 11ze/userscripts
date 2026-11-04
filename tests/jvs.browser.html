@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>JVS 日志弹窗浏览器回归</title>
+  <link rel="stylesheet" href="data:text/css,/*jvs-ui*/">
+  <style>body { font: 14px/1.7 sans-serif; padding: 24px; } #result { white-space: pre-wrap; }</style>
+</head>
+<body>
+  <h1>JVS 日志弹窗浏览器回归</h1>
+  <p>使用内存存储和示意地址，不读写站点数据。测试实际脚本、DOM 解析和鼠标事件。</p>
+  <button id="run" type="button" disabled>运行验证</button>
+  <pre id="result">等待运行</pre>
+  <script>
+    'use strict';
+    const store = new Map();
+    const opened = [];
+    const designName = '订单<b>紧急</b> & "复核"';
+    const appName = '研发 <i>内</i>';
+    const targetUrl = 'https://example.invalid/design?id=1&name="quoted"#part';
+    const modeName = '测试模式<b>只读</b>';
+    const systemList = document.createElement('ul');
+    systemList.className = 'system-list';
+    systemList.style.display = 'none';
+    const modeItem = document.createElement('li');
+    modeItem.textContent = modeName;
+    systemList.appendChild(modeItem);
+    document.body.appendChild(systemList);
+    Object.defineProperty(window, 'localStorage', { value: {
+      getItem: (key) => store.get(key) ?? null,
+      setItem: (key, value) => store.set(key, String(value)),
+      removeItem: (key) => store.delete(key),
+    } });
+    store.set('__11ze_JVS_LOG_LOGS_', JSON.stringify([{
+      id: '1', jvsAppId: 'app-1', designName, appName,
+      time: Date.now(), url: targetUrl, tabType: '逻辑设计', type: '打开',
+    }]));
+    store.set('__11ze_JVS_APP_MODE_MAP__', JSON.stringify({ 'app-1': '测试模式' }));
+    window.open = (url, target) => opened.push({ url, target });
+    window.GM_addStyle = (css) => {
+      const style = document.createElement('style');
+      style.textContent = css;
+      document.head.appendChild(style);
+      return style;
+    };
+    let tick;
+    window.setInterval = (callback) => { tick = callback; return 1; };
+  </script>
+  <script>
+    const source = document.createElement('script');
+    source.src = '../src/jvs.user.js?verify=' + Date.now();
+    source.onload = () => { document.getElementById('run').disabled = false; };
+    document.head.appendChild(source);
+  </script>
+  <script>
+    'use strict';
+    document.getElementById('run').addEventListener('click', (event) => {
+      event.stopPropagation();
+      const result = document.getElementById('result');
+      const passed = [];
+      function check(condition, label) {
+        if (!condition) throw new Error(label);
+        passed.push('PASS ' + label);
+      }
+      try {
+        opened.length = 0;
+        tick();
+        const button = document.getElementById('ze-jvs-log-button');
+        check(button.textContent === modeName + '日志', '模式前缀按原文显示');
+        if (document.getElementById('11ze-jvs-log-popup')) button.click();
+        button.click();
+        const popup = document.getElementById('11ze-jvs-log-popup');
+        const nameCell = popup.querySelector('.log-design-name-11ze');
+        check(nameCell.textContent.trim() === designName, '设计名称按原文显示');
+        check(nameCell.children.length === 0, '名称中的标签不生成元素');
+        check(popup.querySelector('tbody tr').children[2].textContent.trim() === appName, '应用名称按原文显示');
+        nameCell.click();
+        check(opened.length === 1 && opened[0].url === targetUrl && opened[0].target === '_blank', '左键打开原始 URL');
+        nameCell.dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true }));
+        check(opened.length === 2 && opened[1].url === targetUrl, '中键打开相同 URL');
+        nameCell.dispatchEvent(new MouseEvent('auxclick', { button: 2, bubbles: true }));
+        check(opened.length === 2, '右键不打开 URL');
+        button.click();
+        check(!document.getElementById('11ze-jvs-log-popup'), '再次点击日志按钮关闭弹窗');
+        result.textContent = passed.join('\n') + '\nPASS 全部通过';
+        result.dataset.status = 'pass';
+      } catch (error) {
+        result.textContent = passed.join('\n') + '\nFAIL ' + error.message;
+        result.dataset.status = 'fail';
+      }
+    });
+  </script>
+</body>
+</html>

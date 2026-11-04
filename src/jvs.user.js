@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.22
-// @description 2026-10-31 更新日志浮窗样式：简化表格分隔、整行悬停、表头吸顶，日志按钮与拖拽把手拼接；应用中心星标卡片改为浅金底、2px 浅金边框和 22px 实心星形图标；2026-10-26 修同名设计切换时漏记打开日志：调度键补应用 ID、设计 ID 与设计类型；2026-10-25 测试钩子补装配层：operations 队列、saveCurrentLogOperation、changeTitle、嵌套逻辑梯子三入口进 hooks——真实队列首次可整体 tick（冒烟），唯一无配对测试的 keyed op、「点设计不点引用」不可逆保护、每 tick 模式采集契约均有断言；生产行为零变化；2026-10-14 APP_NAME_SELECTORS 条目字段化（collectOnly/crossAnchor），getNewTabTitle/collectAppName 按字段遍历，删 i=1 与 i===3 下标魔法——插项调序不再静默错位；测试钩子块挪 IIFE 末尾，新增钩子登记不受定义顺序约束（TDZ 前科结构性消除），getStyles 删惰性箭头，ICONS 上移常量区
+// @version     0.8.23
+// @description 2026-11-04 日志名称与模式文字按原文显示，跳转目标不经 HTML 属性序列化，保留左键和中键打开
 // ==/UserScript==
 
 (function () {
@@ -308,7 +308,6 @@
    * @property {(event: MouseEvent) => void} [onClick] - 点击回调
    * @property {'primary' | 'default' | 'success' | 'warning' | 'danger'} [type='primary'] - 按钮类型
    * @property {'mini' | 'small' | 'medium'} [size='mini'] - 按钮尺寸
-   * @property {boolean} [isHtml=false] - text 是否为 HTML 字符串
    */
 
   /**
@@ -387,15 +386,10 @@
       onClick = null,
       type = 'primary',
       size = 'mini',
-      isHtml = false,
     } = options;
 
     const button = document.createElement('button');
-    if (isHtml) {
-      button.innerHTML = text;
-    } else {
-      button.textContent = text;
-    }
+    button.textContent = text;
     button.className =
       `modern-button el-button el-button--${type} el-button--${size} button-11ze ${className}`.trim();
 
@@ -845,15 +839,37 @@
   }
 
   /**
-   * 日志表格 HTML（表头+表体）：模式列按应用模式目录条件输出，
-   * 行倒序、跳过保存类日志
+   * 日志表格：文字按原文显示，行内闭包保留打开目标；
+   * 模式列按目录条件输出，行倒序、跳过保存类日志
    * @param {LogEntry[]} logs
    * @param {Object<string, string>} appModeMap 应用 id → 模式名
-   * @returns {string} table 的 innerHTML
+   * @returns {HTMLTableElement}
    */
-  function buildLogTableHtml(logs, appModeMap) {
+  function createLogTable(logs, appModeMap) {
     const hasMode = Object.keys(appModeMap).length > 0;
-    const listContent = [];
+    const table = document.createElement('table');
+    table.className = 'table-11ze';
+
+    function addCell(row, tag, text, color) {
+      const cell = document.createElement(tag);
+      cell.textContent = ' ' + text + ' \u00a0 ';
+      if (color) cell.style.color = color;
+      row.appendChild(cell);
+      return cell;
+    }
+
+    const head = document.createElement('thead');
+    const header = document.createElement('tr');
+    header.className = 'log-11ze-table-tr';
+    header.style.backgroundColor = '#eef5fe';
+    for (const title of ['时间', ...(hasMode ? ['模式'] : []), '应用', '类型', '名称']) {
+      const cell = addCell(header, 'th', title);
+      if (title === '类型') cell.style.textAlign = 'center';
+    }
+    head.appendChild(header);
+    table.appendChild(head);
+
+    const body = document.createElement('tbody');
 
     for (let i = logs.length - 1; i >= 0; i--) {
       const oneLog = logs[i];
@@ -869,29 +885,24 @@
       const mode = appModeMap[oneLog.jvsAppId] ?? '';
       const modeColor = getModeColor(mode);
 
-      listContent.push(`
-        <tr class="log-11ze-table-tr">
-          <td> ${datetime} &nbsp; </td>
-          ${hasMode ? `<td style="color: ${modeColor}"> ${mode.replace('模式', '')} &nbsp; </td>` : ''}
-          <td> ${appName} &nbsp; </td>
-          <td style="color: ${currentType.color}"> ${currentType.shortname} &nbsp; </td>
-          <td class="log-design-name-11ze" data-url="${oneLog.url}" style="color: #1f6fff;"> ${oneLog.designName} &nbsp; </td>
-        </tr>
-      `);
+      const row = document.createElement('tr');
+      row.className = 'log-11ze-table-tr';
+      addCell(row, 'td', datetime);
+      if (hasMode) addCell(row, 'td', mode.replace('模式', ''), modeColor);
+      addCell(row, 'td', appName);
+      addCell(row, 'td', currentType.shortname, currentType.color);
+      const nameCell = addCell(row, 'td', oneLog.designName, '#1f6fff');
+      nameCell.className = 'log-design-name-11ze';
+      const openDesign = () => window.open(oneLog.url, '_blank');
+      nameCell.addEventListener('click', openDesign);
+      nameCell.addEventListener('auxclick', (event) => {
+        if (event.button === 1) openDesign();
+      });
+      body.appendChild(row);
     }
 
-    return `
-      <thead>
-        <tr style="background-color: #eef5fe" class="log-11ze-table-tr">
-          <th> 时间 &nbsp;</th>
-          ${hasMode ? `<th> 模式 &nbsp;</th>` : ''}
-          <th> 应用 &nbsp;</th>
-          <th style="text-align: center"> 类型 &nbsp;</th>
-          <th> 名称 &nbsp;</th>
-        </tr>
-      </thead>
-      <tbody>${listContent.join('')}</tbody>
-    `;
+    table.appendChild(body);
+    return table;
   }
 
   // 外点关闭监听器挂在 document 上，注册/摘除必须成对
@@ -938,22 +949,8 @@
       parseInt(btnContainer?.style.right, 10) || CONFIG.LOG_BAR.right,
     );
 
-    const logTable = document.createElement('table');
-    logTable.className = 'table-11ze';
-    logTable.innerHTML = buildLogTableHtml(logs, appModeMap);
-
-    popup.appendChild(logTable);
+    popup.appendChild(createLogTable(logs, appModeMap));
     document.body.appendChild(popup);
-
-    // 事件委托：左键与中键（auxclick button===1）走同一打开逻辑
-    const openDesign = (e) => {
-      const nameTd = e.target.closest('.log-design-name-11ze');
-      if (nameTd) window.open(nameTd.dataset.url, '_blank');
-    };
-    logTable.addEventListener('click', openDesign);
-    logTable.addEventListener('auxclick', (e) => {
-      if (e.button === 1) openDesign(e);
-    });
 
     logPopupOutsideClick = function closePopupOnOutsideClick(event) {
       if (!popup.contains(event.target) && !event.target.closest('#ze-jvs-log-container')) {
@@ -962,17 +959,6 @@
       }
     };
     document.addEventListener('click', logPopupOutsideClick);
-  }
-
-  /**
-   * 日志按钮文案：模式前缀与「日志」同字号同色（整钮颜色由
-   * JVS_STYLES 按 data-mode 换色），间距替代全角「｜」
-   * @param {string} mode 当前模式名，空串表示未识别到模式
-   */
-  function getLogButtonName(mode) {
-    return mode
-      ? `<span style="margin-right: 6px">${mode}</span>日志`
-      : '日志';
   }
 
   // 拖拽把手十字箭头，stroke 走 currentColor 跟随按钮字色
@@ -989,11 +975,17 @@
       key: mode || '',
       mount() {
         const button = createButton({
-          text: getLogButtonName(mode),
+          text: '日志',
           id: 'ze-jvs-log-button',
-          isHtml: true,
           dataset: { 'data-mode': mode || '' },
         });
+
+        if (mode) {
+          const prefix = document.createElement('span');
+          prefix.textContent = mode;
+          prefix.style.marginRight = '6px';
+          button.prepend(prefix);
+        }
 
         Utils.setStyles(button, {
           fontSize: '14px',
@@ -2777,10 +2769,8 @@ const JVS_STYLES = `
       filterStarredApps: filterStarredApps,
       toggleAppCenterSidebar: toggleAppCenterSidebar,
       syncAppCenterUrl: syncAppCenterUrl,
-      getLogButtonName: getLogButtonName,
       updateLogButton: updateLogButton,
       showLogPopup: showLogPopup,
-      buildLogTableHtml: buildLogTableHtml,
       ensureInjected: ensureInjected,
       addButtonToCopyDesignName: addButtonToCopyDesignName,
       addButtonToCopyComponentName: addButtonToCopyComponentName,

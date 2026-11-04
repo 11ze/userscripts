@@ -21,6 +21,8 @@
 
 验证：`node --test tests/color_mode_switch.test.mjs`。
 
+浏览器回归：在仓库根目录运行 `python3 -m http.server 4312 --bind 127.0.0.1`，打开 `http://127.0.0.1:4312/tests/color-mode-switch.browser.html`，点击「运行媒体验证」，等到全部通过后再点击「运行全屏验证」。页面加载当前脚本，使用内存存储；检查真实级联、观察器调度、媒体豁免、全屏进出与原滤镜恢复。Node 桩不执行完整 CSS 选择器与级联，不能替代该验证。
+
 视觉验收：启动 `python3 -m http.server 4311 --directory designs`，打开 `http://localhost:4311/color-mode-switch/index.html`。两个画板只展示改进后的亮色、暗色，都运行实际脚本。检查正文、图片、固定白色图标与彩色图表。展开「图片效果与视频」，确认灰度图片未恢复彩色，进入视频全屏后色条无额外反转，退出后恢复页面转换。输入文字、滚动并点击月亮，确认滤镜、私有属性和单色标记均已清理。用「重新预览」恢复两个画板。
 
 设计目录只保留 `index.html` 这一份设计稿，不保留旧稿与对照页。页面内嵌当前脚本快照，避免预览依赖仓库外文件；修改脚本后同步 `script-source`，测试检查快照一致性。森林照片源自 [Unsplash](https://images.unsplash.com/photo-1441974231531-c6227db76b6e)，按 [Unsplash License](https://unsplash.com/license) 保存在设计目录，不参与用户脚本运行。
