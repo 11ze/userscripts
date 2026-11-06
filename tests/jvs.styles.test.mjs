@@ -442,6 +442,21 @@ test('表单设计组件名悬停不消失：盖掉站点 hover 藏名字的规�
   );
 });
 
+test('旧版表单设计组件名常显：盖回整条 handle-btn 的默认 display:none', () => {
+  const hooks = loadScriptHooks();
+  const styles = hooks.getStyles();
+
+  // 旧版（jvs-ui）站点规则 .formitem2 .handle-btn { display: none } 整条藏掉
+  // （hover 才出现），只盖子级 .type-name 救不了 display:none 的父级。
+  // 旧版挂的是独立类，不挂新版的 active-formitem2——那会把旧版部分
+  // inline 的 type-name 强改成 block，改变排版
+  assertDeclaration(
+    styles,
+    '.active-formitem2-handle .handle-btn',
+    'display: block !important'
+  );
+});
+
 test('日志定稿：连续表格、整行悬停与紧贴把手的分段按钮', () => {
   const styles = loadScriptHooks().getStyles();
   assertDeclaration(styles, '.table-11ze', 'border-collapse: collapse !important');

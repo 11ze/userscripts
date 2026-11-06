@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.23
-// @description 2026-11-04 日志名称与模式文字按原文显示，跳转目标不经 HTML 属性序列化，保留左键和中键打开
+// @version     0.8.24
+// @description 2026-11-06 旧版表单设计组件名常显：兼容 draggable 在组件本体，盖回整条 handle-btn 的默认隐藏
 // ==/UserScript==
 
 (function () {
@@ -1141,15 +1141,25 @@
     // 设置侧边栏可选组件的颜色
     paintComponents('.getItem', 'innerText');
 
-    // 新版 JVS，表单设计，组件的名称全部显示出来
+    // 表单设计，组件的名称全部显示出来
+    showFormDesignComponentNames();
+  }
+
+  /**
+   * 表单设计组件名常显：给画布组件挂常显类（CSS 见 JVS_STYLES）
+   * 新版（edf-ui）draggable 在 .formitem2 父级，站点仅 hover 藏 .type-name；
+   * 旧版（jvs-ui）draggable 在 .formitem2 本体，站点默认藏整条 .handle-btn。
+   * 两版各挂各的类：旧版不挂 active-formitem2——其 display:block 会把旧版
+   * 部分 inline 的 type-name 强改变排版
+   */
+  function showFormDesignComponentNames() {
     const formComponents = document.querySelectorAll('.formitem2');
     for (const component of formComponents) {
-      const parent = component.parentElement;
-      if (!parent.getAttribute('draggable')) {
-        continue;
+      if (component.parentElement?.getAttribute('draggable')) {
+        component.classList.add('active-formitem2');
+      } else if (component.getAttribute('draggable')) {
+        component.classList.add('active-formitem2-handle');
       }
-
-      component.classList.add('active-formitem2');
     }
   }
 
@@ -2298,6 +2308,13 @@ const JVS_STYLES = `
     display: block !important;
   }
 
+  /* 旧版 JVS，表单设计，组件名常显：站点规则 .formitem2 .handle-btn
+     { display: none } 整条藏掉（hover 才出现），只盖子级救不了 display:none
+     的父级，须盖 handle-btn 本体 */
+  .active-formitem2-handle .handle-btn {
+    display: block !important;
+  }
+
   /* 逻辑设计，展开变量组件设置里的按钮 */
   .bottom-body {
     display: block !important;
@@ -2744,6 +2761,7 @@ const JVS_STYLES = `
     window.__JVS_TEST__.hooks = {
       createOperationRunner: createOperationRunner,
       paintComponents: paintComponents,
+      showFormDesignComponentNames: showFormDesignComponentNames,
       createLogEntry: createLogEntry,
       cutOverdueLogs: cutOverdueLogs,
       uniqueLogs: uniqueLogs,

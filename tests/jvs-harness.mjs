@@ -45,6 +45,7 @@ export function makeFakeEl() {
     dataset: {},
     parentElement: null,
     classList: {
+      add: (name) => classes.add(name),
       toggle(name, force) {
         if (force) classes.add(name);
         else classes.delete(name);
