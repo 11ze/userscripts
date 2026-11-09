@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.24
-// @description 2026-11-06 旧版表单设计组件名常显：兼容 draggable 在组件本体，盖回整条 handle-btn 的默认隐藏
+// @version     0.8.25
+// @description 2026-11-09 逻辑设计节点耗时标注过长遮盖绿色状态按钮：pointer-events none，纯显示不拦截鼠标
 // ==/UserScript==
 
 (function () {
@@ -1336,6 +1336,7 @@
           span.style.position = 'absolute';
           span.style.right = '-40px';
           span.style.color = 'red';
+          span.style.pointerEvents = 'none';
           node.parentNode.appendChild(span);
           return span;
         },

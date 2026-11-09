@@ -380,12 +380,13 @@ function loadExecTimeEnv({ popoverText, timeDom = null }) {
   return { hooks, appended };
 }
 
-test('节点耗时：无标注 → 插入耗时 span（红字）', () => {
+test('节点耗时：无标注 → 插入耗时 span（红字、不捕获鼠标）', () => {
   const { hooks, appended } = loadExecTimeEnv({ popoverText: '123ms' });
   hooks.showNodeExecTime();
   assert.equal(appended.length, 1);
   assert.equal(appended[0].textContent, '123ms');
   assert.equal(appended[0].style.color, 'red');
+  assert.equal(appended[0].style.pointerEvents, 'none');
 });
 
 test('节点耗时：耗时文本未变 → 跳过', () => {
