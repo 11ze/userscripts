@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>媒体重算性能验证</title>
+  <style>body { font: 14px/1.7 sans-serif; padding: 24px; } img { width: 12px; height: 12px; } #result { white-space: pre-wrap; }</style>
+</head>
+<body>
+  <h1>媒体重算性能验证</h1>
+  <p>1000 张图片、20 批文本更新。使用内存存储，统计脚本的计算样式读取和观察器、动画帧回调耗时。刷新可重复测试。</p>
+  <button id="run" disabled>运行验证</button>
+  <pre id="result">等待运行</pre>
+  <div id="changing">0</div>
+  <div id="media"></div>
+  <script>
+    'use strict';
+    let toggle;
+    let measuring = false;
+    const metrics = { reads: 0, callbacks: 0, frames: 0, ms: 0, longTasks: 0, longTaskMs: 0 };
+    new PerformanceObserver((list) => {
+      if (!measuring) return;
+      for (const entry of list.getEntries()) { metrics.longTasks++; metrics.longTaskMs += entry.duration; }
+    }).observe({ entryTypes: ['longtask'] });
+    Object.defineProperty(window, 'localStorage', { value: { getItem: () => null, setItem() {} } });
+    window.GM_registerMenuCommand = (_, callback) => { toggle = callback; };
+    window.GM_addStyle = (css) => {
+      const style = document.createElement('style');
+      style.textContent = css;
+      document.head.append(style);
+      return style;
+    };
+    const computedStyle = window.getComputedStyle;
+    window.getComputedStyle = (...args) => {
+      if (measuring) metrics.reads++;
+      return computedStyle(...args);
+    };
+    const observer = window.MutationObserver;
+    window.MutationObserver = class extends observer {
+      constructor(callback) {
+        super((records, instance) => {
+          const start = performance.now();
+          callback(records, instance);
+          if (measuring) { metrics.callbacks++; metrics.ms += performance.now() - start; }
+        });
+      }
+    };
+    const frame = window.requestAnimationFrame;
+    window.requestAnimationFrame = (callback) => frame((time) => {
+      const start = performance.now();
+      callback(time);
+      if (measuring) { metrics.frames++; metrics.ms += performance.now() - start; }
+    });
+    for (let i = 0; i < 1000; i++) document.getElementById('media').append(document.createElement('img'));
+    const source = document.createElement('script');
+    source.src = '../src/color_mode_switch.user.js';
+    source.onload = () => { document.getElementById('run').disabled = false; };
+    document.head.append(source);
+    const nextFrame = () => new Promise(frame);
+    document.getElementById('run').onclick = async function () {
+      this.disabled = true;
+      toggle();
+      await nextFrame();
+      await nextFrame();
+      measuring = true;
+      const text = document.getElementById('changing').firstChild;
+      for (let i = 1; i <= 20; i++) {
+        text.data = String(i);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+      await nextFrame();
+      await nextFrame();
+      measuring = false;
+      toggle();
+      const result = document.getElementById('result');
+      result.textContent = JSON.stringify(metrics, null, 2);
+      result.dataset.status = metrics.reads > 0 ? 'pass' : 'fail';
+    };
+  </script>
+</body>
+</html>

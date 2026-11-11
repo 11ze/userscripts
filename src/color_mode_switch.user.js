@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         亮暗色切换
 // @namespace    https://github.com/11ze
-// @version      0.1.5
-// @description  2026-10-31 对比度调整为 0.95，修复全屏视频偏色与固定黑白 SVG 隐身，保留站点原有媒体滤镜
+// @version      0.1.6
+// @description  2026-11-11 外部变动按动画帧合并媒体重算，保留全页滤镜采集与关闭清理
 // @author       11ze
 // @match        *://*/*
 // @run-at       document-start
@@ -199,6 +199,7 @@
   let reverseColorModeStyle = null;
   let toggleButtonElement = null;
   let mediaObserver = null;
+  let mediaUpdateFrame = null;
   const mediaStyles = new Map();
 
   function isMonochromeSvg(svg) {
@@ -289,11 +290,15 @@
             mediaStyles.get(record.target)?.lastStyle === record.target.getAttribute('style')) continue;
         changed = true;
       }
-      for (const element of mediaStyles.keys()) {
-        if (!element.isConnected) clearMediaStyle(element);
-      }
-      // 样式表删除、兄弟选择器和 :has() 都可能影响目标子树外的媒体。
-      if (changed) updateMediaStyles(document);
+      if (!changed || mediaUpdateFrame !== null) return;
+      mediaUpdateFrame = requestAnimationFrame(function () {
+        mediaUpdateFrame = null;
+        for (const element of mediaStyles.keys()) {
+          if (!element.isConnected) clearMediaStyle(element);
+        }
+        // 样式表删除、兄弟选择器和 :has() 都可能影响目标子树外的媒体。
+        updateMediaStyles(document);
+      });
     });
     mediaObserver.observe(document, {
       childList: true,
@@ -401,6 +406,8 @@
     if (reverseColorModeStyle) {
       mediaObserver.disconnect();
       mediaObserver = null;
+      if (mediaUpdateFrame !== null) cancelAnimationFrame(mediaUpdateFrame);
+      mediaUpdateFrame = null;
       reverseColorModeStyle.remove();
       reverseColorModeStyle = null;
       for (const element of mediaStyles.keys()) clearMediaStyle(element);

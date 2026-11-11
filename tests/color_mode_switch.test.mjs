@@ -78,8 +78,10 @@ function createStorageStub(initial = {}) {
   };
 }
 
-function loadScriptSandbox({ storage, readyState = 'complete', media = [] } = {}) {
+function loadScriptSandbox({ storage, readyState = 'complete', media = [], autoFlushFrames = true } = {}) {
   const domListeners = new Map();
+  const frames = new Map();
+  let frameId = 0;
   const sandbox = {
     console: {
       log() {},
@@ -118,11 +120,25 @@ function loadScriptSandbox({ storage, readyState = 'complete', media = [] } = {}
       sandbox.__menuCommands[label] = command;
     },
     __COLOR_MODE_SWITCH_TEST__: {},
+    requestAnimationFrame(callback) { frames.set(++frameId, callback); return frameId; },
+    cancelAnimationFrame(id) { frames.delete(id); },
+    __flushFrames() {
+      for (const [id, callback] of [...frames]) {
+        frames.delete(id);
+        callback();
+      }
+    },
   };
   sandbox.window = sandbox;
   sandbox.__domListeners = domListeners;
   sandbox.MutationObserver = class {
-    constructor(callback) { this.callback = callback; sandbox.__observers.push(this); }
+    constructor(callback) {
+      this.callback = (records) => {
+        callback(records);
+        if (autoFlushFrames) sandbox.__flushFrames();
+      };
+      sandbox.__observers.push(this);
+    }
     observe() {}
     disconnect() { this.disconnected = true; }
   };
@@ -722,4 +738,23 @@ test('图标形状锁：@icon 与 ICON_SUN_DATA_URI 剥 fill 后逐字节一致'
       .replace(/fill="[^"]*"/, 'fill="X"');
 
   assert.equal(shapeOnly(iconUri), shapeOnly(ICON_SUN_DATA_URI));
+});
+
+test('连续外部变动：下一帧统一更新媒体，关闭后取消未执行的更新', () => {
+  const photo = createElementStub('img');
+  const sandbox = loadScriptSandbox({ media: [photo], autoFlushFrames: false });
+  sandbox.__menuCommands['切换']();
+  const observer = sandbox.__observers[0];
+  photo.__filter = 'grayscale(1)';
+  observer.callback([{ type: 'characterData', target: {} }]);
+  photo.__filter = 'blur(2px)';
+  observer.callback([{ type: 'attributes', attributeName: 'class', target: {} }]);
+  assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), 'initial', '重算等待下一帧，避免每批变动重新读取整页');
+  sandbox.__flushFrames();
+  assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), 'blur(2px)');
+  observer.callback([{ type: 'characterData', target: {} }]);
+  sandbox.__menuCommands['切换']();
+  sandbox.__flushFrames();
+  assert.equal(photo.style.getPropertyValue('filter'), '');
+  assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), '');
 });
