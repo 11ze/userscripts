@@ -101,19 +101,31 @@ function loadScriptSandbox({ storage, readyState = 'complete', media = [], autoF
       querySelectorAll(selector) { return this.body.querySelectorAll(selector); },
     },
     getComputedStyle(element) {
+      // 记录读取瞬间冻结表状态：采集期间必须 disabled===false（过渡冻结中）
+      sandbox.__freezeAtRead = sandbox.__styleElements.length > 1
+        ? sandbox.__styleElements[1].disabled
+        : null;
       const filter = element.style.filter === 'inherit' ? element.parentElement.style.filter : element.style.filter;
-      return { filter: filter ?? element.__filter ?? 'none', fill: element.__fill ?? 'rgb(0, 0, 0)', stroke: element.__stroke ?? 'none' };
+      const computed = { filter: filter ?? element.__filter ?? 'none', fill: element.__fill ?? 'rgb(0, 0, 0)', stroke: element.__stroke ?? 'none' };
+      // 逐次读取日志：锁定"读发生在哪次写入之后、冻结与否"的次序契约
+      sandbox.__computedReads.push({ element, frozen: sandbox.__freezeAtRead, filter: computed.filter });
+      return computed;
     },
     __observers: [],
+    __computedReads: [],
     __styleCalls: [],
+    __styleElements: [],
     __styleRemovals: 0,
     GM_addStyle(css) {
       sandbox.__styleCalls.push(css);
-      return {
+      const sheet = {
+        disabled: false,
         remove() {
           sandbox.__styleRemovals++;
         },
       };
+      sandbox.__styleElements.push(sheet);
+      return sheet;
     },
     __menuCommands: {},
     GM_registerMenuCommand(label, command) {
@@ -293,6 +305,134 @@ test('滤镜更新：不采集自己的补偿，保留站点的新值和关闭�
   sandbox.__menuCommands['切换']();
   assert.equal(photo.style.filter, 'sepia(1)', '关闭不能覆盖站点刚写入的新值');
   assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), '');
+});
+
+// 纵深防御：内联 filter 若被写回 computed 展开链（写入方不限），尾部带脚本补偿，
+// 采集时若不剥离，每轮重算链叠一层（闪、卡、负片）。见 docs/scripts/color_mode_switch.md。
+const EXPANDED_CHAIN_ROUNDED = ' contrast(1.05263) hue-rotate(180deg) invert(1)';
+const EXPANDED_CHAIN_DRIFT = ' contrast(1.05259) hue-rotate(179.867deg) invert(0.999261)';
+
+function writeInlineFilter(sandbox, photo, filter) {
+  photo.style.setProperty('filter', filter, 'important');
+  sandbox.__observers[0].callback([{ type: 'attributes', attributeName: 'style', target: photo }]);
+}
+
+test('补偿链自捕获回归：写回 6 位舍入展开链，采集时剥离且关闭不残留', () => {
+  const photo = createElementStub('img');
+  photo.style.setProperty('filter', 'brightness(0.94)', 'important');
+  const sandbox = loadScriptSandbox({ media: [photo] });
+  sandbox.__menuCommands['切换']();
+  writeInlineFilter(sandbox, photo, `brightness(0.94)${EXPANDED_CHAIN_ROUNDED}`);
+  assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), 'brightness(0.94)', '展开链须剥离尾部补偿，只采站点滤镜');
+  assert.match(photo.style.filter, /^var\(--11ze-original-filter,\s*\)/, '补偿仍走模板拼接');
+  sandbox.__menuCommands['切换']();
+  assert.equal(photo.style.getPropertyValue('filter'), 'brightness(0.94)', '关闭还原站点原值，不残留补偿链');
+  assert.equal(photo.style.getPropertyPriority('filter'), 'important');
+});
+
+test('补偿链自捕获回归：写回插值漂移形态同样剥离', () => {
+  const photo = createElementStub('img');
+  photo.style.setProperty('filter', 'brightness(0.94)', 'important');
+  const sandbox = loadScriptSandbox({ media: [photo] });
+  sandbox.__menuCommands['切换']();
+  writeInlineFilter(sandbox, photo, `brightness(0.94)${EXPANDED_CHAIN_DRIFT}`);
+  assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), 'brightness(0.94)');
+});
+
+test('补偿链自捕获回归：多层污染链一次全剥离，元素随重算自愈', () => {
+  const photo = createElementStub('img');
+  photo.style.setProperty('filter', 'brightness(0.94)', 'important');
+  const sandbox = loadScriptSandbox({ media: [photo] });
+  sandbox.__menuCommands['切换']();
+  writeInlineFilter(sandbox, photo, `brightness(0.94)${EXPANDED_CHAIN_ROUNDED}${EXPANDED_CHAIN_DRIFT}`);
+  assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), 'brightness(0.94)');
+});
+
+test('补偿链自捕获回归：站点无滤镜时写回的纯链剥离为 initial，关闭后无残留', () => {
+  const photo = createElementStub('img');
+  const sandbox = loadScriptSandbox({ media: [photo] });
+  sandbox.__menuCommands['切换']();
+  writeInlineFilter(sandbox, photo, EXPANDED_CHAIN_ROUNDED.trim());
+  assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), 'initial');
+  sandbox.__menuCommands['切换']();
+  assert.equal(photo.style.getPropertyValue('filter'), '');
+});
+
+test('补偿链增长断根：反复写回展开链，采集原值逐轮不叠层', () => {
+  const photo = createElementStub('img');
+  photo.style.setProperty('filter', 'brightness(0.94)', 'important');
+  const sandbox = loadScriptSandbox({ media: [photo] });
+  sandbox.__menuCommands['切换']();
+  for (let round = 1; round <= 3; round++) {
+    writeInlineFilter(sandbox, photo, `brightness(0.94)${EXPANDED_CHAIN_ROUNDED.repeat(round)}`);
+    assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), 'brightness(0.94)', `第 ${round} 轮采集不得叠层`);
+  }
+});
+
+test('补偿链签名不误剥：站点自带 invert+hue-rotate 暗色滤镜原样采集', () => {
+  const photo = createElementStub('img');
+  photo.style.setProperty('filter', 'grayscale(1)', 'important');
+  const sandbox = loadScriptSandbox({ media: [photo] });
+  sandbox.__menuCommands['切换']();
+  writeInlineFilter(sandbox, photo, 'invert(1) hue-rotate(180deg)');
+  assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), 'invert(1) hue-rotate(180deg)', '顺序与三元组签名不符，是站点原值');
+});
+
+// weekly.tw93.fun 第二轮排查定案：站点 .card-cover 带 transition:filter，采集周期内
+// 恢复/重挂会让过渡反复重定向，飞行中的 getComputedStyle 返回插值中间值（实测
+// contrast(1.0314) hue-rotate(107.384deg) invert(0.596579) ≈ 59.6% 插值点）被采为站点原值。
+// 见 docs/scripts/color_mode_switch.md 采集冻结条目。
+test('采集冻结：读取期间过渡被禁用，读取后恢复且不残留', () => {
+  const photo = createElementStub('img');
+  const sandbox = loadScriptSandbox({ media: [photo] });
+  sandbox.__menuCommands['切换']();
+  const freezeSheet = sandbox.__styleElements[1];
+  assert.ok(freezeSheet, '开启反转时随反转样式表一并注入冻结表');
+  assert.equal(sandbox.__styleCalls[1].includes('transition'), true, '冻结表须禁用过渡');
+  assert.equal(freezeSheet.disabled, true, '非采集期间不得冻结站点过渡');
+  photo.__filter = 'grayscale(1)';
+  sandbox.__observers[0].callback([{ type: 'attributes', attributeName: 'class', target: photo }]);
+  assert.equal(photo.style.getPropertyValue('--11ze-original-filter'), 'grayscale(1)');
+  assert.equal(sandbox.__freezeAtRead, false, '采集读取期间过渡必须处于冻结状态');
+  assert.equal(freezeSheet.disabled, true, '采集结束后冻结表回到禁用');
+  sandbox.__menuCommands['切换']();
+  assert.equal(sandbox.__styleRemovals, 2, '关闭时两张样式表一并移除');
+});
+
+test('采集冻结契约：覆盖全部媒体与全屏容器，特异性压过 class 级 !important 过渡', () => {
+  const css = loadScriptHooks().buildCaptureFreezeCss();
+  for (const tag of ['img', 'video', 'iframe', 'canvas', 'svg', ':fullscreen']) {
+    assert.ok(css.includes(tag), `冻结表须覆盖 ${tag}`);
+  }
+  assert.match(css, /transition:\s*none\s*!important/, '过渡须整表禁用');
+  assert.match(css, /:not\(#/, '特异性须含 ID 位，压过 Tailwind .!transition 这类 class 级 !important 过渡');
+});
+
+// 第三轮排查定案：读原值时反转表停用，引擎把 none 记为前置样式；解冻边界
+// none ≠ 补偿链会创建 0.12s 过渡——首屏从恒等（负片）渐回补偿即闪烁，无后续重算的
+// 元素停在负片。解冻前须逐元素回读一次，把终值落定为最后记录的计算值。
+// 桩不执行真过渡引擎，锁定次序契约：每个媒体的末次 computed 读取都在末次写入之后、且处于冻结区。
+test('采集落定：每个媒体末次写入后、解冻前各回读一次 computed', () => {
+  const photo = createElementStub('img');
+  const cover = createElementStub('img');
+  const sandbox = loadScriptSandbox({ media: [photo, cover] });
+  sandbox.__menuCommands['切换']();
+  for (const element of [photo, cover]) {
+    const reads = sandbox.__computedReads.filter((read) => read.element === element);
+    const last = reads[reads.length - 1];
+    assert.ok(last, '媒体须有 computed 读取');
+    assert.ok(last.filter.includes('var('), '末次读取须在补偿写入之后（落定终值，而非读取时的原值）');
+    assert.equal(last.frozen, false, '落定读取须在解冻之前（冻结区内）');
+  }
+  // 关闭同一边界：清内联补偿也须冻结落定，否则 chain→none 过渡照样创建（关闭闪烁）
+  sandbox.__menuCommands['切换']();
+  for (const element of [photo, cover]) {
+    const reads = sandbox.__computedReads.filter((read) => read.element === element);
+    const last = reads[reads.length - 1];
+    assert.ok(last, '关闭后媒体仍须有 computed 读取');
+    assert.ok(!last.filter.includes('var('), '关闭的末次读取须在补偿清除之后（落定站点原值）');
+    assert.equal(last.frozen, false, '关闭的落定读取须在冻结表移除之前（冻结区内）');
+  }
 });
 
 test('迟到的样式表：加载后重新采集站点滤镜', () => {
@@ -518,11 +658,11 @@ test('菜单切换：关→开写入存储并注入反转样式，再切回移�
 
   sandbox.__menuCommands['切换']();
   assert.equal(storage.store[STORAGE_KEY], 'true');
-  assert.equal(sandbox.__styleCalls.length, 1);
+  assert.equal(sandbox.__styleCalls.length, 2, '反转样式表 + 采集冻结表');
 
   sandbox.__menuCommands['切换']();
-  assert.equal(sandbox.__styleRemovals, 1);
-  assert.equal(sandbox.__styleCalls.length, 1, '关闭不重复注入');
+  assert.equal(sandbox.__styleRemovals, 2);
+  assert.equal(sandbox.__styleCalls.length, 2, '关闭不重复注入');
 });
 
 test('菜单切换（写失败回归）：存储写失败时不注入样式', () => {
@@ -541,7 +681,7 @@ test('初始状态开启：init 即注入反转样式', () => {
   const storage = createStorageStub({ [STORAGE_KEY]: 'true' });
   const sandbox = loadScriptSandbox({ storage });
 
-  assert.equal(sandbox.__styleCalls.length, 1);
+  assert.equal(sandbox.__styleCalls.length, 2, 'init 即注入反转与冻结两张样式表');
 });
 
 test('时序（闪白回归）：document-start 即注样式与菜单，按钮等 DOMContentLoaded', () => {
@@ -549,7 +689,8 @@ test('时序（闪白回归）：document-start 即注样式与菜单，按钮�
   const storage = createStorageStub({ [STORAGE_KEY]: 'true' });
   const sandbox = loadScriptSandbox({ storage, readyState: 'loading' });
 
-  assert.equal(sandbox.__styleCalls.length, 1, '样式在 DOM 就绪前已注入');
+  assert.equal(sandbox.__styleCalls.length, 2, '样式在 DOM 就绪前已注入');
+  assert.match(sandbox.__styleCalls[0], /html\s*\{/, '反转表先注入防闪白，冻结表随后');
   assert.ok(sandbox.__menuCommands['切换'], '菜单命令即时注册');
   assert.ok(!getToggleButton(sandbox).container, 'body 未就绪，不挂按钮');
 
@@ -633,7 +774,7 @@ test('按钮交互：点击按钮等同菜单切换', () => {
   const { button } = getToggleButton(sandbox);
 
   button.fire('click');
-  assert.equal(sandbox.__styleCalls.length, 1);
+  assert.equal(sandbox.__styleCalls.length, 2);
 });
 
 test('样式收编：源码不再含内联 cssText 与 innerHTML 拼串', () => {

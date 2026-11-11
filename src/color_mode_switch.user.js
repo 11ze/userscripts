@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         亮暗色切换
 // @namespace    https://github.com/11ze
-// @version      0.1.6
-// @description  2026-11-11 外部变动按动画帧合并媒体重算，保留全页滤镜采集与关闭清理
+// @version      0.1.7
+// @description  2026-11-11 采集冻结+解冻前逐元素落定+补偿链剥离，transition:filter 站点原滤镜不被污染、启停不闪
 // @author       11ze
 // @match        *://*/*
 // @run-at       document-start
@@ -42,6 +42,21 @@
     } catch {
       return false;
     }
+  }
+
+  /**
+   * 采集冻结样式表：媒体自带 transition:filter（如 weekly.tw93.fun 的 .card-cover）时，
+   * 采集周期的恢复/重挂会让过渡反复重定向，飞行中的 getComputedStyle 返回插值中间值
+   * （实测 contrast(1.0314) hue-rotate(107.384deg) invert(0.596579) ≈ 59.6% 插值点），
+   * 被采为站点原值后补偿基准永久污染。采集窗口内整表禁过渡，恢复、读取、重挂全程读目标值。
+   * :not(#id) 抬特异性，压过 Tailwind .!transition 这类 class 级 !important 过渡。
+   */
+  function buildCaptureFreezeCss() {
+    return `
+      :is(img, video, iframe, canvas, svg, :fullscreen):not(#nonexistent-11ze-capture-freeze) {
+        transition: none !important;
+      }
+    `;
   }
 
   /**
@@ -197,6 +212,7 @@
 
   let isReverseColorMode = readState(localStorage);
   let reverseColorModeStyle = null;
+  let captureFreezeStyle = null;
   let toggleButtonElement = null;
   let mediaObserver = null;
   let mediaUpdateFrame = null;
@@ -218,6 +234,26 @@
     });
   }
 
+  // 补偿链签名：按容差识别尾部重复的 contrast→hue-rotate→invert 有序三元组。
+  // computed 会把常量舍入为 6 位有效数字（contrast(1.05263)），过渡插值近终点
+  // 还会产生漂移（contrast(1.05259) hue-rotate(179.867deg) invert(0.999261)，99.9% 插值点）；
+  // 站点暗色常用的 invert(1) hue-rotate(180deg) 顺序不同，不会被误剥。
+  const COMPENSATION_CHAIN_PATTERN = /(?:^| )contrast\((\d+(?:\.\d+)?)\) hue-rotate\((\d+(?:\.\d+)?)deg\) invert\((\d+(?:\.\d+)?)\)$/;
+
+  function stripCompensationChains(filterValue) {
+    // var() 引用（模板字面量）不是 computed 展开链，原样返回
+    if (!filterValue || filterValue.includes('var(')) return filterValue;
+    let value = filterValue;
+    while (value) {
+      const match = value.match(COMPENSATION_CHAIN_PATTERN);
+      // 容差覆盖舍入与漂移；contrast 目标值与 MEDIA_FILTER 同源（1/0.95）
+      if (!match || Math.abs(Number(match[1]) - 1.0526315789473684) > 0.002 ||
+          Math.abs(Number(match[2]) - 180) > 1 || Math.abs(Number(match[3]) - 1) > 0.002) break;
+      value = value.slice(0, match.index).trimEnd();
+    }
+    return value;
+  }
+
   function updateMediaStyles(root) {
     const elements = new Set(root.querySelectorAll(MEDIA_SELECTOR));
     if (root === document && document.fullscreenElement) elements.add(document.fullscreenElement);
@@ -227,9 +263,12 @@
     for (let svg = root.closest?.('svg'); svg; svg = svg.parentElement?.closest('svg')) elements.add(svg);
     if (!elements.size) return;
 
-    // 同步读取期间停用脚本样式，避免把自己的补偿重新采集为站点滤镜。
+    // 同步读取期间停用脚本样式，避免把自己的补偿重新采集为站点滤镜；
+    // 同时冻结过渡，防止站点 transition:filter 让读取落在插值中间值上。
     const disabled = reverseColorModeStyle.disabled;
+    const frozen = captureFreezeStyle.disabled;
     reverseColorModeStyle.disabled = true;
+    captureFreezeStyle.disabled = false;
     try {
       const originals = [];
       for (const element of elements) {
@@ -241,18 +280,29 @@
           inlineFilter = previous.inlineFilter;
           priority = previous.priority;
           element.style.setProperty('filter', inlineFilter, priority);
+        } else {
+          // 若内联 filter 被写回 computed 展开链（写入方不限），尾部会带脚本补偿；
+          // 剥离后再当站点原值，否则每轮重算链叠一层，关闭时也残留。
+          const stripped = stripCompensationChains(inlineFilter);
+          if (stripped !== inlineFilter) {
+            inlineFilter = stripped;
+            element.style.setProperty('filter', inlineFilter, priority);
+          }
         }
         originals.push({ element, inlineFilter, priority });
       }
       // 先读取整批原值，防止 filter:inherit 读到父媒体刚挂上的补偿。
       const captured = originals.map(function (original) {
         const { element } = original;
-        return { ...original, filter: getComputedStyle(element).filter,
+        // computed 尾部同样可能带补偿链（内联写回或 inherit 读到父级污染），剥离后才是站点原值。
+        const filter = stripCompensationChains(getComputedStyle(element).filter);
+        return { ...original, filter,
           monochrome: element.matches('svg') && isMonochromeSvg(element) };
       });
       for (const { element, inlineFilter, priority, filter, monochrome } of captured) {
-        // initial 阻止私有属性从外层媒体继承，none 又不能与滤镜函数拼接。
-        element.style.setProperty(ORIGINAL_FILTER_PROPERTY, filter === 'none' ? 'initial' : filter);
+        // initial 阻止私有属性从外层媒体继承，none 又不能与滤镜函数拼接；纯补偿链剥空时同理。
+        element.style.setProperty(ORIGINAL_FILTER_PROPERTY,
+          filter === 'none' || filter === '' ? 'initial' : filter);
         if (element.matches('svg')) {
           if (monochrome) element.setAttribute('data-11ze-monochrome', '');
           else element.removeAttribute('data-11ze-monochrome');
@@ -266,7 +316,13 @@
         element.style.setProperty('filter', appliedFilter, 'important');
         mediaStyles.set(element, { lastStyle: element.getAttribute('style'), inlineFilter, priority, appliedFilter });
       }
+      // 采集末尾、解冻前逐元素回读一次：读原值时（反转表停用）引擎把 none 记为
+      // 前置样式，解冻时 none ≠ 补偿链会创建 0.12s 过渡——首屏负片渐变回补偿（闪），
+      // 无后续重算则停在负片。冻结区内落定终值后，解冻前后一致，不创建过渡。
+      // 根元素单次读取不会重算全部脏元素，必须逐元素回读。
+      for (const { element } of captured) getComputedStyle(element).filter;
     } finally {
+      captureFreezeStyle.disabled = frozen;
       reverseColorModeStyle.disabled = disabled;
     }
   }
@@ -399,6 +455,8 @@
     if (reverseColorModeStyle) return;
 
     reverseColorModeStyle = GM_addStyle(buildReverseColorCss());
+    captureFreezeStyle = GM_addStyle(buildCaptureFreezeCss());
+    captureFreezeStyle.disabled = true;
     observeMedia();
   }
 
@@ -410,7 +468,18 @@
       mediaUpdateFrame = null;
       reverseColorModeStyle.remove();
       reverseColorModeStyle = null;
-      for (const element of mediaStyles.keys()) clearMediaStyle(element);
+      // 关闭与开启同一防闪边界：撤冻结前清内联补偿并逐元素落定（站点原值成为
+      // 最后记录的计算值），否则补偿链→none 的 0.12s 过渡照样创建（关闭闪烁）。
+      const elements = [...mediaStyles.keys()];
+      captureFreezeStyle.disabled = false;
+      try {
+        for (const element of elements) clearMediaStyle(element);
+        for (const element of elements) getComputedStyle(element).filter;
+      } finally {
+        captureFreezeStyle.disabled = true;
+      }
+      captureFreezeStyle.remove();
+      captureFreezeStyle = null;
     }
   }
 
@@ -420,6 +489,7 @@
       readState,
       writeState,
       buildReverseColorCss,
+      buildCaptureFreezeCss,
       ICON_SUN_DATA_URI,
       STORAGE_KEY,
     };

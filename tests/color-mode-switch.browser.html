@@ -8,6 +8,8 @@
     img, video, svg { width: 120px; height: 64px; }
     #photo { filter: grayscale(1) !important; }
     body.changed #photo { filter: blur(2px) !important; }
+    /* 模拟 weekly.tw93.fun 的 .card-cover：媒体自带 filter 过渡 */
+    #cover { transition: filter 0.12s ease-out; }
     #screen { padding: 20px; background: white; filter: sepia(1); }
     #result, #fullscreen-result { white-space: pre-wrap; }
   </style>
@@ -20,6 +22,7 @@
   <pre id="result">等待运行</pre>
   <pre id="fullscreen-result">等待全屏验证</pre>
   <img id="photo" alt="原滤镜图片" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='64'%3E%3Cpath fill='red' d='M0 0h60v64H0z'/%3E%3Cpath fill='blue' d='M60 0h60v64H60z'/%3E%3C/svg%3E">
+  <img id="cover" alt="过渡封面" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='64'%3E%3Cpath fill='red' d='M0 0h60v64H0z'/%3E%3Cpath fill='blue' d='M60 0h60v64H60z'/%3E%3C/svg%3E">
   <img id="ignored" class="reverse-color-mode-ignore" alt="逃生舱图片">
   <svg id="icon"><path id="icon-path" fill="white" d="M0 0h50v50H0z"></path></svg>
   <svg id="outer" style="filter: grayscale(1)"><path fill="red" d="M0 0h50v50H0z"></path><svg id="inner" style="filter: inherit"><path fill="blue" d="M0 0h20v20H0z"></path></svg></svg>
@@ -74,7 +77,21 @@
       const path = document.getElementById('icon-path');
       let failure;
       try {
+        // 第三轮排查定案：读原值时引擎把 none 记为前置样式，解冻边界 none≠补偿链
+        // 会创建 0.12s 过渡——首屏从恒等（负片）渐回补偿即闪烁。挂载补偿不得启动
+        // 任何过渡，且立即读得完整补偿链。
+        const cover = document.getElementById('cover');
+        const coverTransitions = [];
+        for (const type of ['transitionrun', 'transitionstart']) {
+          cover.addEventListener(type, (event) => coverTransitions.push(event.propertyName));
+        }
         setMode(true);
+        const mounted = getComputedStyle(cover).filter;
+        check(mounted.startsWith('contrast(1.05') && mounted.includes('invert(1)'),
+          '补偿挂载后立即是完整补偿链，不得从恒等渐入', passed);
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        check(coverTransitions.length === 0, '补偿挂载不得创建过渡（首屏闪烁源）', passed);
         check(getComputedStyle(photo).filter.includes('grayscale(1)') && getComputedStyle(photo).filter.includes('contrast('), '样式表 important 滤镜先于补偿', passed);
         check(getComputedStyle(document.getElementById('ignored')).filter === 'none', '逃生舱图片不叠加补偿', passed);
         check(icon.hasAttribute('data-11ze-monochrome') && getComputedStyle(icon).filter === 'none', '单色 SVG 跟随页面变色', passed);
@@ -86,6 +103,25 @@
         document.body.classList.add('changed');
         await checkEventually(() => getComputedStyle(photo).filter.includes('blur(2px)'),
           '外部 class 更新后重读跨子树滤镜', passed);
+        // weekly.tw93.fun 定案：媒体自带 transition:filter，采集周期的恢复/重挂让过渡反复
+        // 重定向，飞行中的 computed 插值（如 invert(0.596579)）会被采为站点原值
+        document.body.classList.add('cover-churn');
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        document.body.classList.remove('cover-churn');
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        check(cover.style.getPropertyValue('--11ze-original-filter') === 'initial',
+          '过渡飞行中重算不得把插值中间值采为站点原值', passed);
+        check((getComputedStyle(cover).filter.match(/invert\(/g) ?? []).length === 1,
+          '过渡封面的补偿链恒为一条', passed);
+        // 纵深防御：内联 filter 若被写回 computed 展开链（写入方不限），采集须剥离尾部补偿
+        const writeBack = () => photo.style.setProperty('filter', getComputedStyle(photo).filter, 'important');
+        for (let round = 1; round <= 2; round++) {
+          writeBack();
+          await checkEventually(() => photo.style.filter.includes('var('), `写回第 ${round} 轮后重写补偿模板`, passed);
+          check(photo.style.getPropertyValue('--11ze-original-filter') === 'blur(2px)', `写回第 ${round} 轮采集原值不叠层`, passed);
+          check((getComputedStyle(photo).filter.match(/invert\(/g) ?? []).length === 1, `写回第 ${round} 轮链不自增`, passed);
+        }
         photo.style.setProperty('filter', 'sepia(1)', 'important');
         setMode(false);
         check(photo.style.filter === 'sepia(1)' && photo.style.getPropertyPriority('filter') === 'important', '关闭前站点刚写入的滤镜不被覆盖', passed);
@@ -100,6 +136,11 @@
         path.setAttribute('fill', 'red');
         await new Promise((resolve) => queueMicrotask(resolve));
         check(!icon.hasAttribute('data-11ze-monochrome') && icon.style.filter === '', '关闭后观察器不再写入', passed);
+        // 关闭同一边界：清内联补偿若在冻结区外，chain→none 过渡照样创建（关闭闪烁）。
+        // 过渡事件在渲染时机才派发，须落帧后再数。
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        check(coverTransitions.length === 0, '启停全程不得创建过渡', passed);
       } catch (error) { failure = error; }
       finally {
         setMode(false);
