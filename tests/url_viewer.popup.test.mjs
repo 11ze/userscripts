@@ -387,3 +387,39 @@ test('「复制值」提示：查看模式存在，编辑模式随值 span 替�
   assert.equal(countDescendants(popup, isValueHint) > 0, true);
   assert.ok(!popup.className.split(/\s+/).includes('editing'));
 });
+
+test('编辑后未修改值：编码的参数边界与加号保持原义', () => {
+  const href = 'https://example.com/p?q=a%26b%3Dc&lang=C%2B%2B&tag=a%23b&percent=%2526';
+  const viewer = loadScript({ href });
+  viewer.openFromMenu();
+  const popup = getPopup(viewer);
+  clickBarButton(popup, '编辑');
+  clickBarButton(popup, '确定');
+  assert.deepEqual(viewer.navigation.events, [
+    { type: 'href', value: href },
+    { type: 'reload' },
+  ]);
+});
+
+test('编码的 iframe 路由：内部参数可编辑，确认后仍属于 src 参数', () => {
+  const viewer = loadScript({ href: 'https://jvs.example.com/#/myiframe?name=demo&src=%2Fpage-design-ui%2F%23%2Flist%2Fuse%3Fid%3Dabc%26jvsAppId%3Dapp1%26lang%3DC%252B%252B%26tag%3Da%2523b' });
+  viewer.openFromMenu();
+  const popup = getPopup(viewer);
+  clickBarButton(popup, '编辑');
+  const inputs = [];
+  const walk = (el) => {
+    for (const child of el.children) {
+      if (child.tagName === 'input') inputs.push(child);
+      walk(child);
+    }
+  };
+  walk(popup);
+  assert.deepEqual(inputs.map((input) => input.value), ['demo', '/page-design-ui/', 'abc', 'app1', 'C++', 'a#b']);
+  inputs[2].value = 'def&ghi';
+  clickBarButton(popup, '确定');
+  const nextHref = viewer.navigation.events[0].value;
+  const params = new URLSearchParams(new URL(nextHref).hash.split('?')[1]);
+  assert.equal(params.get('name'), 'demo');
+  assert.equal(params.get('src'), '/page-design-ui/#/list/use?id=def%26ghi&jvsAppId=app1&lang=C%2B%2B&tag=a%23b');
+  assert.equal(params.has('jvsAppId'), false);
+});

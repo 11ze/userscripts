@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         查看网址
 // @namespace    https://github.com/11ze
-// @version      0.5.0
-// @description  2026-10-31 弹窗重设计（designs/url-viewer 方向 C 极简）：毛玻璃面板、黑色主按钮、分段式底栏；表格改网格行，键/值 hover 分离各带复制提示，多段显示序号徽标；2026-10-25 打开时 decode 包 try/catch——SPA pushState 写入的裸 % href 不再抛 URIError 致弹窗打不开
+// @version      0.5.1
+// @description  2026-11-11 按 URL 编码层级解析与重建参数，保留嵌套路由编辑，避免编码分隔符与加号改变原义
 // @author       11ze
 // @license      MIT
 // @match        *://*/*
@@ -400,8 +400,8 @@
   /**
    * 把 URL 拆成 host 段列表，每段携带自己的查询参数
    * 段内取第一个 ? 之后的全部作为查询串，参数值里的 ? 不截断
-   * 调用方需先对整串 decodeURIComponent：让参数里编码的 #
-   * 炸开成独立段，iframe 嵌套路由才能分节展示
+   * 原始地址先分段，URLSearchParams 只解码当前层参数。
+   * URL 参数中的 hash 路由另存子段，编辑后仍序列化回原参数。
    */
   function parseUrl(url) {
     if (typeof url !== 'string' || !url) {
@@ -420,7 +420,13 @@
 
       if (queryString) {
         for (const [key, value] of new URLSearchParams(queryString).entries()) {
-          params.push({ key: key, value: value });
+          const param = { key: key, value: value };
+          const hashIndex = value.indexOf('#');
+          if (hashIndex !== -1 && /^(https?:\/\/|\/)/.test(value)) {
+            param.value = value.slice(0, hashIndex);
+            param.hashSegments = parseUrl(value.slice(hashIndex + 1));
+          }
+          params.push(param);
         }
       }
 
@@ -441,23 +447,30 @@
     const [main, ...hashSegments] = segments;
 
     if (main && main.params.length > 0) {
-      const params = new URLSearchParams();
-      for (const { key, value } of main.params) params.append(key, value);
-      url.search = params.toString();
+      url.search = serializeParams(main.params);
     }
 
     if (hashSegments.length > 0) {
-      url.hash = hashSegments
-        .map((segment) => {
-          const params = new URLSearchParams();
-          for (const { key, value } of segment.params) params.append(key, value);
-          const queryString = params.toString();
-          return segment.host + (queryString ? '?' + queryString : '');
-        })
-        .join('#');
+      url.hash = serializeSegments(hashSegments);
     }
 
     return url.toString();
+  }
+
+  function serializeParams(params) {
+    const query = new URLSearchParams();
+    for (const param of params) {
+      const value = param.value + (param.hashSegments ? '#' + serializeSegments(param.hashSegments) : '');
+      query.append(param.key, value);
+    }
+    return query.toString();
+  }
+
+  function serializeSegments(segments) {
+    return segments.map((segment) => {
+      const query = serializeParams(segment.params);
+      return segment.host + (query ? '?' + query : '');
+    }).join('#');
   }
 
   // ==================== DOM 创建函数 ====================
@@ -647,7 +660,7 @@
   function openViewer() {
     closeViewer();
 
-    // 打开时快照：基底地址与解码串只取一次，编辑会话全程认这份模型
+    // 编辑模型保留原始编码边界；整串解码只用于顶部展示。
     const rawHref = window.location.href;
     let decodedHref = rawHref;
     try {
@@ -655,7 +668,7 @@
     } catch {
       // SPA 经 pushState 写入的 URL 可含裸 %，decode 会抛 URIError——回退原串，弹窗照常打开
     }
-    const segments = parseUrl(decodedHref);
+    const segments = parseUrl(rawHref);
 
     const popup = createEl('div', popupStyles, {
       id: '11ze-url-reader-popup',
@@ -675,20 +688,30 @@
 
     // 构建参数列表；多段时段与段之间加分隔线，段序号徽标也只在多段时出现
     const bindings = [];
-    const multi = segments.length > 1;
+    const sections = [];
+    function collectSections(list, level = 0) {
+      list.forEach((segment, index) => {
+        sections.push({ segment, level: level + index });
+        for (const param of segment.params) {
+          if (param.hashSegments) collectSections(param.hashSegments, level + index + 1);
+        }
+      });
+    }
+    collectSections(segments);
+    const multi = sections.length > 1;
 
-    segments.forEach((segment, index) => {
+    sections.forEach(({ segment, level }, index) => {
       if (index > 0 && multi) {
         popup.appendChild(createSeparator());
       }
 
-      popup.appendChild(createHostDiv(segment.host, index, multi ? index : null));
+      popup.appendChild(createHostDiv(segment.host, level, multi ? index : null));
 
       if (segment.params.length === 0) return;
 
       const rows = createEl('div', rowsStyles);
       // -4 抵消 rows 自身 padding，行内容与段头文字左对齐，hover 底向外溢 4px
-      rows.style.marginLeft = `${index * 20 - 4}px`;
+      rows.style.marginLeft = `${level * 20 - 4}px`;
       popup.appendChild(rows);
       for (const param of segment.params) {
         bindings.push(addParamRow(rows, param));
