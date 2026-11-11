@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.25
-// @description 2026-11-09 逻辑设计节点耗时标注过长遮盖绿色状态按钮：pointer-events none，纯显示不拦截鼠标
+// @version     0.8.26
+// @description 2026-11-11 存储写入失败后可重试，标题与图标按当前 DOM 值恢复并避免重复写入
 // ==/UserScript==
 
 (function () {
@@ -203,8 +203,10 @@
     set: (key, value) => {
       try {
         localStorage.setItem(key, JSON.stringify(value));
+        return true;
       } catch (error) {
         console.error(`写入本地存储失败 [${key}]:`, error);
+        return false;
       }
     },
     remove: (key) => {
@@ -486,6 +488,7 @@
    * probe 返回 null/undefined 表示本 tick 不适用；键不变时跳过 apply。
    * probe 也可返回 { key, payload } 对象——键对比走 key，payload 直达
    * apply(payload)（probe 采集，apply 消费采到的数据，不二次读取）。
+   * apply 返回 false 时保留待处理键，下一 tick 重试。
    * apply 成功后才记录键：抛错时键不记录，下一 tick 同键重试（自愈）
    * @param {Array<Function | {name: string, probe: Function, apply: Function}>} operations
    * @param {(name: string, error: unknown) => void} onError - 单个操作出错时的回调
@@ -506,8 +509,7 @@
           if (result === null || result === undefined) continue;
           const key = result.key ?? result;
           if (lastKeys.get(operation) === key) continue;
-          operation.apply(result.payload);
-          lastKeys.set(operation, key);
+          if (operation.apply(result.payload) !== false) lastKeys.set(operation, key);
         } catch (error) {
           onError(operation.name, error);
         }
@@ -616,8 +618,9 @@
 
     appNameMap[jvsAppId] = appName;
     appNameMap[appName] = jvsAppId;
-    jvsStorage.set(STORAGE_KEYS.APP_NAME_MAP, appNameMap);
-    savedAppIds.add(jvsAppId);
+    if (jvsStorage.set(STORAGE_KEYS.APP_NAME_MAP, appNameMap)) {
+      savedAppIds.add(jvsAppId);
+    }
   }
 
   /**
@@ -664,7 +667,7 @@
     logObj.type = type;
     const logList = getLogs();
     logList.push(logObj);
-    jvsStorage.set(STORAGE_KEYS.LOGS, logList);
+    return jvsStorage.set(STORAGE_KEYS.LOGS, logList);
   }
 
   /**
@@ -1081,7 +1084,7 @@
     },
     apply(newLog) {
       if (newLog) {
-        saveLog(newLog, '打开');
+        return saveLog(newLog, '打开');
       }
     },
   };
@@ -1246,10 +1249,6 @@
     return '';
   }
 
-  // 上次写入的标题与设计类型：相同则跳过本轮 DOM 写（title 失效与 favicon href 写都省）
-  let lastAppliedTitle = null;
-  let lastAppliedTabType = null;
-
   /**
    * 修改浏览器标签页标题
    */
@@ -1272,7 +1271,7 @@
       const links = document.querySelectorAll("link[rel*='icon']");
 
       links.forEach(function (link) {
-        link.href = iconURL;
+        if (link.href !== iconURL) link.href = iconURL;
       });
     }
 
@@ -1285,13 +1284,7 @@
       title = prefix + '｜' + (newTabTitle || '未打开应用');
     }
 
-    if (title === lastAppliedTitle && tabType === lastAppliedTabType) {
-      return;
-    }
-    lastAppliedTitle = title;
-    lastAppliedTabType = tabType;
-
-    document.title = title;
+    if (document.title !== title) document.title = title;
     if (tabType) {
       changeFavicon(ICONS[tabType]);
     }

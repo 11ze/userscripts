@@ -126,7 +126,7 @@ test('saveCurrentLog operation：probe 采组合键与完整 payload，apply 直
   assert.equal(logs[0].appName, '订单应用');
 });
 
-function makeLogRecordingEnv() {
+function makeLogRecordingEnv({ failLogWrite = () => false } = {}) {
   const { localStorage } = makeStorageStub();
   const logWrites = [];
   const location = {
@@ -140,6 +140,7 @@ function makeLogRecordingEnv() {
     localStorage: {
       ...localStorage,
       setItem(key, value) {
+        if (key === LOGS_KEY && failLogWrite()) throw new Error('QuotaExceededError');
         localStorage.setItem(key, value);
         if (key === LOGS_KEY) logWrites.push(JSON.parse(value));
       },
@@ -162,6 +163,19 @@ function makeLogRecordingEnv() {
   });
   return { hooks, tick, errors, location, designName, appName, tabType, logWrites };
 }
+
+test('打开日志写入失败后恢复存储：相同页面下一 tick 重试，成功后不重复保存', () => {
+  let writable = false;
+  const { hooks, tick, logWrites } = makeLogRecordingEnv({ failLogWrite: () => !writable });
+  tick();
+  assert.equal(hooks.getLogs().length, 0);
+  writable = true;
+  tick();
+  assert.equal(hooks.getLogs().length, 1);
+  assert.equal(hooks.getLogs()[0].id, 'd1');
+  tick();
+  assert.equal(logWrites.length, 1);
+});
 
 test('打开日志：同应用内切换同名但不同 id 的设计，两条都可查', () => {
   const { hooks, tick, errors, location } = makeLogRecordingEnv();
@@ -361,4 +375,36 @@ test('changeTitle：title 未变时模式采集仍每 tick 跑（写副作用契
   store.delete(APP_MODE_MAP_KEY);
   hooks.changeTitle();
   assert.equal(JSON.parse(store.get(APP_MODE_MAP_KEY)).j1, '开发模式');
+});
+
+test('宿主覆盖标题或替换 favicon：下一 tick 恢复，稳定时不重复写入', () => {
+  let title = '';
+  let titleWrites = 0;
+  let href = '';
+  let iconWrites = 0;
+  let icon = { get href() { return href; }, set href(value) { href = value; iconWrites++; } };
+  const doc = makeDocStub({
+    bySelector: {
+      '.design-header-box': {},
+      '#tab-design > span': { textContent: '逻辑设计' },
+      '#app > div > div > div.design-header-box > div.header-left > span:nth-child(3)': { textContent: '订单查询' },
+    },
+  });
+  doc.querySelectorAll = (selector) => selector === "link[rel*='icon']" ? [icon] : [];
+  Object.defineProperty(doc, 'title', {
+    get: () => title,
+    set(value) { title = value; titleWrites++; },
+  });
+  const { hooks } = loadJvsHooks({ document: doc });
+  hooks.changeTitle();
+  const expectedIcon = href;
+  assert.ok(expectedIcon.startsWith('data:image/'));
+  hooks.changeTitle();
+  assert.equal(titleWrites, 1);
+  assert.equal(iconWrites, 1);
+  title = '宿主标题';
+  icon = { href: 'https://example.com/native.ico' };
+  hooks.changeTitle();
+  assert.equal(doc.title, '订单查询');
+  assert.equal(icon.href, expectedIcon);
 });

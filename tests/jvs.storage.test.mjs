@@ -272,3 +272,23 @@ test('findDesignNameById 按 id 反查逻辑名，未命中返回 null', () => {
   assert.equal(hooks.findDesignNameById('design-1'), '订单查询逻辑');
   assert.equal(hooks.findDesignNameById('unknown'), null);
 });
+
+test('应用目录写入失败后恢复存储：同一会话再次采集可保存', () => {
+  const values = new Map();
+  let writable = false;
+  const { hooks } = loadJvsHooks({
+    localStorage: {
+      getItem: (key) => values.get(key) ?? null,
+      removeItem: (key) => values.delete(key),
+      setItem(key, value) {
+        if (!writable) throw new Error('QuotaExceededError');
+        values.set(key, value);
+      },
+    },
+  });
+  hooks.saveAppIdName('app-1', '应用一');
+  assert.equal(hooks.getAppIdName('app-1'), '');
+  writable = true;
+  hooks.saveAppIdName('app-1', '应用一');
+  assert.equal(hooks.getAppIdName('app-1'), '应用一');
+});
