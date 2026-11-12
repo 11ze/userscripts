@@ -1,4 +1,6 @@
-# AGE 动漫界面设计稿
+# AGE 动漫优化设计稿
+
+统一入口为 `index.html`（屏蔽与评分），通过顶部导航切换到 `search.html`（搜索按钮）。两类场景共用本目录资源与设计记录。
 
 页面参考：[AGE 一周更新](https://www.agedm.io/update)，2026-10-31 获取。`site-reference.html` 保存原站导航和前两组更新列表。`assets/` 保存这部分使用的海报、标志、原站 Bootstrap、Bootstrap Icons 和 main.css；字体地址改为本地路径。原站脚本、登录和导航行为不运行。原站区域使用 iframe，与脚本组件的样式隔离。
 
@@ -30,4 +32,29 @@ python3 designs/agedm/verify-alignment.py /path/to/screenshot.png left top right
 
 ## 脚本验证
 
-执行 `node --test tests/agedm.test.mjs`。入口连续切换、无名单遮罩与背景滚动锁、开关可访问状态、名单移出后的数量刷新，以及图形按钮的名称隔离均有测试。原站页面快照中还需验证滚轮分别作用于网站和名单，按钮的 SVG 与圆形按钮中心一致。此稿对应合并前 0.2.8 的名单与评分外观；当前脚本为 0.3.0，搜索按钮参考 `designs/anime-search/`。
+执行 `node --test tests/agedm.test.mjs`。入口连续切换、无名单遮罩与背景滚动锁、开关可访问状态、名单移出后的数量刷新，以及图形按钮的名称隔离均有测试。原站页面快照中还需验证滚轮分别作用于网站和名单，按钮的 SVG 与圆形按钮中心一致。此稿对应合并前 0.2.8 的名单与评分外观；当前脚本为 0.3.0，搜索按钮见同目录 `search.html`。
+
+## 搜索按钮场景
+
+已选定 A「紧凑图标」。设计稿只保留该方案，所有站点共用样式，无外部设计系统。图标沿用脚本现有 SVG / favicon，详情保留文字。
+
+参考：`src/agedm.user.js` 的现有操作与颜色，以及用户提供的页面：
+
+- https://www.agedm.io/detail/20260139
+- https://www.agedm.io/play/20260139/1/1
+- https://www.bilibili.com/bangumi/play/ep173287
+
+标题来自页面 HTML；AGE 字体取自站点 main.css，B 站标题字号和行高取自 mediainfo_mediaTitle 样式。场景为重绘片段，未复制整站；图标字标是占位，实施时沿用原 favicon。所选方案将操作放在标题下方，避免长标题与按钮挤在同一行。
+
+## 重复验证
+
+在仓库运行 `python3 -m http.server 4312 --directory designs`，打开 http://localhost:4312/agedm/search.html 。
+
+- 画板有 AGE 详情、AGE 播放、B 站三个场景。
+- AGE 详情有 3 个操作，播放有 4 个，B 站有 2 个。
+- 点击画板右上角 Focus 放大；Esc 返回。
+- A 按钮悬停或键盘聚焦显示用途；所有操作均有焦点轮廓。
+- 搜索链接携带完整标题；详情仅在 AGE 播放场景出现。
+- 检查 320px 容器内按钮是否溢出。
+
+视觉稿以浏览器检查为准；脚本修改按 Red → Green 执行，运行 `node --test tests/agedm.test.mjs`。React、ReactDOM、Babel 为固定版本本地副本，画布来自 baoyu-design starter。Babel 的浏览器编译提示适用于原型，正式脚本不引入这些库。

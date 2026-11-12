@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AGE 动漫 · 屏蔽管理设计稿</title>
+  <title>AGE 动漫优化 · 屏蔽与评分设计稿</title>
   <style>
     :root { color-scheme:dark; --bg:#2b2d33; --surface:#343845; --accent:#dc3545; --accent-hover:#c82333; --text:#f0f1f4; --muted:#b1b5c1; --line:rgba(255,255,255,.12); --quiet:rgba(255,255,255,.055); }
     * { box-sizing:border-box; }
@@ -22,6 +22,10 @@
     .preview-bar { background:#202228; border-bottom:1px solid var(--line); padding:12px 28px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
     .preview-bar strong { font-size:13px; font-weight:600; }
     .preview-bar small { color:var(--muted); margin-left:12px; }
+    .preview-nav { display:flex; gap:12px; align-items:center; font-size:12px; }
+    .preview-nav a { color:var(--muted); text-underline-offset:4px; }
+    .preview-nav a[aria-current] { color:var(--text); font-weight:600; }
+    .preview-nav a:focus-visible { outline:2px solid var(--text); outline-offset:3px; }
     .preview-tools { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
     .preview-tools button,.preview-tools select { font-size:12px; padding:6px 10px; }
     select { background:#30333d; color:var(--text); border:1px solid var(--line); border-radius:6px; }
@@ -71,7 +75,8 @@
 <body>
   <!-- 来源：src/agedm.user.js；原站区域来自 https://www.agedm.io/update 的本地 HTML / CSS 快照。 -->
   <aside class="preview-bar" aria-label="设计预览工具">
-    <div><strong>AGE 动漫 / 界面设计稿</strong><small>原站 HTML / CSS · 仅调整脚本组件</small></div>
+    <div><strong>AGE 动漫优化 / 屏蔽与评分</strong><small>原站 HTML / CSS · 仅调整脚本组件</small></div>
+    <nav class="preview-nav" aria-label="设计场景"><a href="index.html" aria-current="page">屏蔽与评分</a><a href="search.html">搜索按钮</a></nav>
     <div class="preview-tools">
       <label for="surface">面板亮度</label>
       <select id="surface"><option value="#343845">原色</option><option value="#2f323c">较暗</option><option value="#3c4150">较亮</option></select>

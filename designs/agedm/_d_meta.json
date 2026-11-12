@@ -8,12 +8,22 @@
         {
           "path": "index.html",
           "createdAt": "2026-10-31T08:43:50.922Z",
-          "status": "approved",
-          "subtitle": "定稿：屏按钮切换面板；分层滚动"
+          "status": "needs-review",
+          "subtitle": "屏蔽与评分；统一场景导航"
+        }
+      ]
+    },
+    "搜索按钮": {
+      "versions": [
+        {
+          "path": "search.html",
+          "createdAt": "2026-10-31T13:50:46.707Z",
+          "status": "needs-review",
+          "subtitle": "AGE、B 站搜索按钮；统一场景导航"
         }
       ]
     }
   },
   "createdAt": "2026-10-31T08:43:50.929Z",
-  "updatedAt": "2026-10-31T09:01:50.636Z"
+  "updatedAt": "2026-11-12T13:32:56.736Z"
 }

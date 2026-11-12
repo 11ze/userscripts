@@ -19,4 +19,4 @@ namespace 和数据键须保持兼容；改名不应改变数据键。确认决�
 
 验证：`node --test tests/agedm.test.mjs`。
 
-- **统一按钮外观**：所有站点共用 A「紧凑图标」方案，设计基准为 `designs/anime-search/index.html`；不维护站点专属按钮主题。操作放在标题下方，解除标题截断以显示按钮和用途提示。图标沿用现有 SVG / favicon，详情保留文字。
+- **统一按钮外观**：所有站点共用 A「紧凑图标」方案，设计基准为 `designs/agedm/search.html`；不维护站点专属按钮主题。操作放在标题下方，解除标题截断以显示按钮和用途提示。图标沿用现有 SVG / favicon，详情保留文字。
