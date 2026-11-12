@@ -2,7 +2,7 @@
 
 已选定 A「紧凑图标」。设计稿只保留该方案，所有站点共用样式，无外部设计系统。图标沿用脚本现有 SVG / favicon，详情保留文字。
 
-参考：`src/anime_search.user.js` 的现有操作与颜色，以及用户提供的页面：
+参考：`src/agedm.user.js` 的现有操作与颜色，以及用户提供的页面：
 
 - https://www.agedm.io/detail/20260139
 - https://www.agedm.io/play/20260139/1/1
@@ -21,4 +21,4 @@
 - 搜索链接携带完整标题；详情仅在 AGE 播放场景出现。
 - 检查 320px 容器内按钮是否溢出。
 
-视觉稿以浏览器检查为准；脚本修改按 Red → Green 执行，运行 `node --test tests/anime_search.test.mjs`。React、ReactDOM、Babel 为固定版本本地副本，画布来自 baoyu-design starter。Babel 的浏览器编译提示适用于原型，正式脚本不引入这些库。
+视觉稿以浏览器检查为准；脚本修改按 Red → Green 执行，运行 `node --test tests/agedm.test.mjs`。React、ReactDOM、Babel 为固定版本本地副本，画布来自 baoyu-design starter。Babel 的浏览器编译提示适用于原型，正式脚本不引入这些库。

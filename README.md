@@ -24,9 +24,9 @@
 
 切换网站的亮暗色模式。
 
-### [搜索动漫](https://openuserjs.org/scripts/11ze/%E6%90%9C%E7%B4%A2%E5%8A%A8%E6%BC%AB)
+### [AGE 动漫优化](src/agedm.user.js)
 
-在哔哩哔哩、AGE 的动漫名称旁添加聚合搜索与豆瓣评分按钮。
+AGE 更新列表屏蔽与名单管理、豆瓣评分记录与展示，以及 AGE、哔哩哔哩、豆瓣的搜索入口。已合并原「搜索动漫」。
 
 ### [查看网址](https://openuserjs.org/scripts/11ze/%E6%9F%A5%E7%9C%8B%E7%BD%91%E5%9D%80)
 

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AGE 动漫 · 屏蔽管理设计稿</title>
+  <style>
+    :root { color-scheme:dark; --bg:#2b2d33; --surface:#343845; --accent:#dc3545; --accent-hover:#c82333; --text:#f0f1f4; --muted:#b1b5c1; --line:rgba(255,255,255,.12); --quiet:rgba(255,255,255,.055); }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif; }
+    button,input,select { font:inherit; }
+    button { cursor:pointer; }
+    button:focus-visible,input:focus-visible,select:focus-visible { outline:2px solid var(--text); outline-offset:3px; }
+    button { color:inherit; border:1px solid var(--line); background:var(--quiet); border-radius:7px; padding:9px 14px; transition:background .15s; }
+    button:hover { background:rgba(255,255,255,.11); }
+    button.primary { background:var(--accent); border-color:transparent; color:#fff; }
+    button.primary:hover { background:var(--accent-hover); }
+    button.danger { color:#ffabb3; background:transparent; border-color:transparent; }
+    button.danger:hover { background:rgba(220,53,69,.12); }
+    button.icon { display:grid; place-items:center; width:32px; height:32px; padding:0; border-color:transparent; background:transparent; font-size:23px; color:var(--muted); }
+    button.icon:hover { background:var(--quiet); color:var(--text); }
+    .preview-bar { background:#202228; border-bottom:1px solid var(--line); padding:12px 28px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+    .preview-bar strong { font-size:13px; font-weight:600; }
+    .preview-bar small { color:var(--muted); margin-left:12px; }
+    .preview-tools { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .preview-tools button,.preview-tools select { font-size:12px; padding:6px 10px; }
+    select { background:#30333d; color:var(--text); border:1px solid var(--line); border-radius:6px; }
+    .entry { position:fixed; top:158px; right:25px; width:40px; height:40px; border:0; border-radius:50%; padding:0; background:var(--accent); color:white; box-shadow:0 4px 16px #0003; }
+    .entry:hover { background:var(--accent-hover); }
+    dialog { color:var(--text); background:var(--surface); border:1px solid rgba(255,255,255,.16); border-radius:14px; padding:0; box-shadow:0 24px 80px #0007; width:440px; max-width:calc(100vw - 32px); max-height:calc(100dvh - 32px); overflow:auto; }
+    #panel { position:fixed; inset:auto; top:50%; left:50%; margin:0; transform:translate(-50%,-50%); z-index:2; overscroll-behavior:contain; }
+    dialog::backdrop { background:rgba(12,14,20,.62); }
+    .modal-head { display:flex; justify-content:space-between; align-items:flex-start; padding:24px 24px 18px; gap:16px; }
+    .eyebrow { color:var(--muted); font-size:11px; letter-spacing:1.4px; margin:0 0 5px; }
+    h2 { margin:0; font-size:20px; font-weight:600; letter-spacing:.2px; }
+    .count { font-size:12px; color:var(--muted); font-weight:400; vertical-align:middle; margin-left:9px; }
+    .enable-row { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; margin:0 24px 16px; border:1px solid var(--line); border-radius:9px; background:var(--quiet); gap:16px; }
+    .switch { width:38px; height:22px; border:0; border-radius:20px; padding:3px; background:var(--accent); flex-shrink:0; }
+    .switch::after { content:""; display:block; width:16px; height:16px; border-radius:50%; background:#fff; transform:translateX(16px); transition:transform .15s; }
+    .switch[aria-checked="false"] { background:#626775; }
+    .switch[aria-checked="false"]::after { transform:translateX(0); }
+    .switch:hover { background:var(--accent-hover); }
+    .list { list-style:none; margin:0; padding:0 24px; max-height:37vh; overflow-y:auto; overscroll-behavior:contain; }
+    .list li { display:flex; justify-content:space-between; align-items:center; gap:20px; padding:15px 0; border-bottom:1px solid var(--line); }
+    .list li:last-child { border:0; }
+    .list li span { overflow-wrap:anywhere; }
+    .list button { padding:5px 10px; font-size:12px; white-space:nowrap; color:var(--muted); background:transparent; }
+    .list button:hover { background:var(--quiet); color:var(--text); }
+    .empty { padding:30px 0 38px; text-align:center; color:var(--muted); }
+    .empty strong { display:block; color:var(--text); font-weight:500; margin-bottom:5px; }
+    .footer { display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--line); padding:16px 24px; margin-top:16px; gap:12px; }
+    .footer-group { display:flex; gap:8px; }
+    .footer button { font-size:12px; padding:7px 12px; }
+    .dialog-body { padding:0 24px 24px; }
+    .dialog-body p { margin:0 0 20px; color:var(--muted); }
+    .dialog-body .target { display:block; padding:14px 16px; margin-bottom:20px; background:var(--quiet); border:1px solid var(--line); border-radius:8px; overflow-wrap:anywhere; }
+    .actions { display:flex; gap:10px; justify-content:flex-end; }
+    .choices { display:grid; gap:10px; }
+    .rating-compare { display:grid; gap:12px; border:1px solid var(--line); background:var(--quiet); padding:16px; border-radius:8px; margin-bottom:20px; }
+    .rating-compare small { display:block; color:var(--muted); margin-bottom:3px; }
+    .score { float:right; font-size:22px; color:#ffb5bd; }
+    label.field { display:block; color:var(--muted); margin-bottom:8px; font-size:12px; }
+    input[type="number"] { width:100%; background:var(--quiet); border:1px solid var(--line); border-radius:8px; padding:12px; color:var(--text); margin-bottom:6px; font-size:22px; }
+    .error { min-height:25px; color:#ffabb3; font-size:12px; margin-bottom:12px; }
+    .toast { position:fixed; bottom:36px; left:50%; transform:translateX(-50%); z-index:10; padding:11px 20px; border:1px solid var(--line); border-radius:9px; background:var(--surface); box-shadow:0 8px 24px #0004; max-width:calc(100vw - 32px); width:max-content; }
+    .toast::before { content:"✓"; margin-right:9px; color:#c6d4cc; }
+    @media(max-width:650px) { .preview-bar { padding:12px 16px; } .preview-bar small { display:block; margin:4px 0 0; } .entry { right:16px; top:auto; bottom:24px; } .modal-head { padding:20px 20px 16px; } .enable-row { margin-left:20px; margin-right:20px; } .list { padding:0 20px; } .footer { padding:16px 20px; } .dialog-body { padding:0 20px 20px; } }
+    @media(prefers-reduced-motion:reduce) { * { transition:none !important; } }
+  </style>
+</head>
+<body>
+  <!-- 来源：src/agedm.user.js；原站区域来自 https://www.agedm.io/update 的本地 HTML / CSS 快照。 -->
+  <aside class="preview-bar" aria-label="设计预览工具">
+    <div><strong>AGE 动漫 / 界面设计稿</strong><small>原站 HTML / CSS · 仅调整脚本组件</small></div>
+    <div class="preview-tools">
+      <label for="surface">面板亮度</label>
+      <select id="surface"><option value="#343845">原色</option><option value="#2f323c">较暗</option><option value="#3c4150">较亮</option></select>
+      <button id="preview-panel">屏蔽名单</button><button id="preview-rating">评分弹窗</button>
+    </div>
+  </aside>
+  <iframe id="site-reference" title="AGE 实际更新页参考" src="site-reference.html" style="display:block;border:0;width:100%;height:calc(100vh - 58px)"></iframe>
+  <button class="entry" id="entry" title="屏蔽管理" aria-label="打开屏蔽管理">屏</button>
+  <dialog id="panel" aria-labelledby="panel-title" data-screen-label="屏蔽管理">
+    <div class="modal-head"><div><h2 id="panel-title">屏蔽名单 <span class="count" id="count"></span></h2></div><button class="icon" data-close aria-label="关闭屏蔽名单">×</button></div>
+    <div class="enable-row"><div><strong id="enabled-title">屏蔽已启用</strong></div><button class="switch" id="toggle" role="switch" aria-checked="true" aria-label="启用屏蔽"></button></div>
+    <ul class="list" id="list"></ul>
+    <div class="footer"><div class="footer-group"><button id="import">导入</button><button id="export">导出</button></div><button class="danger" id="clear">清空名单</button></div>
+    <input type="file" id="file" accept=".json,application/json" hidden>
+  </dialog>
+  <dialog id="confirm" aria-labelledby="confirm-title" data-screen-label="操作确认">
+    <div class="modal-head"><h2 id="confirm-title">确认操作</h2><button class="icon" data-close aria-label="取消操作">×</button></div>
+    <div class="dialog-body"><p id="confirm-desc"></p><strong class="target" id="confirm-target"></strong><div class="actions"><button data-close>取消</button><button class="primary" id="confirm-yes">确认</button></div></div>
+  </dialog>
+  <dialog id="rating" aria-labelledby="rating-title" data-screen-label="评分记录">
+    <div class="modal-head"><div><p class="eyebrow">豆瓣评分</p><h2 id="rating-title">确认动漫名称</h2></div><button class="icon" data-close aria-label="本次不记录">×</button></div>
+    <div class="dialog-body" id="rating-choice"><p>豆瓣结果与搜索词不同，请选择记录方式。</p><div class="rating-compare"><div><small>搜索词</small><strong>葬送的芙莉莲 第二季</strong></div><div><span class="score">9.4</span><small>豆瓣结果</small><strong>葬送的芙莉莲</strong></div></div><div class="choices"><button class="primary" data-rating="已绑定两个名称并记录评分">绑定并记录两条</button><button data-rating="已记录搜索词的评分">仅记录搜索词</button><button id="manual">手动改分</button><button data-close>本次不记录</button></div></div>
+    <form class="dialog-body" id="rating-manual" hidden novalidate><p>为「葬送的芙莉莲 第二季」记录评分。</p><label class="field" for="score-input">评分 / 0–10，最多一位小数</label><input type="number" id="score-input" min="0" max="10" step="0.1" inputmode="decimal" placeholder="例如 9.4" aria-describedby="score-error"><div class="error" id="score-error" aria-live="polite"></div><div class="actions"><button type="button" id="back">返回</button><button type="submit" class="primary">记录评分</button></div></form>
+  </dialog>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <script>
+    'use strict';
+    const $ = (id) => document.getElementById(id);
+    let blocked = ['关于我转生变成史莱姆这档事', '蓝色监狱', '航海王', '示例：名称较长的动漫条目会自动换行，不挤压操作按钮'];
+    let enabled = true;
+    let toastTimer;
+    let pendingAction = null;
+    function notify(message) { clearTimeout(toastTimer); $('toast').textContent = message; $('toast').hidden = false; toastTimer = setTimeout(() => { $('toast').hidden = true; }, 2500); }
+    function showConfirm(title, desc, target, action, label) {
+      $('confirm-title').textContent = title; $('confirm-desc').textContent = desc; $('confirm-target').textContent = target; $('confirm-yes').textContent = label; pendingAction = action; $('confirm').showModal();
+    }
+    function render() {
+      $('count').textContent = `${blocked.length} 项`;
+      $('toggle').setAttribute('aria-checked', String(enabled));
+      $('enabled-title').textContent = enabled ? '屏蔽已启用' : '屏蔽已停用';
+      $('list').replaceChildren();
+      if (!blocked.length) { const item = document.createElement('li'); item.style.display = 'block'; item.innerHTML = `<div class="empty"><strong>暂无屏蔽的动漫</strong>${enabled ? '在动漫卡片上点击 ×，即可加入名单' : '启用屏蔽后，可在卡片上添加动漫'}</div>`; $('list').appendChild(item); }
+      for (const name of blocked) {
+        const li = document.createElement('li'); const text = document.createElement('span'); text.textContent = name;
+        const button = document.createElement('button'); button.textContent = '移出名单'; button.setAttribute('aria-label', `将${name}移出名单`);
+        button.addEventListener('click', () => showConfirm('移出屏蔽名单？', '启用屏蔽时，这部动漫将重新显示在更新页。', name, () => { blocked = blocked.filter((value) => value !== name); render(); notify('已移出屏蔽名单'); }, '移出名单'));
+        li.append(text, button); $('list').appendChild(li);
+      }
+      const frame = $('site-reference'); if (frame.contentWindow) frame.contentWindow.postMessage({type:'agedm-state',enabled,blocked},location.origin);
+
+    }
+    for (const dialog of document.querySelectorAll('dialog')) {
+      dialog.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => dialog.close()));
+      dialog.addEventListener('click', (event) => { if (event.target !== dialog) return; const rect = dialog.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close(); });
+      dialog.addEventListener('close', () => { document.body.style.overflow = document.querySelector('dialog[open]:not(#panel)') ? 'hidden' : ''; });
+    }
+    const modalObserver = new MutationObserver(() => { document.body.style.overflow = document.querySelector('dialog[open]:not(#panel)') ? 'hidden' : ''; });
+    modalObserver.observe(document.body, { subtree:true, attributes:true, attributeFilter:['open'] });
+    $('confirm').addEventListener('close', () => { pendingAction = null; });
+    $('confirm-yes').addEventListener('click', () => { const action = pendingAction; pendingAction = null; $('confirm').close(); if (action) action(); });
+    document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && $('panel').open && !document.querySelector('dialog:modal')) $('panel').close(); });
+    $('entry').addEventListener('click', () => { if ($('panel').open) $('panel').close(); else $('panel').show(); });
+    $('preview-panel').addEventListener('click', () => $('panel').show());
+    $('toggle').addEventListener('click', () => { enabled = !enabled; render(); });
+    $('clear').addEventListener('click', () => { if (!blocked.length) return; showConfirm('清空屏蔽名单？', '清空后，名单中的动漫将重新显示。此操作无法撤销。', `全部 ${blocked.length} 项`, () => { blocked = []; render(); notify('已清空屏蔽名单'); }, '确认清空'); });
+    $('import').addEventListener('click', () => $('file').click());
+    $('file').addEventListener('change', async () => {
+      const file = $('file').files[0]; if (!file) return;
+      try { const data = JSON.parse(await file.text()); if (!Array.isArray(data)) throw new Error(); blocked = [...new Set([...data.filter((name) => typeof name === 'string').map((name) => name.trim()).filter(Boolean), ...blocked])]; render(); notify('已导入并合并名单'); } catch { notify('导入失败：文件需为 JSON 字符串数组'); }
+      $('file').value = '';
+    });
+    $('export').addEventListener('click', () => { const url = URL.createObjectURL(new Blob([JSON.stringify(blocked, null, 2)], { type:'application/json' })); const link = document.createElement('a'); link.href = url; link.download = 'agedm-屏蔽名单-设计稿.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); notify('已导出示例名单'); });
+    function ratingMode(manual) { $('rating-choice').hidden = manual; $('rating-manual').hidden = !manual; $('rating-title').textContent = manual ? '手动记录评分' : '确认动漫名称'; if (manual) $('score-input').focus(); }
+    $('preview-rating').addEventListener('click', () => { ratingMode(false); $('score-input').value = ''; $('score-input').removeAttribute('aria-invalid'); $('score-error').textContent = ''; $('rating').showModal(); });
+    $('manual').addEventListener('click', () => ratingMode(true)); $('back').addEventListener('click', () => ratingMode(false));
+    document.querySelectorAll('[data-rating]').forEach((button) => button.addEventListener('click', () => { $('rating').close(); notify(button.dataset.rating); }));
+    $('rating-manual').addEventListener('submit', (event) => { event.preventDefault(); const raw = $('score-input').value; const score = Number(raw); if (!raw || !Number.isFinite(score) || score < 0 || score > 10 || Math.abs(score * 10 - Math.round(score * 10)) > 1e-8) { $('score-error').textContent = '请输入 0–10 的数字，最多一位小数'; $('score-input').setAttribute('aria-invalid', 'true'); return; } $('score-input').removeAttribute('aria-invalid'); $('rating').close(); notify(`已记录评分 ${score.toFixed(1)}（示例）`); });
+    $('surface').addEventListener('change', () => document.documentElement.style.setProperty('--surface', $('surface').value));
+    addEventListener('message', event => { if(event.origin !== location.origin || event.source !== $('site-reference').contentWindow) return; if(event.data.type === 'agedm-ready') render(); if(event.data.type === 'agedm-block' && typeof event.data.name === 'string') { const name=event.data.name; showConfirm('屏蔽这部动漫？','加入名单后，这部动漫将从更新页隐藏。',name,()=>{blocked=[name,...blocked.filter(value=>value!==name)];render();notify('已加入屏蔽名单');},'确认屏蔽'); } });
+    render();
+  </script>
+</body>
+</html>

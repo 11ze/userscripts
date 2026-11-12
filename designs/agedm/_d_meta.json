@@ -1,0 +1,19 @@
+{
+  "type": "design",
+  "designSystems": [],
+  "primaryDesignSystem": null,
+  "assets": {
+    "AGE 动漫界面设计稿": {
+      "versions": [
+        {
+          "path": "index.html",
+          "createdAt": "2026-10-31T08:43:50.922Z",
+          "status": "approved",
+          "subtitle": "定稿：屏按钮切换面板；分层滚动"
+        }
+      ]
+    }
+  },
+  "createdAt": "2026-10-31T08:43:50.929Z",
+  "updatedAt": "2026-10-31T09:01:50.636Z"
+}
