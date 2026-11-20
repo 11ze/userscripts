@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.26
-// @description 2026-11-11 存储写入失败后可重试，标题与图标按当前 DOM 值恢复并避免重复写入
+// @version     0.8.27
+// @description 2026-11-20 调度器失败指数退避，列表/表单行扫描每 tick 只解析一次日志
 // ==/UserScript==
 
 (function () {
@@ -488,29 +488,67 @@
    * probe 返回 null/undefined 表示本 tick 不适用；键不变时跳过 apply。
    * probe 也可返回 { key, payload } 对象——键对比走 key，payload 直达
    * apply(payload)（probe 采集，apply 消费采到的数据，不二次读取）。
-   * apply 返回 false 时保留待处理键，下一 tick 重试。
-   * apply 成功后才记录键：抛错时键不记录，下一 tick 同键重试（自愈）
+   * apply 返回 false 时保留待处理键；抛错时键同样不记录。
+   * 失败（抛错或返回 false）前两次下一 tick 立即重试，第 3 次起按 2/4/8…（最多 20 tick）指数退避，
+   * 成功后退避计数清零——瞬时故障自愈，持续故障不再每 tick 写盘与刷屏。
    * @param {Array<Function | {name: string, probe: Function, apply: Function}>} operations
    * @param {(name: string, error: unknown) => void} onError - 单个操作出错时的回调
    * @returns {() => void} tick 函数
    */
   function createOperationRunner(operations, onError) {
     const lastKeys = new Map();
+    const failures = new Map();
+    let tickCount = 0;
+
+    // 退避记录带上键：换了目标就该立刻试，不能被上一个目标的失败拖住
+    function recordFailure(operation, key) {
+      const previous = failures.get(operation);
+      const count = previous && previous.key === key ? previous.count + 1 : 1;
+      const delay = count < 3 ? 1 : Math.min(2 ** (count - 2), 20);
+      failures.set(operation, { count, nextTick: tickCount + delay, key });
+    }
 
     return function tick() {
+      tickCount += 1;
       for (const operation of operations) {
-        try {
-          if (typeof operation === 'function') {
+        const failure = failures.get(operation);
+        if (typeof operation === 'function') {
+          if (failure && tickCount < failure.nextTick) continue;
+          try {
             operation();
+            failures.delete(operation);
+          } catch (error) {
+            recordFailure(operation, undefined);
+            onError(operation.name, error);
+          }
+          continue;
+        }
+
+        // 探针自身失败没有键可比，退避期内不再重跑探针
+        if (failure && failure.key === undefined && tickCount < failure.nextTick) continue;
+
+        let key;
+        try {
+          const result = operation.probe();
+          if (result === null || result === undefined) {
+            failures.delete(operation);
             continue;
           }
-
-          const result = operation.probe();
-          if (result === null || result === undefined) continue;
-          const key = result.key ?? result;
-          if (lastKeys.get(operation) === key) continue;
-          if (operation.apply(result.payload) !== false) lastKeys.set(operation, key);
+          key = result.key ?? result;
+          // 键不变才受退避约束；键变了说明换目标，立即执行
+          if (failure && failure.key === key && tickCount < failure.nextTick) continue;
+          if (lastKeys.get(operation) === key) {
+            failures.delete(operation);
+            continue;
+          }
+          if (operation.apply(result.payload) !== false) {
+            lastKeys.set(operation, key);
+            failures.delete(operation);
+          } else {
+            recordFailure(operation, key);
+          }
         } catch (error) {
+          recordFailure(operation, key);
           onError(operation.name, error);
         }
       }
@@ -1703,6 +1741,7 @@
     const selector =
       'div.table-body-box > div > div.el-table__body-wrapper.is-scrolling-none > table > tbody > tr > td:nth-child(2) > div > span > span > div';
     const elements = document.querySelectorAll(selector);
+    let logsCache;
 
     for (const element of elements) {
       const designId = element.innerText.trim();
@@ -1717,7 +1756,9 @@
 
       element.style.whiteSpace = 'normal';
 
-      const targetUrl = getUrlFromLogs(designId, false);
+      // 一个 tick 只解析一次日志，行循环复用；全部行都已标记时不解析
+      logsCache ??= getLogs();
+      const targetUrl = getUrlFromLogs(designId, false, logsCache);
       if (!targetUrl) {
         continue;
       }

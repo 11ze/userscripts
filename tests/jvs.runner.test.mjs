@@ -194,3 +194,109 @@ test('普通函数抛错时 onError 收到函数名', () => {
   assert.equal(errors[0].name, 'brokenOperation');
   assert.equal(errors[0].error.message, 'fn boom');
 });
+
+test('连续失败后指数退避：同一操作不会每 tick 重试', () => {
+  let attempts = 0;
+  let shouldFail = true;
+  const { tick } = createTestRunner([
+    {
+      name: 'flaky',
+      probe: () => 'k',
+      apply() {
+        attempts += 1;
+        if (shouldFail) throw new Error('boom');
+      },
+    },
+  ]);
+
+  for (let i = 0; i < 10; i += 1) tick();
+  assert.equal(attempts, 5, '前 10 tick 只尝试 5 次（第 1/2/3/5/9 tick）');
+
+  shouldFail = false;
+  for (let i = 0; i < 7; i += 1) tick(); // 第 17 tick 到点重试
+  assert.equal(attempts, 6);
+
+  tick();
+  assert.equal(attempts, 6, '成功后键已记录，不再重试');
+});
+
+test('退避计数在成功后清零：再次失败仍下一 tick 立即恢复', () => {
+  let key = 'k1';
+  let fail = true;
+  const attempts = [];
+  const { tick } = createTestRunner([
+    {
+      name: 'flaky',
+      probe: () => key,
+      apply() {
+        attempts.push(key);
+        if (fail) throw new Error('boom');
+      },
+    },
+  ]);
+
+  tick(); // k1 失败 1
+  tick(); // k1 失败 2
+  fail = false;
+  tick(); // k1 成功，计数清零
+  fail = true;
+  key = 'k2';
+  tick(); // k2 失败 1
+  tick(); // 下一 tick 立即重试，不应被旧计数拖住
+
+  assert.equal(attempts.length, 5);
+});
+
+test('apply 返回 false 连续 3 次后同样退避，成功后不再重试', () => {
+  let attempts = 0;
+  let ready = false;
+  const { tick } = createTestRunner([
+    {
+      name: 'pending',
+      probe: () => 'k',
+      apply() {
+        attempts += 1;
+        return ready;
+      },
+    },
+  ]);
+
+  tick();
+  tick();
+  tick();
+  tick(); // 第 3 次失败后跳过
+  assert.equal(attempts, 3);
+
+  ready = true;
+  tick(); // 第 5 tick 到点，成功
+  assert.equal(attempts, 4);
+  tick();
+  assert.equal(attempts, 4, '成功后键已记录');
+});
+
+test('键变化后不沿用旧退避：新键下一 tick 立即执行', () => {
+  let key = 'k1';
+  let fail = true;
+  let attempts = 0;
+  const { tick } = createTestRunner([
+    {
+      name: 'flaky',
+      probe: () => key,
+      apply() {
+        attempts += 1;
+        if (fail) throw new Error('boom');
+      },
+    },
+  ]);
+
+  tick();
+  tick();
+  tick(); // k1 连续失败 3 次，进入退避
+  assert.equal(attempts, 3);
+
+  fail = false;
+  key = 'k2';
+  tick(); // 新键不应被 k1 的退避拖住
+
+  assert.equal(attempts, 4);
+});
