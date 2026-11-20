@@ -6,7 +6,7 @@ Tampermonkey 用户脚本集合：原生 JavaScript，无构建工具、无包�
 
 - 脚本相互独立，禁止跨脚本引入或共享依赖
 - `'use strict'` 严格模式
-- 测试为 `node --test tests/<script>.test.mjs`，通过 `window.__*_TEST__` 条件钩子取用 IIFE 内部函数（浏览器中该钩子永不激活）
+- 测试为 `node --test tests/<script>.test.mjs`，通过 `window.__*_TEST__` 条件钩子取用 IIFE 内部函数（浏览器中该钩子永不激活）；`node --test tests/repo.test.mjs` 校验文档覆盖、元数据与 strict + IIFE 契约
 - 文档只记代码推不出的约束与决策；函数清单、选择器、色值等看代码即知的内容不写
 
 ## 按需阅读
