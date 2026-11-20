@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         AGE 动漫优化
 // @namespace    https://github.com/11ze
-// @version      0.3.0
-// @description  2026-11-12 合并 AGE 屏蔽、豆瓣评分与 AGE / 哔哩哔哩 / 豆瓣跨站搜索，沿用原 AGE 存储格式
+// @version      0.3.1
+// @description  2026-11-20 名单写入前重读、数据一致时不回写；2026-11-12 合并 AGE 屏蔽、豆瓣评分与 AGE / 哔哩哔哩 / 豆瓣跨站搜索，沿用原 AGE 存储格式
 // @author       11ze
 // @license      MIT
 // @match        *://*/*
@@ -406,10 +406,16 @@
   let panelBox = null;
 
   // 镜像仓库：GM 主存（跨设备脚本导入导出会整包覆盖）+ 当前域名 localStorage 镜像（导入碰不到）。
-  // 裁决语义按数据不同（见两个实例），骨架一致：load 读两边→裁决→胜者回写两边；clear 删键不留空值
+  // 裁决语义按数据不同（见两个实例），骨架一致：load 读两边→裁决→两侧不一致时才回写胜者；clear 删键不留空值。
+  // 回写只在必要时发生：每次加载都写会放大写操作，也让另一标签页刚写入的数据更容易被旧快照覆盖。
   function createMirrorStore({ gmKey, mirrorKey, readGm, readMirror, merge }) {
     function load() {
-      const gm = readGm(GM_getValue(gmKey, null));
+      let gm = null;
+      try {
+        gm = readGm(GM_getValue(gmKey, null));
+      } catch {
+        // GM 读异常视同无键，镜像仍可恢复
+      }
       let mirror = null;
       try {
         mirror = readMirror(JSON.parse(localStorage.getItem(mirrorKey)));
@@ -418,22 +424,42 @@
       }
       if (!gm && !mirror) return null;
       const winner = merge(gm, mirror);
-      save(winner);
+      if (JSON.stringify(gm) !== JSON.stringify(winner) || JSON.stringify(mirror) !== JSON.stringify(winner)) {
+        save(winner);
+      }
       return winner;
     }
 
+    // 返回 GM 是否写入成功：镜像写失败可降级，GM 写失败要让调用方有机会提示
     function save(value) {
-      GM_setValue(gmKey, value);
+      let saved = true;
+      try {
+        GM_setValue(gmKey, value);
+      } catch {
+        saved = false;
+      }
       try {
         localStorage.setItem(mirrorKey, JSON.stringify(value));
       } catch {
         // localStorage 不可写（禁 cookie 等）时降级只写 GM，主存仍为准
       }
+      return saved;
     }
 
+    // 返回是否删干净：任一侧失败都要让调用方提示，而不是假装已清空
     function clear() {
-      GM_deleteValue(gmKey);
-      localStorage.removeItem(mirrorKey);
+      let cleared = true;
+      try {
+        GM_deleteValue(gmKey);
+      } catch {
+        cleared = false;
+      }
+      try {
+        localStorage.removeItem(mirrorKey);
+      } catch {
+        cleared = false;
+      }
+      return cleared;
     }
 
     return { load, save, clear };
@@ -471,12 +497,19 @@
     let names = new Set();
 
     function persist() {
-      blockedStore.save({ list: [...names], at: Date.now() });
+      if (!blockedStore.save({ list: [...names], at: Date.now() })) {
+        showToast('名单保存失败，请稍后重试');
+      }
     }
 
     function refresh() {
       scanCards();
       refreshList();
+    }
+
+    // 改名名单前重读存储：另一标签页可能已写入新条目，用启动时的内存快照整包写会把它盖掉
+    function reload() {
+      names = new Set(blockedStore.load()?.list ?? []);
     }
 
     return {
@@ -486,23 +519,31 @@
       has: (name) => names.has(name),
       items: () => [...names],
       add(name) {
+        reload();
         names.add(name);
         persist();
         refresh();
       },
       remove(name) {
+        reload();
         names.delete(name);
         persist();
         refresh();
       },
       clearAll() {
+        // 删键失败时保留内存与面板状态并提示，避免"看着清空了、刷新又回来"
+        if (!blockedStore.clear()) {
+          showToast('清空失败，请重试');
+          return;
+        }
         names.clear();
         // 清空即删键：避免留下"空但有键"的状态与镜像恢复规则互相打架
-        blockedStore.clear();
         refresh();
       },
       replace(list) {
-        names = new Set(list);
+        // 导入是并集语义：先重读，避免另一标签页的新条目被导入结果覆盖
+        reload();
+        names = new Set([...names, ...list]);
         persist();
         refresh();
       },
@@ -733,7 +774,12 @@
 
   function setEnabled(next) {
     enabled = next;
-    GM_setValue(ENABLED_KEY, enabled);
+    try {
+      GM_setValue(ENABLED_KEY, enabled);
+    } catch {
+      // 开关本次仍生效，只是关掉页面后不保留
+      showToast('设置保存失败，本次仅当前页面生效');
+    }
     if (panelBox) {
       panelBox.status.textContent = enabled ? '屏蔽已启用' : '屏蔽已停用';
       panelBox.toggleBtn.setAttribute('aria-checked', String(enabled));
@@ -919,7 +965,12 @@
   function setPromptChoice(query, name, choice) {
     const table = GM_getValue(PROMPT_KEY, {});
     table[`${query}=>${name}`] = { choice, at: Date.now() };
-    GM_setValue(PROMPT_KEY, table);
+    try {
+      GM_setValue(PROMPT_KEY, table);
+    } catch {
+      // 记不住就下次再问，不影响本次评分
+      showToast('偏好保存失败，下次会再询问');
+    }
   }
 
   // 写评分快照：keys 内各名字（绑定后的搜索词+条目名）共用同一条记录；key 统一归一化，
@@ -1567,6 +1618,7 @@
       loadRatings,
       resolveRatingAnswer,
       writeRating,
+      setPromptChoice,
       matchRating,
       normalizeName,
       findDoubanEntry,

@@ -271,11 +271,14 @@ function loadScript({
   initialStore = {},
   initialLocal = {},
   setItemThrows = false,
+  setValueThrows = false,
+  deleteValueThrows = false,
   readyState = 'loading',
   initialScrollY = 0,
 } = {}) {
   const gmStore = new Map(Object.entries(initialStore));
   const localStore = new Map(Object.entries(initialLocal));
+  const writes = { gm: 0, local: 0 };
   const observed = [];
   const observerCallbacks = [];
   const timeouts = [];
@@ -288,6 +291,7 @@ function loadScript({
       getItem: (key) => (localStore.has(key) ? localStore.get(key) : null),
       setItem: (key, value) => {
         if (setItemThrows) throw new Error('QuotaExceededError');
+        writes.local += 1;
         localStore.set(key, String(value));
       },
       removeItem: (key) => localStore.delete(key),
@@ -336,8 +340,13 @@ function loadScript({
       }
     },
     GM_getValue: (key, fallback) => (gmStore.has(key) ? gmStore.get(key) : fallback),
-    GM_setValue: (key, value) => gmStore.set(key, value),
+    GM_setValue: (key, value) => {
+      if (setValueThrows) throw new Error('GM 写失败');
+      writes.gm += 1;
+      gmStore.set(key, value);
+    },
     GM_deleteValue: (key) => {
+      if (deleteValueThrows) throw new Error('GM 删除失败');
       gmStore.delete(key);
     },
     document: {
@@ -370,7 +379,7 @@ function loadScript({
   vm.createContext(sandbox);
   vm.runInContext(source, sandbox, { filename: 'agedm.user.js' });
 
-  return { sandbox, gmStore, localStore, observed, observerCallbacks, cards, timeouts, scrollCalls, rafQueue };
+  return { sandbox, gmStore, localStore, writes, observed, observerCallbacks, cards, timeouts, scrollCalls, rafQueue };
 }
 
 /** 造默认环境跑一轮，取钩子 */
@@ -1621,6 +1630,103 @@ test('双存储：镜像 JSON 损坏视同无键，GM 胜出并修复镜像', ()
   assert.deepEqual([...gmStore.get('agedmBlockedNames').list], ['动漫A']);
   assert.deepEqual(JSON.parse(localStore.get('agedm-blocked-11ze')), { list: ['动漫A'], at: 500 });
   assert.equal(target.col.style.display, 'none');
+});
+
+test('双存储：两边一致时读不回写（避免每次加载写放大）', () => {
+  const entry = { list: ['动漫A'], at: 500 };
+  const { gmStore, localStore, writes } = loadScript({
+    initialStore: { agedmBlockedNames: entry },
+    initialLocal: { 'agedm-blocked-11ze': JSON.stringify(entry) },
+  });
+
+  assert.equal(writes.gm, 0, 'GM 与镜像已一致时不应回写 GM');
+  assert.equal(writes.local, 0, 'GM 与镜像已一致时不应回写镜像');
+  assert.deepEqual([...gmStore.get('agedmBlockedNames').list], ['动漫A']);
+  assert.deepEqual(JSON.parse(localStore.get('agedm-blocked-11ze')).list, ['动漫A']);
+});
+
+test('双存储：另一标签页新增条目后，本页添加不覆盖对方', async () => {
+  const { sandbox, gmStore, localStore } = loadScript({
+    initialStore: { agedmBlockedNames: { list: ['动漫A'], at: 100 } },
+    initialLocal: { 'agedm-blocked-11ze': JSON.stringify({ list: ['动漫A'], at: 100 }) },
+  });
+
+  // 模拟另一标签页已写入：本页启动时的内存快照落后
+  const fromOtherTab = { list: ['动漫A', '动漫B'], at: 200 };
+  gmStore.set('agedmBlockedNames', fromOtherTab);
+  localStore.set('agedm-blocked-11ze', JSON.stringify(fromOtherTab));
+
+  await approveDialog(sandbox, sandbox.__AGEDM_TEST__.hooks.addToBlocked('动漫C'));
+
+  assert.deepEqual([...gmStore.get('agedmBlockedNames').list], ['动漫A', '动漫B', '动漫C']);
+  assert.deepEqual(JSON.parse(localStore.get('agedm-blocked-11ze')).list, ['动漫A', '动漫B', '动漫C']);
+});
+
+test('双存储：GM 写入抛错时提示保存失败，镜像仍落盘', async () => {
+  const { sandbox, localStore } = loadScript({ setValueThrows: true });
+
+  await approveDialog(sandbox, sandbox.__AGEDM_TEST__.hooks.addToBlocked('动漫A'));
+
+  const toast = sandbox.document.body.querySelector('.agedm-11ze-toast');
+  assert.ok(toast, 'GM 写失败应出现 toast');
+  assert.ok(toast.textContent.includes('保存失败'), 'toast 应说明保存失败');
+  assert.deepEqual(JSON.parse(localStore.get('agedm-blocked-11ze')).list, ['动漫A']);
+});
+
+test('双存储：GM 删除键失败时提示清空失败，名单不假装已清空', async () => {
+  const entry = { list: ['动漫A'], at: 500 };
+  const { sandbox, gmStore } = loadScript({
+    initialStore: { agedmBlockedNames: entry },
+    initialLocal: { 'agedm-blocked-11ze': JSON.stringify(entry) },
+    deleteValueThrows: true,
+  });
+
+  await approveDialog(sandbox, sandbox.__AGEDM_TEST__.hooks.clearBlocked());
+
+  const toast = sandbox.document.body.querySelector('.agedm-11ze-toast');
+  assert.ok(toast, '删除失败应出现 toast');
+  assert.ok(toast.textContent.includes('清空失败'), 'toast 应说明清空失败');
+  assert.deepEqual([...gmStore.get('agedmBlockedNames').list], ['动漫A'], 'GM 里删不掉的名单应保留');
+});
+
+test('GM 写失败：切换屏蔽开关提示保存失败，本次仍生效', () => {
+  const card = makeCard('动漫A');
+  const entry = { list: ['动漫A'], at: 500 };
+  const { sandbox } = loadScript({
+    cards: [card],
+    initialStore: { agedmBlockedNames: entry },
+    initialLocal: { 'agedm-blocked-11ze': JSON.stringify(entry) },
+    setValueThrows: true,
+  });
+  const hooks = sandbox.__AGEDM_TEST__.hooks;
+  hooks.scanCards();
+  assert.equal(card.col.style.display, 'none', '预置名单应先隐藏卡片');
+
+  hooks.setEnabled(false);
+
+  assert.equal(card.col.style.display, '', 'GM 写失败也要在本页生效');
+  const toast = sandbox.document.body.querySelector('.agedm-11ze-toast');
+  assert.ok(toast, 'GM 写失败应出现 toast');
+  assert.ok(toast.textContent.includes('保存失败'), 'toast 应说明保存失败');
+});
+
+test('GM 写失败：评分不弹提示，仍写镜像', () => {
+  const { sandbox, localStore } = loadScript({ setValueThrows: true });
+
+  sandbox.__AGEDM_TEST__.hooks.writeRating(['动漫A'], { name: '动漫A', rating: 8 });
+
+  assert.equal(sandbox.document.body.querySelector('.agedm-11ze-toast'), null, '评分写失败不打扰用户');
+  assert.equal(JSON.parse(localStore.get('agedm-douban-ratings-11ze'))['动漫a'].rating, 8);
+});
+
+test('GM 写失败：记住评分选择提示失败，不抛错', () => {
+  const { sandbox } = loadScript({ setValueThrows: true });
+
+  sandbox.__AGEDM_TEST__.hooks.setPromptChoice('海贼王', 'ONE PIECE', 'bind');
+
+  const toast = sandbox.document.body.querySelector('.agedm-11ze-toast');
+  assert.ok(toast, 'GM 写失败应出现 toast');
+  assert.ok(toast.textContent.includes('保存失败'), 'toast 应说明保存失败');
 });
 
 test('样式常量：配色收敛前的硬编码色值不回归，SITE_* 常量在 CSS 模板中被引用', () => {
