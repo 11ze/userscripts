@@ -2,8 +2,8 @@
 // @name            Jump to Top or Bottom
 // @namespace       https://github.com/11ze
 // @author          11ze
-// @description     2026-10-25 修 window 直滚主路径恒不执行（window.scrollHeight 恒 undefined，改文档高度判定）；2026-08-30 为所有网页增加可立即跳转至最大的可滚动区域顶部和底部的按钮
-// @version         0.0.16
+// @description     2026-11-20 包 IIFE 并启用严格模式，内部函数不再泄漏到页面全局；2026-10-25 修 window 直滚主路径恒不执行（window.scrollHeight 恒 undefined，改文档高度判定）
+// @version         0.0.17
 // @icon            data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgBAMAAACBVGfHAAAALVBMVEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD////BHg4sAAAADXRSTlMAK1RVW1x3f4CI+vv8UJ/ShgAAAAFiS0dEDm+9ME8AAABqSURBVCjPY2CgHuCYgCbQexNNwe29DagKjmijKOG448C0dwKKAgYGZCVABQwMyErYjoBIrQKEEgEQwchAb4BuLQfYYdpILoU4HcmluSDPXUcyg+1OADOyAqCSo9bX8QchQ+519GhooKK3APJHHdKCOOK5AAAAAElFTkSuQmCC
 // @match           *
 // @include         *
@@ -11,16 +11,19 @@
 // @license         MIT
 // ==/UserScript==
 
-// ==================== 页面效果 ====================
+(function () {
+  'use strict';
 
-const buttonColor = '247,220,111,0.667'; // 奶黄
+  // ==================== 页面效果 ====================
 
-const topImage =
-  'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABmJLR0QA/wD/AP+gvaeTAAAAe0lEQVRYhe2QOwqAMBAFB0/jXazEwutYehsrz+aviE3SCH4SdQV5A9sEsjMsCCGEuEcDtF/KnR/ziCCf/Tj/Zi4vgQIYMbrEVh4widiTm0ScyV+NuCp/JSJW/mhEqjwqIjtYMAALUANdQkAPVMDkdyWRp358eIcQQvyYFerfNk+Wc2XSAAAAAElFTkSuQmCC';
-const downImage =
-  'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABmJLR0QA/wD/AP+gvaeTAAAAlUlEQVRYhe3QMRLBUBRA0YMxtmIvqajsRCk6W1FYhMKamIyZKCQzmoT8SBTerf979/5HEARB0M7ylztyFFj1kGe44dD0YNoyfMUcx8SIDCcsql1JbFHijk2HubXn9UrsUuWpEV+Vd40YRP5pxKDydxGjyJsiRpXX5JWweJHnY8lr6kv0+vmsR8AFE5yx77EnCILgz3kAzr4zPi4gwh0AAAAASUVORK5CYII=';
+  const buttonColor = '247,220,111,0.667'; // 奶黄
 
-const sameCssText = `opacity:0.3;
+  const topImage =
+    'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABmJLR0QA/wD/AP+gvaeTAAAAe0lEQVRYhe2QOwqAMBAFB0/jXazEwutYehsrz+aviE3SCH4SdQV5A9sEsjMsCCGEuEcDtF/KnR/ziCCf/Tj/Zi4vgQIYMbrEVh4widiTm0ScyV+NuCp/JSJW/mhEqjwqIjtYMAALUANdQkAPVMDkdyWRp358eIcQQvyYFerfNk+Wc2XSAAAAAElFTkSuQmCC';
+  const downImage =
+    'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABmJLR0QA/wD/AP+gvaeTAAAAlUlEQVRYhe3QMRLBUBRA0YMxtmIvqajsRCk6W1FYhMKamIyZKCQzmoT8SBTerf979/5HEARB0M7ylztyFFj1kGe44dD0YNoyfMUcx8SIDCcsql1JbFHijk2HubXn9UrsUuWpEV+Vd40YRP5pxKDydxGjyJsiRpXX5JWweJHnY8lr6kv0+vmsR8AFE5yx77EnCILgz3kAzr4zPi4gwh0AAAAASUVORK5CYII=';
+
+  const sameCssText = `opacity:0.3;
                 -moz-transition-duration:0.2s;
                 -webkit-transition-duration:0.2s;
                 border-radius:5px 5px 5px 5px;
@@ -31,108 +34,109 @@ const sameCssText = `opacity:0.3;
                 right:0px;
                 z-index:9999;`;
 
-function createTopButton() {
-  const cssText = `${sameCssText}
+  function createTopButton() {
+    const cssText = `${sameCssText}
                   background:url("data:image/png;base64,${topImage}")
                   no-repeat scroll 50% 50% rgba(${buttonColor});
                   bottom:50%`;
-  createButton(cssText, true);
-}
-if (self == top) createTopButton();
+    createButton(cssText, true);
+  }
+  if (self == top) createTopButton();
 
-function createBottomButton() {
-  const cssText = `${sameCssText}
+  function createBottomButton() {
+    const cssText = `${sameCssText}
                   background:url("data:image/png;base64,${downImage}")
                   no-repeat scroll 50% 50% rgba(${buttonColor});
                   top:51%`;
-  createButton(cssText, false);
-}
-if (self == top) createBottomButton();
-
-function createButton(cssText, isTop) {
-  const button = document.createElement('span');
-  button.style.cssText = cssText;
-  button.addEventListener(
-    'mouseover',
-    function () {
-      button.style.opacity = 0.8;
-    },
-    false
-  );
-  button.addEventListener(
-    'mouseout',
-    function () {
-      button.style.opacity = 0.2;
-    },
-    false
-  );
-  button.addEventListener(
-    'click',
-    function () {
-      // 三段式滚动：QQ 邮箱特例 → window 直滚 → 常见滚动容器兜底。
-      // QQ 特例最特化须最先：外层文档可滚时 window 直滚会抢走 iframe 邮件内容的滚动。
-      // scrollHeight 是 Element 属性，window 上不存在，须以文档高度判定
-      const target = getTarget();
-      if (target) {
-        target.scrollIntoView({ block: isTop ? 'start' : 'end' });
-        return;
-      }
-
-      if (document.documentElement.scrollHeight > document.documentElement.clientHeight) {
-        window.scrollTo(0, isTop ? 0 : document.documentElement.scrollHeight);
-        return;
-      }
-
-      runScrollableElements(isTop);
-    },
-    false
-  );
-  document.body.appendChild(button);
-}
-
-function getTarget() {
-  // QQ 邮箱邮件详情 https://mail.qq.com/cgi-bin/frame_html
-  const iframe = document.getElementById('mainFrame');
-  if (iframe) {
-    const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
-    const mailText = iframeDocument.getElementById('qqmail_mailcontainer');
-    if (mailText) {
-      return mailText;
-    }
+    createButton(cssText, false);
   }
-}
+  if (self == top) createBottomButton();
 
-function runScrollableElements(isTop) {
-  // 只检查常见的滚动容器,避免选择所有元素
-  const scrollableSelectors = [
-    'div[style*="overflow"]',
-    '[class*="scroll"]',
-    '[id*="scroll"]',
-    'main',
-    '[role="main"]',
-    '.content',
-    '.container',
-    '.scrollable',
-    'article',
-    'section',
-    '.list',
-    '.table',
-    '[class*="list"]',
-  ];
-  const elements = document.querySelectorAll(scrollableSelectors.join(','));
+  function createButton(cssText, isTop) {
+    const button = document.createElement('span');
+    button.style.cssText = cssText;
+    button.addEventListener(
+      'mouseover',
+      function () {
+        button.style.opacity = 0.8;
+      },
+      false
+    );
+    button.addEventListener(
+      'mouseout',
+      function () {
+        button.style.opacity = 0.2;
+      },
+      false
+    );
+    button.addEventListener(
+      'click',
+      function () {
+        // 三段式滚动：QQ 邮箱特例 → window 直滚 → 常见滚动容器兜底。
+        // QQ 特例最特化须最先：外层文档可滚时 window 直滚会抢走 iframe 邮件内容的滚动。
+        // scrollHeight 是 Element 属性，window 上不存在，须以文档高度判定
+        const target = getTarget();
+        if (target) {
+          target.scrollIntoView({ block: isTop ? 'start' : 'end' });
+          return;
+        }
 
-  for (const e of elements) {
-    if (
-      e.scrollHeight > e.clientHeight &&
-      e.scrollHeight > 300 &&
-      e.scrollWidth > 300 &&
-      !e.innerHTML.includes('<html')
-    ) {
-      if (isTop) {
-        e.scrollTo(0, 0);
-      } else {
-        e.scrollTo(0, e.scrollHeight);
+        if (document.documentElement.scrollHeight > document.documentElement.clientHeight) {
+          window.scrollTo(0, isTop ? 0 : document.documentElement.scrollHeight);
+          return;
+        }
+
+        runScrollableElements(isTop);
+      },
+      false
+    );
+    document.body.appendChild(button);
+  }
+
+  function getTarget() {
+    // QQ 邮箱邮件详情 https://mail.qq.com/cgi-bin/frame_html
+    const iframe = document.getElementById('mainFrame');
+    if (iframe) {
+      const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
+      const mailText = iframeDocument.getElementById('qqmail_mailcontainer');
+      if (mailText) {
+        return mailText;
       }
     }
   }
-}
+
+  function runScrollableElements(isTop) {
+    // 只检查常见的滚动容器,避免选择所有元素
+    const scrollableSelectors = [
+      'div[style*="overflow"]',
+      '[class*="scroll"]',
+      '[id*="scroll"]',
+      'main',
+      '[role="main"]',
+      '.content',
+      '.container',
+      '.scrollable',
+      'article',
+      'section',
+      '.list',
+      '.table',
+      '[class*="list"]',
+    ];
+    const elements = document.querySelectorAll(scrollableSelectors.join(','));
+
+    for (const e of elements) {
+      if (
+        e.scrollHeight > e.clientHeight &&
+        e.scrollHeight > 300 &&
+        e.scrollWidth > 300 &&
+        !e.innerHTML.includes('<html')
+      ) {
+        if (isTop) {
+          e.scrollTo(0, 0);
+        } else {
+          e.scrollTo(0, e.scrollHeight);
+        }
+      }
+    }
+  }
+})();

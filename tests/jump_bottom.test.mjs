@@ -35,7 +35,7 @@ function loadScript({ documentHeight = 2000, clientHeight = 800, mail = null, el
   sandbox.window = sandbox;
   vm.runInNewContext(source, sandbox, { filename: 'jump_bottom.user.js' });
   assert.equal(buttons.length, 2, '完整脚本须挂出顶/底两个按钮');
-  return { buttons, scrolls };
+  return { buttons, scrolls, sandbox };
 }
 
 for (const [direction, buttonIndex, targetY] of [['顶部', 0, 0], ['底部', 1, 2000]]) {
@@ -101,4 +101,11 @@ test('文档与候选容器都不可滚时，点击两个按钮不抛错也不�
   buttons[1].click();
 
   assert.deepEqual(scrolls, []);
+});
+
+test('脚本不向页面全局泄漏内部函数（IIFE）', () => {
+  const { sandbox } = loadScript();
+  for (const name of ['createButton', 'getTarget', 'runScrollableElements']) {
+    assert.equal(sandbox[name], undefined, `${name} 不应挂到全局`);
+  }
 });
