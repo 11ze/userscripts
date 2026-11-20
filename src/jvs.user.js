@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.27
-// @description 2026-11-20 调度器失败指数退避，列表/表单行扫描每 tick 只解析一次日志
+// @version     0.8.28
+// @description 2026-11-20 星标补 aria-pressed 与键盘焦点环；2026-11-20 调度器失败指数退避，列表/表单行扫描每 tick 只解析一次日志
 // ==/UserScript==
 
 (function () {
@@ -1873,7 +1873,9 @@
           return;
         }
 
-        star.classList.toggle(markedClass, markedApps.includes(getNodeText(n)));
+        const marked = markedApps.includes(getNodeText(n));
+        star.classList.toggle(markedClass, marked);
+        star.setAttribute('aria-pressed', String(marked));
       });
     }
 
@@ -1912,8 +1914,10 @@
           find: '.' + starClass,
           mount() {
             const star = document.createElement('button');
+            star.type = 'button';
             star.className = starClass;
             star.title = '星标应用';
+            star.setAttribute('aria-label', '星标应用');
             star.innerHTML = STAR_SVG;
             star.addEventListener('click', (event) => {
               event.stopPropagation();
@@ -2638,6 +2642,13 @@ const JVS_STYLES = `
   }
 
   /* 悬停星标本体：变金放大给出可点反馈；:active 同特异性靠后，按下回缩胜出 */
+  /* 键盘 Tab 到未星标卡片时星标仍然隐形：焦点态必须先把 opacity 拉回 1 */
+  .ze-star-btn:focus-visible {
+    opacity: 1;
+    outline: 2px solid #409EFF;
+    outline-offset: 2px;
+  }
+
   .ze-star-btn:hover {
     color: #FAAD14;
     transform: scale(1.2);

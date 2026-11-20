@@ -20,12 +20,13 @@ import { fileURLToPath } from 'node:url';
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const sourcePath = path.join(currentDir, '../src/url_viewer.user.js');
 
-function makeEl(tag) {
+function makeEl(tag, onFocus) {
   const el = {
     tagName: tag,
     id: '',
     className: '',
     textContent: '',
+    focused: false,
     innerHTML: '',
     style: {},
     children: [],
@@ -43,6 +44,16 @@ function makeEl(tag) {
         if (index !== -1) parent.children.splice(index, 1);
       }
       el.parentElement = null;
+    },
+    setAttribute(name, value) {
+      el[name] = String(value);
+    },
+    getAttribute(name) {
+      return name in el ? el[name] : null;
+    },
+    focus() {
+      el.focused = true;
+      if (typeof onFocus === 'function') onFocus(el);
     },
     addEventListener(type, handler) {
       el.listeners[type] = handler;
@@ -111,9 +122,13 @@ function loadScript({ href: pageHref = 'https://example.com/p?x=1#frag#b?y=2' } 
   // 导航事件按发生顺序记录：href 赋值与 reload 的先后是 v0.4.3 修复的契约
   const navigation = { events: [] };
 
-  const body = makeEl('body');
+  const setActive = (node) => {
+    if (document.activeElement) document.activeElement.focused = false;
+    document.activeElement = node;
+  };
+  const body = makeEl('body', setActive);
   const document = {
-    createElement: makeEl,
+    createElement: (tag) => makeEl(tag, setActive),
     getElementById: (id) =>
       body.children.find((child) => child.id === id) ?? null,
     addEventListener(type, handler) {
@@ -126,6 +141,7 @@ function loadScript({ href: pageHref = 'https://example.com/p?x=1#frag#b?y=2' } 
       if (index !== -1) docListeners.splice(index, 1);
     },
     body,
+    activeElement: body,
   };
 
   const location = {
@@ -167,13 +183,18 @@ function loadScript({ href: pageHref = 'https://example.com/p?x=1#frag#b?y=2' } 
     docListeners,
     navigation,
     openFromMenu: () => menuCommands[0].callback(),
+    pressEscape: () => {
+      const keydown = docListeners.find((entry) => entry.type === 'keydown');
+      keydown.handler({ key: 'Escape', preventDefault() {} });
+    },
     pressCtrlU: () => {
       const keydown = docListeners.find((entry) => entry.type === 'keydown');
       keydown.handler({ ctrlKey: true, key: 'u', preventDefault() {} });
     },
-    clickOutside: () => {
+    clickOutside: (target = body) => {
+      target.focus();
       const click = docListeners.find((entry) => entry.type === 'click');
-      click.handler({ target: body });
+      click.handler({ target });
     },
     popupCount: () =>
       body.children.filter((child) => child.id === '11ze-url-reader-popup')
@@ -195,6 +216,55 @@ test('菜单连点两次不叠层：body 里始终只有一个 popup', () => {
   viewer.openFromMenu();
 
   assert.equal(viewer.popupCount(), 1);
+});
+
+test('弹窗语义：role=dialog、aria-label，打开后焦点落在关闭钮', () => {
+  const viewer = loadScript();
+
+  viewer.openFromMenu();
+  const popup = viewer.body.children.find(
+    (child) => child.id === '11ze-url-reader-popup'
+  );
+
+  assert.equal(popup.getAttribute('role'), 'dialog');
+  assert.equal(popup.getAttribute('aria-label'), '网址参数');
+  assert.equal(viewer.findCloseButton(popup).focused, true);
+});
+
+test('Esc 关闭弹窗并摘除 click 监听器', () => {
+  const viewer = loadScript();
+
+  viewer.openFromMenu();
+  viewer.pressEscape();
+
+  assert.equal(viewer.popupCount(), 0);
+  assert.equal(viewer.clickListeners(), 0);
+});
+
+test('关闭后焦点还给打开前的元素', () => {
+  const viewer = loadScript();
+
+  viewer.openFromMenu();
+  viewer.pressEscape();
+
+  assert.equal(viewer.body.focused, true);
+});
+
+test('点外部关闭不抢走点击处焦点', () => {
+  const viewer = loadScript();
+  const opener = viewer.document.createElement('button');
+  opener.id = 'opener';
+  const outsideInput = viewer.document.createElement('input');
+  outsideInput.id = 'outside-input';
+  viewer.body.appendChild(opener);
+  viewer.body.appendChild(outsideInput);
+  opener.focus();
+
+  viewer.openFromMenu();
+  viewer.clickOutside(outsideInput);
+
+  assert.equal(viewer.document.activeElement, outsideInput);
+  assert.equal(outsideInput.focused, true);
 });
 
 test('Ctrl+U 关闭后 document 上无残留 click 监听器', () => {

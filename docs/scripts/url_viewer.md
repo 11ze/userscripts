@@ -7,7 +7,8 @@
 - **编码边界**：编辑模型解析原始 href，先按实际 `#` 分段，再由 URLSearchParams 解码当前层参数；整串 decodeURIComponent 只用于顶部展示，遇裸 `%` 则显示原串。URL 形态（HTTP(S) 或 `/` 开头）的参数值若含 hash，将其路由保存为该参数的子段；子段可编辑，确认时先重建内部路由，再编码回父参数。普通文本中的 `%23` 不分段。禁止把展示用解码串传回模型，否则 `%26`、`%23`、`%2B` 会改变参数边界或含义。
 - **编辑能力边界**：UI 只能改参数值，不能增删行、不能改键——段列表及嵌套归属在会话内稳定；编辑值点「确定」才采纳进模型，「取消」直接按模型重渲染。
 - **导航决策**：`location.href` 赋值是异步导航，跨文档跳转后紧跟 reload 会取消跳转（v0.4.3 教训）；只有 same-document 导航需补 reload。
-- **开关收口**：openViewer/closeViewer 一对函数管 popup 生命周期——两个入口（菜单 / Ctrl+U）、三条关路径（关闭钮 / 点外部 / Ctrl+U）全走它；open 幂等（已开先关）、close 成对摘除 document click 监听器。新增关路径不得绕开 closeViewer 裸 remove（v0.4.5 前三条路径只有点外部摘监听器，其余空转到下次任意点击）。
+- **开关收口**：openViewer/closeViewer 一对函数管 popup 生命周期——两个入口（菜单 / Ctrl+U）、四条关路径（关闭钮 / Esc / 点外部 / Ctrl+U）全走它；open 幂等（已开先关）、close 成对摘除 document click 监听器。新增关路径不得绕开 closeViewer 裸 remove（v0.4.5 前三条路径只有点外部摘监听器，其余空转到下次任意点击）。
+- **弹窗语义与焦点（v0.5.3）**：弹窗 `role="dialog"` + `aria-label="网址参数"`，打开即聚焦底栏关闭钮；Esc 与 Ctrl+U 同级关路径，显式关闭（关闭钮 / Esc / Ctrl+U）把焦点还给打开前的元素（元素已从文档移除则不追）；点外部关闭不归还，焦点留在用户点击处。不加 `aria-modal`、不做焦点陷阱：弹窗允许点外部关闭，承诺 modal 语义会与行为矛盾。
 - **弹窗样式自带 text-align: left**（v0.5.0）：站点页面样式会透进弹窗（example.com 居中排版实测把参数行挤到居中），旧实现靠 host/table 上零散的 textAlign 抵抗，现在弹窗根上一处兜底。
 - **键/值 hover 分离与提示显隐全走 CSS 类**（v0.5.0）：`.pv-key-cell` / `.pv-val-cell` 各有 hover 底色与前景色；`:hover` 不得写成内联样式，**hint 元素的默认 `opacity: 0` 也必须在 GM_addStyle 里**——内联 opacity 会压死 hover 规则（内联样式只输给 `!important`）。「复制值」提示 span 挂在值 span 内部：编辑模式 `replaceWith(input)` 连带移除、取消重建 span 时一并恢复，提示没有残留盖住输入框的路径。编辑态弹窗挂 `.editing` 类，门控编辑态不出现查看态 hover 底色。
 - **段序号徽标只在多段时渲染**（v0.5.0）：单段弹窗的序号没有信息量，多段（iframe 嵌套）场景才需要序号标层级。

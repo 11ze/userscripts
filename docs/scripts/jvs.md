@@ -15,6 +15,7 @@
 - **表单设计组件名常显**：站点 hover 规则直接命中 `.type-name` 本体，加类拦不住，须 `!important` 盖回；覆盖挂在脚本加的类上，未加类的组件不受影响。两版挂不同的类（v0.8.24）：新版 `draggable` 在 `.formitem2` 父级、只 hover 藏名 → `active-formitem2`；旧版 `draggable` 在本体、整条 `.handle-btn` 默认 `display:none` → `active-formitem2-handle` 盖本体。旧版不挂新版的类——会把旧版部分 inline 的 `type-name` 强改成 block。
 - **应用中心星标定稿**：保留宿主布局与应用图标，只强化已星标卡片的浅金底、整圈边框和星形图标；左侧粗竖线、文字徽标已被用户否决。
 - **应用中心星标**：星标按钮不走 `createButton`（皮肤类与星标透明形态冲突）；渲染与点击均现读存储（多标签页同开不互相覆盖）。
+- **星标无障碍（v0.8.28）**：星标是原生 `<button type="button">`，补 `aria-label="星标应用"` 与 `aria-pressed`（随 `handle` 的 marked 结果同步）；未星标时默认 `opacity:0`，必须靠 `.ze-star-btn:focus-visible { opacity:1; outline:2px solid #409EFF; }` 让键盘焦点可见，否则 Tab 到卡片时星标仍是隐形按钮。
 - **只看星标过滤**：JS 只产出一个事实（`body` class）——卡片显隐、整组隐藏、空态提示全由 CSS `:has()` 驱动，按钮激活态也由 body class 派生。坑：空态提示须等第一张卡出现后插进其父级（往容器 prepend 会顶到筛选行上方，曾致 bug）；按钮字号须显式写（旧版挂载点继承值 12px，inherit 拿不到搜索框层的 14px）。
 - **应用中心侧边栏收起**：与只看星标同一范式（body class + CSS 驱动）。坑：展开态 left 每 tick 按侧边栏右缘 rect 校准；收起态 `display:none` 后 rect 归零不可读，只能取固定值。
 - **应用中心地址栏同步**：用 `replaceState` 统一到 `#/wel/index`——不触发 hashchange/vue-router，衔接刷新后 `wel/index` 自动点击；轮询幂等，旧版天然不处理。

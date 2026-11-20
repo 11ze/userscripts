@@ -241,6 +241,9 @@ test('应用中心星标：悬停浮现空心星，悬停星标变金放大，�
   assertDeclaration(styles, '.application:hover .ze-star-btn', 'opacity: 1');
 
   // 悬停星标本体：变金放大给出可点反馈；:active 与 :hover 同特异性、靠后生效，按下回缩
+  assertDeclaration(styles, '.ze-star-btn:focus-visible', 'opacity: 1');
+  assertDeclaration(styles, '.ze-star-btn:focus-visible', 'outline: 2px solid #409EFF');
+  assertDeclaration(styles, '.ze-star-btn:focus-visible', 'outline-offset: 2px');
   assertDeclaration(styles, '.ze-star-btn:hover', 'color: #FAAD14');
   assertDeclaration(styles, '.ze-star-btn:hover', 'transform: scale(1.2)');
   assertDeclaration(styles, '.ze-star-btn:active', 'transform: scale(0.85)');

@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         AGE 动漫优化
 // @namespace    https://github.com/11ze
-// @version      0.3.1
-// @description  2026-11-20 名单写入前重读、数据一致时不回写；2026-11-12 合并 AGE 屏蔽、豆瓣评分与 AGE / 哔哩哔哩 / 豆瓣跨站搜索，沿用原 AGE 存储格式
+// @version      0.3.2
+// @description  2026-11-20 面板按钮/开关/关闭钮补过渡；2026-11-20 名单写入前重读、数据一致时不回写；2026-11-12 合并 AGE 屏蔽、豆瓣评分与 AGE / 哔哩哔哩 / 豆瓣跨站搜索，沿用原 AGE 存储格式
 // @author       11ze
 // @license      MIT
 // @match        *://*/*
@@ -79,6 +79,7 @@
       color: #fff;
       font-size: 15px;
       cursor: pointer;
+      transition: background-color 0.15s ease;
     }
     .${ENTRY_CLASS}:hover { background: ${SITE_ACCENT_HOVER}; }
     .${BTN_CLASS} {
@@ -98,6 +99,7 @@
       box-sizing: border-box;
       place-items: center;
       cursor: pointer;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
     }
     .video_item:hover .${BTN_CLASS}, .video_item:focus-within .${BTN_CLASS} { display: grid; }
     .${BTN_CLASS} svg {
@@ -169,6 +171,7 @@
       border-radius: 20px;
       background: ${SITE_ACCENT};
       cursor: pointer;
+      transition: background-color 0.15s ease;
     }
     .${PANEL_CLASS}-toggle::after {
       content: '';
@@ -178,6 +181,7 @@
       border-radius: 50%;
       background: #fff;
       transform: translateX(16px);
+      transition: transform 0.18s ease;
     }
     .${PANEL_CLASS}-toggle[aria-checked="false"] { background: rgba(255, 255, 255, 0.3); }
     .${PANEL_CLASS}-toggle[aria-checked="false"]::after { transform: translateX(0); }
@@ -216,6 +220,9 @@
       padding: 5px 10px;
       background: transparent;
       color: ${SITE_MUTED};
+    }
+    .${PANEL_CLASS}-list button, .${PANEL_CLASS}-actions button, .${PANEL_CLASS}-close {
+      transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     }
     .${PANEL_CLASS}-list button:hover, .${PANEL_CLASS}-actions button:hover { background: rgba(255, 255, 255, 0.11); }
     .${PANEL_CLASS}-actions {
@@ -311,6 +318,7 @@
       background: transparent;
       color: ${SITE_MUTED};
       cursor: pointer;
+      transition: background-color 0.15s ease;
     }
     .${DIALOG_CLASS}-close svg {
       width: 16px;
@@ -1589,6 +1597,8 @@
     // 测试钩子：浏览器中 __ANIME_SEARCH_TEST__ 不存在，此分支永不执行
     if (window.__ANIME_SEARCH_TEST__) {
       window.__ANIME_SEARCH_TEST__.hooks = {
+        UPDATE_CSS,
+        OVERLAY_CSS,
         detectSite,
         extractTitle,
         uniqueText,
@@ -1611,6 +1621,8 @@
   // 测试钩子：浏览器中 __AGEDM_TEST__ 不存在，此分支永不执行
   if (window.__AGEDM_TEST__) {
     window.__AGEDM_TEST__.hooks = {
+      UPDATE_CSS,
+      OVERLAY_CSS,
       isTargetPage,
       isDoubanSearchPage,
       isAnimePage,

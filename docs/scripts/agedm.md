@@ -20,4 +20,5 @@ namespace 和数据键须保持兼容；改名不应改变数据键。确认决�
 
 验证：`node --test tests/agedm.test.mjs`。
 
+- **面板过渡（v0.3.2）**：入口钮、屏蔽钮、名单/底栏按钮、两个关闭钮都用 `background-color/border-color/color .15s ease`，开关滑块 `transform .18s ease`；与搜索钮的 `.15s` 手感对齐。只给交互件加，弹窗本体不做入场动画——它由 `display` 切换，加过渡反而要引额外状态。
 - **统一按钮外观**：所有站点共用 A「紧凑图标」方案，设计基准为 `designs/agedm/search.html`；不维护站点专属按钮主题。操作放在标题下方，解除标题截断以显示按钮和用途提示。图标沿用现有 SVG / favicon，详情保留文字。

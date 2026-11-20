@@ -742,6 +742,24 @@ test('按钮挂载：图标为 img 元素而非 innerHTML 拼串', () => {
   assert.ok(icon.src.startsWith('data:image/svg+xml'));
 });
 
+test('切换按钮语义：原生 button、aria-label，图标 alt 为空', () => {
+  const { button } = getToggleButton(loadScriptSandbox());
+  const icon = button.children[0];
+
+  assert.equal(button.type, 'button');
+  assert.equal(button.getAttribute('aria-label'), '还原配色');
+  assert.equal(icon.alt, '', '图标纯装饰，读屏只读按钮标签');
+  assert.equal(icon.getAttribute('aria-hidden'), 'true');
+});
+
+test('键盘焦点：反转样式表给按钮双环 :focus-visible', () => {
+  const css = loadScriptHooks().buildReverseColorCss();
+
+  assert.match(css, /\[id='11ze-reverse-color-mode-toggle-button'\]:focus-visible/);
+  assert.match(css, /outline:\s*2px solid #fff/);
+  assert.match(css, /box-shadow:\s*0 0 0 5px/);
+});
+
 test('图标防站点样式污染：img 内联重置 border/outline/padding/background', () => {
   const icon = getToggleButton(loadScriptSandbox()).button.children[0];
   assert.equal(icon.style.border, 'none', '站点 img { border } 在图标上打出方框');

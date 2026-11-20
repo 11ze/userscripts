@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         查看网址
 // @namespace    https://github.com/11ze
-// @version      0.5.1
-// @description  2026-11-11 按 URL 编码层级解析与重建参数，保留嵌套路由编辑，避免编码分隔符与加号改变原义
+// @version      0.5.3
+// @description  2026-11-20 点外部关闭不再抢走点击处焦点；2026-11-20 弹窗补 role=dialog、Esc 关闭、焦点入钮与归还；2026-11-11 按 URL 编码层级解析与重建参数，保留嵌套路由编辑，避免编码分隔符与加号改变原义
 // @author       11ze
 // @license      MIT
 // @match        *://*/*
@@ -595,8 +595,11 @@
     const viewModeGroup = createEl('div', { ...modeGroupStyles, display: 'flex' });
     viewModeGroup.classList.add('view-mode');
 
-    const closeButton = createEl('button', closeButtonStyles, { textContent: '关闭（Ctrl + U）' });
-    closeButton.onclick = closeViewer;
+    const closeButton = createEl('button', closeButtonStyles, {
+      textContent: '关闭（Ctrl + U）',
+      className: 'pv-close',
+    });
+    closeButton.onclick = () => closeViewer();
     setHover(closeButton, { background: COLORS.accentSoft });
 
     if (hasParams) {
@@ -645,8 +648,9 @@
   // 全走这一对函数——open 幂等（已开先关），close 成对摘除 document 监听器
   let activePopup = null;
   let outsideClickHandler = null;
+  let previousFocus = null;
 
-  function closeViewer() {
+  function closeViewer(shouldRestoreFocus = true) {
     if (activePopup) {
       activePopup.remove();
       activePopup = null;
@@ -655,10 +659,23 @@
       document.removeEventListener('click', outsideClickHandler);
       outsideClickHandler = null;
     }
+    // 焦点还给打开前的元素；元素已随 SPA 路由销毁则不追。
+    // 点外部关闭时焦点应留在用户点击处，只有显式关闭才归还。
+    const restoreFocusTarget = previousFocus;
+    previousFocus = null;
+    if (
+      shouldRestoreFocus &&
+      restoreFocusTarget &&
+      typeof restoreFocusTarget.focus === 'function' &&
+      restoreFocusTarget.isConnected !== false
+    ) {
+      restoreFocusTarget.focus();
+    }
   }
 
   function openViewer() {
     closeViewer();
+    previousFocus = document.activeElement;
 
     // 编辑模型保留原始编码边界；整串解码只用于顶部展示。
     const rawHref = window.location.href;
@@ -674,6 +691,8 @@
       id: '11ze-url-reader-popup',
       className: 'popup url-reader-popup',
     });
+    popup.setAttribute('role', 'dialog');
+    popup.setAttribute('aria-label', '网址参数');
 
     // 完整 URL 显示
     const fullUrlLabel = createEl('div', fullUrlLabelStyles, { textContent: '完整 URL' });
@@ -723,12 +742,14 @@
 
     document.body.appendChild(popup);
     popup.style.animation = `${ANIM.slideIn} 0.3s ${ANIM.timing}`;
+    // 打开即聚焦关闭钮，键盘用户不用先 Tab 一圈；不做焦点陷阱，Esc 与点外部都能退出
+    popup.querySelector('.pv-close')?.focus();
 
     // 点击外部关闭
     activePopup = popup;
     outsideClickHandler = (event) => {
       if (!popup.contains(event.target)) {
-        closeViewer();
+        closeViewer(false);
       }
     };
     document.addEventListener('click', outsideClickHandler);
@@ -746,6 +767,11 @@
   GM_registerMenuCommand('查看 (Ctrl + U)', openViewer);
 
   document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && activePopup) {
+      e.preventDefault();
+      closeViewer();
+      return;
+    }
     if (e.ctrlKey && e.key === 'u') {
       e.preventDefault();
       if (activePopup) {

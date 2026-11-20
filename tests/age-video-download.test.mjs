@@ -13,9 +13,12 @@ function loadScript({ readText = async () => '测试视频', writeText = async (
   const downloads = [];
   const opened = [];
   const errors = [];
+  const styles = [];
   const title = { textContent: '测试视频', appendChild(button) { this.button = button; } };
   const document = {
     title: '',
+    head: { appendChild(style) { styles.push(style); } },
+    getElementById(id) { return styles.find((style) => style.id === id) ?? null; },
     querySelector(selector) {
       if (selector === 'div.body_content_wrapper h5') return playerPage ? title : null;
       if (selector === '#iframeForVideo') return { src: 'https://video.example.com/movie.mp4' };
@@ -23,8 +26,20 @@ function loadScript({ readText = async () => '测试视频', writeText = async (
       if (selector === 'video') return playerPage ? null : { src: 'https://video.example.com/movie.mp4' };
       return null;
     },
-    createElement() {
-      return { disabled: false, click() { downloads.push({ href: this.href, download: this.download }); } };
+    createElement(tag) {
+      const attrs = {};
+      return {
+        tagName: tag.toUpperCase(),
+        id: '',
+        disabled: false,
+        className: '',
+        type: '',
+        textContent: '',
+        innerHTML: '',
+        setAttribute(name, value) { attrs[name] = String(value); },
+        getAttribute: (name) => attrs[name] ?? null,
+        click() { downloads.push({ href: this.href, download: this.download }); },
+      };
     },
   };
   const sandbox = {
@@ -43,7 +58,7 @@ function loadScript({ readText = async () => '测试视频', writeText = async (
   };
   sandbox.window = sandbox;
   vm.runInNewContext(source, sandbox, { filename: 'age-video-download.user.js' });
-  return { document, title, downloads, opened, errors, get reads() { return reads; }, get cleared() { return cleared; },
+  return { document, title, styles, downloads, opened, errors, get reads() { return reads; }, get cleared() { return cleared; },
     async tick() { await sandbox.__AGE_VIDEO_DOWNLOAD_TEST__.hooks.main(); await new Promise(setImmediate); },
   };
 }
@@ -123,4 +138,32 @@ test('浏览器拦截新标签页：不覆盖剪贴板，按钮仍可用', async
   await page.title.button.onclick();
   assert.equal(writes, 0);
   assert.equal(page.title.button.disabled, false);
+});
+
+
+test('播放按钮：类名命中、原生 button、aria-label 与内联播放图标', async () => {
+  const page = loadScript({ playerPage: true });
+  await page.tick();
+  const button = page.title.button;
+
+  assert.equal(button.className, 'age-11ze-newTabButton');
+  assert.equal(button.type, 'button');
+  assert.equal(button.getAttribute('aria-label'), '在新页面播放并下载视频');
+  assert.match(button.innerHTML, /<svg[\s>]/);
+  assert.doesNotMatch(button.innerHTML, /📺/);
+});
+
+test('播放按钮样式：30px 深色图标钮，含 hover/焦点/禁用态，且只注入一次', async () => {
+  const page = loadScript({ playerPage: true });
+  await page.tick();
+  await page.tick();
+
+  assert.equal(page.styles.length, 1);
+  const css = page.styles[0].textContent;
+  assert.match(css, /width:\s*30px/);
+  assert.match(css, /height:\s*30px/);
+  assert.match(css, /border-radius:\s*8px/);
+  assert.match(css, /:hover/);
+  assert.match(css, /:focus-visible/);
+  assert.match(css, /:disabled/);
 });

@@ -127,6 +127,22 @@ test('点击加星：另一标签页已写入的星标不被旧快照覆盖', ()
   assert.deepEqual(readMarked(), ['应用A', '应用B', '应用C']);
 });
 
+test('星标按钮语义：原生 button、aria-label，aria-pressed 跟随状态', () => {
+  const card = makeCard('应用C');
+  const { hooks } = loadScriptHooks([card]);
+
+  hooks.highlightApps();
+  assert.equal(card.star.type, 'button');
+  assert.equal(card.star.getAttribute('aria-label'), '星标应用');
+  assert.equal(card.star.getAttribute('aria-pressed'), 'false');
+
+  card.star.click();
+  assert.equal(card.star.getAttribute('aria-pressed'), 'true');
+
+  card.star.click();
+  assert.equal(card.star.getAttribute('aria-pressed'), 'false');
+});
+
 test('点击取消星标：另一标签页已写入的星标不被旧快照覆盖', () => {
   const card = makeCard('应用C');
   const { hooks, readMarked, writeMarked } = loadScriptHooks([card]);

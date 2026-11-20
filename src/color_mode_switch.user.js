@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         亮暗色切换
 // @namespace    https://github.com/11ze
-// @version      0.1.7
-// @description  2026-11-11 采集冻结+解冻前逐元素落定+补偿链剥离，transition:filter 站点原滤镜不被污染、启停不闪
+// @version      0.1.8
+// @description  2026-11-20 切换按钮补 aria-label、空 alt 与键盘焦点环；2026-11-11 采集冻结+解冻前逐元素落定+补偿链剥离，transition:filter 站点原滤镜不被污染、启停不闪
 // @author       11ze
 // @match        *://*/*
 // @run-at       document-start
@@ -100,6 +100,14 @@
       :fullscreen :is(img, video, iframe, canvas, svg),
       :fullscreen [id='${TOGGLE_CONTAINER_ID}'] {
         filter: var(--11ze-original-filter, none) !important;
+      }
+
+      /* 按钮只在反转开启时显示：白线 + 黑带双环，亮暗页都看得见；
+         box-shadow 用 !important 压过按钮内联的常态阴影，失焦后自动恢复 */
+      [id='11ze-reverse-color-mode-toggle-button']:focus-visible {
+        outline: 2px solid #fff;
+        outline-offset: 2px;
+        box-shadow: 0 0 0 5px rgba(0, 0, 0, 0.85) !important;
       }
     `;
   }
@@ -400,8 +408,9 @@
 
     const icon = createEl('img', STYLES.icon, {
       src: ICON_SUN_DATA_URI,
-      alt: 'sun',
+      alt: '',
     });
+    icon.setAttribute('aria-hidden', 'true');
 
     const tooltip = createEl('span', STYLES.tooltip, {
       textContent: '还原配色',
@@ -409,7 +418,9 @@
 
     const toggleButton = createEl('button', STYLES.button, {
       id: '11ze-reverse-color-mode-toggle-button',
+      type: 'button',
     });
+    toggleButton.setAttribute('aria-label', '还原配色');
     toggleButton.appendChild(icon);
     toggleButton.appendChild(tooltip);
 

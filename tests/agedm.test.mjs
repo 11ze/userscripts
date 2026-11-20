@@ -1917,6 +1917,18 @@ test('合并：B 站与豆瓣条目页仍提供搜索，且不创建 AGE 数据'
     return loadScriptSandbox().__ANIME_SEARCH_TEST__.hooks;
   }
 
+  test('面板交互件有过渡：按钮 .15s，开关滑块 .18s', () => {
+    const hooks = loadScriptHooks();
+    const update = hooks.UPDATE_CSS;
+    const overlay = hooks.OVERLAY_CSS;
+
+    assert.match(update, /\.agedm-11ze-panel-toggle \{[^}]*transition: background-color 0\.15s ease/);
+    assert.match(update, /\.agedm-11ze-panel-toggle::after \{[^}]*transition: transform 0\.18s ease/);
+    assert.match(update, /\.agedm-11ze-panel-list button,[^}]*transition: background-color 0\.15s ease/);
+    assert.match(update, /\.agedm-11ze-entry \{[^}]*transition: background-color 0\.15s ease/);
+    assert.match(overlay, /\.agedm-11ze-dialog-close \{[^}]*transition: background-color 0\.15s ease/);
+  });
+
   test('测试钩子暴露三个函数', () => {
     const hooks = loadScriptHooks();
     assert.equal(typeof hooks.uniqueText, 'function');

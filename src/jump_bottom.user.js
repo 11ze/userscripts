@@ -2,8 +2,8 @@
 // @name            Jump to Top or Bottom
 // @namespace       https://github.com/11ze
 // @author          11ze
-// @description     2026-11-20 包 IIFE 并启用严格模式，内部函数不再泄漏到页面全局；2026-10-25 修 window 直滚主路径恒不执行（window.scrollHeight 恒 undefined，改文档高度判定）
-// @version         0.0.17
+// @description     2026-11-20 顶/底按钮改为原生 button，补焦点态、aria-label 与样式表，修移开后比初始更淡；2026-10-25 修 window 直滚主路径恒不执行（window.scrollHeight 恒 undefined，改文档高度判定）
+// @version         0.0.18
 // @icon            data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgBAMAAACBVGfHAAAALVBMVEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD////BHg4sAAAADXRSTlMAK1RVW1x3f4CI+vv8UJ/ShgAAAAFiS0dEDm+9ME8AAABqSURBVCjPY2CgHuCYgCbQexNNwe29DagKjmijKOG448C0dwKKAgYGZCVABQwMyErYjoBIrQKEEgEQwchAb4BuLQfYYdpILoU4HcmluSDPXUcyg+1OADOyAqCSo9bX8QchQ+519GhooKK3APJHHdKCOOK5AAAAAElFTkSuQmCC
 // @match           *
 // @include         *
@@ -16,59 +16,67 @@
 
   // ==================== 页面效果 ====================
 
-  const buttonColor = '247,220,111,0.667'; // 奶黄
+  const STYLE_ID = '11ze-jump-button-style';
 
   const topImage =
     'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABmJLR0QA/wD/AP+gvaeTAAAAe0lEQVRYhe2QOwqAMBAFB0/jXazEwutYehsrz+aviE3SCH4SdQV5A9sEsjMsCCGEuEcDtF/KnR/ziCCf/Tj/Zi4vgQIYMbrEVh4widiTm0ScyV+NuCp/JSJW/mhEqjwqIjtYMAALUANdQkAPVMDkdyWRp358eIcQQvyYFerfNk+Wc2XSAAAAAElFTkSuQmCC';
   const downImage =
     'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABmJLR0QA/wD/AP+gvaeTAAAAlUlEQVRYhe3QMRLBUBRA0YMxtmIvqajsRCk6W1FYhMKamIyZKCQzmoT8SBTerf979/5HEARB0M7ylztyFFj1kGe44dD0YNoyfMUcx8SIDCcsql1JbFHijk2HubXn9UrsUuWpEV+Vd40YRP5pxKDydxGjyJsiRpXX5JWweJHnY8lr6kv0+vmsR8AFE5yx77EnCILgz3kAzr4zPi4gwh0AAAAASUVORK5CYII=';
 
-  const sameCssText = `opacity:0.3;
-                -moz-transition-duration:0.2s;
-                -webkit-transition-duration:0.2s;
-                border-radius:5px 5px 5px 5px;
-                cursor:pointer;
-                position:fixed;
-                width:40px;
-                height:40px;
-                right:0px;
-                z-index:9999;`;
-
-  function createTopButton() {
-    const cssText = `${sameCssText}
-                  background:url("data:image/png;base64,${topImage}")
-                  no-repeat scroll 50% 50% rgba(${buttonColor});
-                  bottom:50%`;
-    createButton(cssText, true);
+  // 两个按钮在 50% 处相接：固定像素缝会随视口高度变形，百分比缝又会露出页面
+  function injectStyles() {
+    if (document.getElementById(STYLE_ID)) return;
+    const style = document.createElement('style');
+    style.id = STYLE_ID;
+    style.textContent = `
+      .jb-11ze-btn {
+        position: fixed;
+        right: 8px;
+        z-index: 9999;
+        box-sizing: border-box;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        border: 1px solid rgba(24, 24, 27, 0.12);
+        border-radius: 10px;
+        background-color: rgba(247, 220, 111, 0.667);
+        background-repeat: no-repeat;
+        background-position: 50% 50%;
+        background-size: 20px 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+        cursor: pointer;
+        opacity: 0.55;
+        transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      .jb-11ze-btn:hover,
+      .jb-11ze-btn:focus-visible,
+      .jb-11ze-btn:active { opacity: 1; }
+      .jb-11ze-btn:hover { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18); }
+      .jb-11ze-btn:focus-visible { outline: 2px solid #18181b; outline-offset: 2px; }
+      .jb-11ze-btn:active { transform: scale(0.94); }
+      .jb-11ze-top {
+        bottom: 50%;
+        background-image: url("data:image/png;base64,${topImage}");
+      }
+      .jb-11ze-bottom {
+        top: 50%;
+        background-image: url("data:image/png;base64,${downImage}");
+      }
+    `;
+    document.head.appendChild(style);
   }
-  if (self == top) createTopButton();
 
-  function createBottomButton() {
-    const cssText = `${sameCssText}
-                  background:url("data:image/png;base64,${downImage}")
-                  no-repeat scroll 50% 50% rgba(${buttonColor});
-                  top:51%`;
-    createButton(cssText, false);
+  if (self == top) {
+    injectStyles();
+    createButton(true);
+    createButton(false);
   }
-  if (self == top) createBottomButton();
 
-  function createButton(cssText, isTop) {
-    const button = document.createElement('span');
-    button.style.cssText = cssText;
-    button.addEventListener(
-      'mouseover',
-      function () {
-        button.style.opacity = 0.8;
-      },
-      false
-    );
-    button.addEventListener(
-      'mouseout',
-      function () {
-        button.style.opacity = 0.2;
-      },
-      false
-    );
+  function createButton(isTop) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `jb-11ze-btn ${isTop ? 'jb-11ze-top' : 'jb-11ze-bottom'}`;
+    button.setAttribute('aria-label', isTop ? '回到顶部' : '回到底部');
     button.addEventListener(
       'click',
       function () {
