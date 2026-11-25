@@ -7,7 +7,7 @@ import vm from 'node:vm';
 
 const source = fs.readFileSync(new URL('../src/jump_bottom.user.js', import.meta.url), 'utf8');
 
-function loadScript({ documentHeight = 2000, clientHeight = 800, mail = null, elements = [] } = {}) {
+function loadScript({ documentHeight = 2000, clientHeight = 800, mail = null, mainFrame = null, elements = [] } = {}) {
   const buttons = [];
   const scrolls = [];
   const styles = [];
@@ -41,7 +41,8 @@ function loadScript({ documentHeight = 2000, clientHeight = 800, mail = null, el
       getElementById(id) {
         const style = styles.find((entry) => entry.id === id);
         if (style) return style;
-        if (id !== 'mainFrame' || !mail) return null;
+        if (id !== 'mainFrame') return null;
+        if (mainFrame || !mail) return mainFrame;
         return { contentDocument: { getElementById: (id) => id === 'qqmail_mailcontainer' ? mail : null } };
       },
       querySelectorAll: () => elements,
@@ -70,6 +71,21 @@ for (const [direction, buttonIndex, targetY] of [['顶部', 0, 0], ['底部', 1,
     assert.deepEqual(scrolls, [[0, targetY]]);
   });
 }
+
+test('跨域 mainFrame 不阻断外层页面回顶和回底', () => {
+  const mainFrame = {
+    contentDocument: null,
+    contentWindow: {
+      get document() { throw new DOMException('跨域访问', 'SecurityError'); },
+    },
+  };
+  const { buttons, scrolls } = loadScript({ mainFrame });
+
+  buttons[1].click();
+  buttons[0].click();
+
+  assert.deepEqual(scrolls, [[0, 2000], [0, 0]]);
+});
 
 for (const [direction, buttonIndex, block] of [['顶部', 0, 'start'], ['底部', 1, 'end']]) {
   test(`QQ 邮件与外层文档均可滚：点击${direction}按钮只滚动邮件`, () => {

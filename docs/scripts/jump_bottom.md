@@ -1,7 +1,7 @@
 # jump_bottom.user.js 架构
 
 - **window 直滚判定**：`scrollHeight` 是 Element 属性，`window.scrollHeight` 恒 `undefined`——主路径曾是死分支，v0.0.16 改 `document.documentElement.scrollHeight > clientHeight` 判定（无匹配容器的长页按钮曾无效）。
-- **QQ 邮箱特例**：邮件详情页滚动目标在 mainFrame iframe 内，走 `scrollIntoView` 特例（https://mail.qq.com/cgi-bin/frame_html）。
+- **QQ 邮箱特例**：邮件详情页滚动目标在 mainFrame iframe 内，走 `scrollIntoView` 特例（https://mail.qq.com/cgi-bin/frame_html）。遇到同名跨域 iframe 时跳过邮件特例，继续滚动外层文档或候选容器。
 - **全局隔离**：v0.0.17 起包 IIFE 并启用严格模式。此前 `createButton` 等函数声明挂在页面全局，任意站点都有撞名风险；`self == top` 仍为宽松相等（保持原行为）。
 - **按钮语义（v0.0.18）**：`<span>` 换成原生 `<button type="button">`，补 `aria-label`（回到顶部/回到底部），Tab 可聚焦、Enter/Space 可触发；只在顶层 frame 注入，`@match *` 下 iframe 不重复建钮。
 - **状态收进 CSS（v0.0.18）**：常态 `opacity:.55`，`:hover`/`:focus-visible`/`:active` 统一到 1，删除 JS 的 mouseover/mouseout 改透明度。旧实现移开后落到 0.2，比初始 0.3 更淡，是缺陷不是设计。

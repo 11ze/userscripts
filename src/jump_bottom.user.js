@@ -2,8 +2,8 @@
 // @name            Jump to Top or Bottom
 // @namespace       https://github.com/11ze
 // @author          11ze
-// @description     2026-11-20 顶/底按钮改为原生 button，补焦点态、aria-label 与样式表，修移开后比初始更淡；2026-10-25 修 window 直滚主路径恒不执行（window.scrollHeight 恒 undefined，改文档高度判定）
-// @version         0.0.18
+// @description     2026-11-25 修复页面含跨域 mainFrame 时回顶和回底按钮失效
+// @version         0.0.19
 // @icon            data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgBAMAAACBVGfHAAAALVBMVEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD////BHg4sAAAADXRSTlMAK1RVW1x3f4CI+vv8UJ/ShgAAAAFiS0dEDm+9ME8AAABqSURBVCjPY2CgHuCYgCbQexNNwe29DagKjmijKOG448C0dwKKAgYGZCVABQwMyErYjoBIrQKEEgEQwchAb4BuLQfYYdpILoU4HcmluSDPXUcyg+1OADOyAqCSo9bX8QchQ+519GhooKK3APJHHdKCOOK5AAAAAElFTkSuQmCC
 // @match           *
 // @include         *
@@ -104,13 +104,7 @@
   function getTarget() {
     // QQ 邮箱邮件详情 https://mail.qq.com/cgi-bin/frame_html
     const iframe = document.getElementById('mainFrame');
-    if (iframe) {
-      const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
-      const mailText = iframeDocument.getElementById('qqmail_mailcontainer');
-      if (mailText) {
-        return mailText;
-      }
-    }
+    return iframe?.contentDocument?.getElementById('qqmail_mailcontainer');
   }
 
   function runScrollableElements(isTop) {
