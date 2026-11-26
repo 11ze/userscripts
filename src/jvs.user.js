@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.28
-// @description 2026-11-20 星标补 aria-pressed 与键盘焦点环；2026-11-20 调度器失败指数退避，列表/表单行扫描每 tick 只解析一次日志
+// @version     0.8.29
+// @description 2026-11-26 新版逻辑设计节点不用 hover 也按类型上色，类型名与说明取自节点组件数据
 // ==/UserScript==
 
 (function () {
@@ -1176,8 +1176,8 @@
     // 旧版 JVS，逻辑设计，所有在用可拖拽组件，改颜色
     paintComponents('div.jvs-rule-node.ef-node-container.jtk-droppable', 'innerText');
 
-    // 新版 JVS，逻辑设计，所有在用可拖拽组件，改颜色
-    paintComponents('.jvs-rule-node.ef-node-container', 'textContent');
+    // 新版 JVS，逻辑设计，所有在用可拖拽组件，改颜色（类型名取自节点组件数据）
+    paintComponents('.jvs-rule-node.ef-node-container', 'textContent', newNodeTypeText);
 
     // 设置侧边栏可选组件的颜色
     paintComponents('.getItem', 'innerText');
@@ -1208,11 +1208,12 @@
    * 给选择器命中的组件按类型上色（背景 + 边框）
    * @param {string} selector - 组件选择器
    * @param {'innerText' | 'textContent'} textProperty - 参与匹配的文本属性
+   * @param {(component: HTMLElement) => string} [typeText] - 接在 DOM 文本后的类型文本（如取自宿主数据）
    */
-  function paintComponents(selector, textProperty) {
+  function paintComponents(selector, textProperty, typeText) {
     const components = document.querySelectorAll(selector);
     for (const component of components) {
-      const text = component[textProperty].trim();
+      const text = (component[textProperty] + ' ' + (typeText ? typeText(component) : '')).trim();
       for (const typeToColor of COMPONENT_TYPE_COLORS) {
         if (typeToColor.types.some((t) => text.includes(t))) {
           // 颜色没变就不写 style：每 tick 轮询下省掉重复的样式重算
@@ -1225,6 +1226,23 @@
         }
       }
     }
+  }
+
+  /**
+   * 新版逻辑设计节点的类型文本，接在 DOM 文本后参与匹配
+   * 节点自身文字只有可改的实例名，组件类型名不在 DOM 里——hover 一次才有颜色的根因；
+   * 类型名与说明从节点组件的数据里现读（说明文字 hover 后会出现在弹层里，
+   * 一并纳入，hover 前后判色一致），结构对不上返回空串（退回只按 DOM 文本匹配）。
+   * 带 jtk-droppable 的是旧版节点（类名同样命中新版选择器），不给——旧版只按 DOM 文本匹配
+   * @param {HTMLElement} component
+   * @returns {string}
+   */
+  function newNodeTypeText(component) {
+    if (component.classList.contains('jtk-droppable')) {
+      return '';
+    }
+    const data = component.__vue__?.$props?.itemData?.node?.data;
+    return [data?.functionName, data?.explain].filter((text) => typeof text === 'string').join(' ');
   }
 
   /**
@@ -2806,6 +2824,7 @@ const JVS_STYLES = `
   if (window.__JVS_TEST__) {
     window.__JVS_TEST__.hooks = {
       createOperationRunner: createOperationRunner,
+      adjustInterfaceAndComponentStyle: adjustInterfaceAndComponentStyle,
       paintComponents: paintComponents,
       showFormDesignComponentNames: showFormDesignComponentNames,
       createLogEntry: createLogEntry,
