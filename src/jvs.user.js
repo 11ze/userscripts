@@ -7,8 +7,8 @@
 // @grant       GM_addStyle
 // @license     MIT
 // @author      11ze
-// @version     0.8.29
-// @description 2026-11-26 新版逻辑设计节点不用 hover 也按类型上色，类型名与说明取自节点组件数据
+// @version     0.8.30
+// @description 2026-11-28 日志栏拖动把手图标固定黑色，不随按钮模式换色
 // ==/UserScript==
 
 (function () {
@@ -2546,11 +2546,10 @@ const JVS_STYLES = `
     cursor: pointer;
   }
 
-  /* 日志栏共享样式：仿应用内 Element plain 蓝 */
+  /* 日志栏共享皮肤：仿应用内 Element plain 蓝；字色分列，拖拽把手不跟模式换色 */
   .button-11ze,
   .drag-handle-11ze {
     background-color: white !important;
-    color: #409EFF !important;
     border: 1px solid #B3D8FF !important;
     border-radius: 8px !important;
     padding: 6px 10px !important;
@@ -2564,6 +2563,11 @@ const JVS_STYLES = `
   .drag-handle-11ze:hover {
     background-color: #ECF5FF !important;
     border-color: #409EFF !important;
+  }
+
+  /* 日志按钮平时 plain 蓝；模式色规则由 buildModeColorCss 追加，特异性更高 */
+  .button-11ze {
+    color: #409EFF !important;
   }
 
   /* 日志按钮整钮随模式换色：规则由 buildModeColorCss 从 MODE_COLORS 生成（文件末尾拼接注入） */
@@ -2587,6 +2591,11 @@ const JVS_STYLES = `
     justify-content: center;
     cursor: move;
     user-select: none;
+  }
+
+  /* 拖拽把手图标常黑：不跟随日志按钮的模式色（测试绿/正式红），容器限定压过共享蓝字 */
+  #ze-jvs-log-container > .drag-handle-11ze {
+    color: black !important;
   }
 
   .ze-logic-name-display {

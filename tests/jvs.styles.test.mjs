@@ -318,10 +318,18 @@ test('全局按钮：仿应用内 plain 蓝，去重阴影，hover 只动底色�
   const hooks = loadScriptHooks();
   const styles = hooks.getStyles();
 
-  // 共享块两组选择器共用，锚在末选择器上——helper 按字面匹配「选择器 {」，
+  // 皮肤块两组选择器共用，锚在末选择器上——helper 按字面匹配「选择器 {」，
   // 首行 .button-11ze 因组内逗号结尾匹配不上（返回 null 而非误命中）
-  assertDeclaration(styles, '.drag-handle-11ze', 'color: #409EFF !important');
+  assertDeclaration(styles, '.button-11ze', 'color: #409EFF !important');
   assertDeclaration(styles, '.drag-handle-11ze', 'border: 1px solid #B3D8FF !important');
+
+  // 拖拽把手字色常黑，不跟按钮的模式色（测试绿/正式红）变
+  assertDeclaration(
+    styles,
+    '#ze-jvs-log-container > .drag-handle-11ze',
+    'color: black !important'
+  );
+  assert.doesNotMatch(styles, /\.drag-handle-11ze\[data-mode/, '拖拽把手不接模式换色钩子');
   assert.doesNotMatch(
     getBlock(styles, '.drag-handle-11ze'),
     /box-shadow/,
